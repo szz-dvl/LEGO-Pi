@@ -17,13 +17,14 @@
 
 enum lports { L_PORT0 = 15, L_PORT1 = 30, L_PORT2 = 14, L_PORT3 = 31 };
 
-extern int an_fd;
+//extern int an_fd;
 
 struct analog_device {
    
   int type;
   int port;
   int lpin;
+  bool l_on;
 
 };
 

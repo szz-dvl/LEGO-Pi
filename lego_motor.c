@@ -412,7 +412,7 @@ int mot_reconf(MOTOR * m, ENC * e1, ENC * e2){
 
   if(ret){
     if(ecount(m) == 0){
-      fatal("mot_reconf: Configuration let motor %d without encoders, shutting down...", m->id);
+      fatal("mot_reconf: Configuration let motor %d without encoders, shutting down...\n", m->id);
     } else {
       m->ticsxturn = ecount(m) == 1 ? 360 : 720;
       ret = OK;

@@ -15,7 +15,7 @@
 #define ENC_RES		4
 
 MOTOR motor1, motor2;
-int an_fd;
+//int an_fd;
 
 //ENC enc11, enc21, enc12, enc22;
 
@@ -81,7 +81,6 @@ extern void isr_print_1(void){
       printf("Hi, I'm the ISR 1\n");
   }
 }
-
 extern void isr_print_2(void){
   if(m2->moving){
     m2->enc1->tics++;
@@ -669,6 +668,7 @@ time.tv_nsec = 0;
        
        printf ("motor: %d, vel: %d, ttc: %f, kp: %f, ki: %f, kd: %f, calib: %s, turns: %d\n", m->id, vel, ttc, kp, ki, kd, calib ? "true" : "false", turns);
        
+       set_verbose(LOG_LVL_DBG);
        mot_reconf(m, NULL, NULL); //back to defaults
        pid_setgains(m->pid, kp ,ki ,kd);
        m->pid->ttc = ttc;
@@ -713,6 +713,7 @@ time.tv_nsec = 0;
        
        //int turns = argc < 9 ? 10 : atoi(argv[8]);
        
+       set_verbose(LOG_LVL_DBG);
        printf ("vel: %d, ttc: %f, kp: %f, ki: %f, kd: %f, calib: \"%s\"\n", vel, ttc, kp, ki, kd, calib ? "true" : "false");
        
        mot_reconf(m1, NULL, NULL); //back to defaults
@@ -745,6 +746,7 @@ time.tv_nsec = 0;
      break;;
    case 11:
      {
+       set_verbose(LOG_LVL_DBG);
        int vel = argc < 3 ? 70 : atoi(argv[2]);
        double ttc = argc < 4 ? TTCDEF : atof(argv[3]);
        double kp = argc < 5 ? 1 : atof(argv[4]);
@@ -793,19 +795,42 @@ time.tv_nsec = 0;
    case 12: //analogs rapidillu
      {
        int times = argc < 3 ? 5 : atoi(argv[2]), i;
-       ANDVC push, light;       
-       double lres, pres;
+       ANDVC push, l1, l2, l3;       
+       double lres1, lres2, lres3;
        set_verbose(LOG_LVL_ADV);
        
-       new_analog(&push, 1, PUSH);
-       new_analog(&light,0, LIGHT);
-       
+       new_analog(&push, 3, PUSH);
+       new_analog(&l1,0, LIGHT);
+       new_analog(&l2,1, LIGHT);
+       new_analog(&l3,2, LIGHT);
+
        for(i=0; i<times; i++){
 	 while(!analog_pushed(&push));
-	 lres = analog_read_voltage(&light);
-       	 pres = analog_read_voltage(&push);
-	 printf("LIGHT says: %.2f, PUSH says: %.2f\n", lres, pres);
-	 sleep(2);
+	
+	 if (l1.l_on) {
+	   printf("entro l1 light on\n");
+	   analog_light_off(&l1);
+	 } else { 
+	   analog_light_on(&l1);
+	   printf("entro l1 light off\n");
+	 }
+	 if (l2.l_on)
+	   analog_light_off(&l2);
+	 else
+	   analog_light_on(&l2);
+
+	 if (l3.l_on)
+	   analog_light_off(&l3);
+	 else
+	   analog_light_on(&l3);
+	 
+	 sleep(1);
+	 
+	 lres1 = analog_read_voltage(&l1);
+	 lres2 = analog_read_voltage(&l2);
+	 lres3 = analog_read_voltage(&l3);
+	 printf("LIGHT_1 says: %.2f, LIGHT_2 says: %.2f, LIGHT_3 says: %.2f\n", lres1, lres2, lres3);
+	 
        }
      }
      break;;

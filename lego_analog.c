@@ -2,7 +2,7 @@
 
 //#define NEVER_HAPPENS   4
 
-//extern int an_fd;
+int an_fd;
 
 static int SPIreceive (int, uint8_t [], int);
 
@@ -30,13 +30,7 @@ static int SPIreceive (int fd, uint8_t resp[], int chann) {
 
   retval = ioctl (fd, SPI_IOC_MESSAGE(1), &spi) ;
 
-/*   printf("Received :\n") ;
-   for (i = 0; i < LEN; i++)
-		printf("%u, ", resp[i]) ;
-
-printf("\n") ;*/
-
-   return retval ;
+  return retval ;
 }
 
 extern void analog_setup() {
@@ -62,8 +56,15 @@ extern int new_analog ( ANDVC* dvc, int port, int type ) {
     if( type != LIGHT && type != PUSH ) {
       not_critical("new_analog: type must be %d (LIGHT) or %d (PUSH)\n", LIGHT, PUSH);
       ret = FAIL;
-    } else 
+    } else {
       dvc->type = type;
+      if (type == LIGHT) {
+	dvc->l_on = false;
+	//pinMode(dvc->lpin, INPUT);
+	pinMode(dvc->lpin, OUTPUT);
+      } else
+	dvc->l_on = false;	
+    }
   }
 
   return ret;
@@ -77,9 +78,10 @@ extern int analog_light_on (ANDVC* dvc){
   if (dvc->type != LIGHT) {
     not_critical("analog_light_on: Device type must be %d (LIGHT)\n", LIGHT);
     ret = FAIL;
-  } else 
-    digitalWrite(dvc->lpin, HIGH);
-
+  } else if (!(dvc->l_on)) {
+    pinMode(dvc->lpin, INPUT); //little hack
+    dvc->l_on = true;
+  }
   return ret;
 }
 
@@ -90,8 +92,10 @@ extern int analog_light_off (ANDVC* dvc){
   if (dvc->type != LIGHT) {
     not_critical("analog_light_off: Device type must be %d (LIGHT)\n", LIGHT);
     ret = FAIL;
-  } else 
-    digitalWrite(dvc->lpin, LOW);
+  } else if (dvc->l_on) {
+    pinMode(dvc->lpin, OUTPUT); //little hack
+    dvc->l_on = false;
+  }
   
   return ret;
 }
