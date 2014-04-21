@@ -33,3 +33,6 @@ void not_critical (char *fmt, ...);
 void debug (char *fmt, ...);
 void setup_sighandlers(void);
 
+///extern void lego_init (void);
+//extern void lego_shutdown (void);
+//extern void set_verbose (int);

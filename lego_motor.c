@@ -2,6 +2,8 @@
 
 TSPEC t11, t12, t21, t22;
 
+MOTOR motor1, motor2;
+
 MOTOR * m1 = &motor1;
 MOTOR * m2 = &motor2;
 
@@ -259,34 +261,35 @@ void init_motors(){
   }
 */
 
-int motor_new ( ENC * e1, ENC * e2, int id ){
+int motor_new ( MOTOR * m, ENC * e1, ENC * e2, int id ){
   
   
   if (id != 1 && id != 2)
     fatal("motor_new: id \"%d\" out of range\n", id);
     
   else {
-    
-    MOTOR * m = id == 1 ? m1 : m2;
-    m->id = id;
-    m->enc1 = (ENC *)malloc(sizeof(ENC));
-    m->enc2 = (ENC *)malloc(sizeof(ENC));
-    m->pid  = (PID *)malloc(sizeof(PID));
+    MOTOR * maux;
+    maux = id == 1 ? m1 : m2;
+    maux->id = id;
+    maux->enc1 = (ENC *)malloc(sizeof(ENC));
+    maux->enc2 = (ENC *)malloc(sizeof(ENC));
+    maux->pid  = (PID *)malloc(sizeof(PID));
     
     if (id == 1) {
-      m1 = m;
-      e11 = m->enc1;
-      e12 = m->enc2;
+      //m1 = m;
+      e11 = maux->enc1;
+      e12 = maux->enc2;
     } else {
-      m2 = m;
-      e21 = m->enc1;
-      e22 = m->enc2;
+      //m2 = m;
+      e21 = maux->enc1;
+      e22 = maux->enc2;
     }
     
-    if (!conf_motor(m,e1,e2)){
-      not_critical("motor_new: Error configurating motor %d\n", id);
+    if (!conf_motor(maux,e1,e2)){
+      not_critical("motor_new: Error configuring motor %d\n", id);
       return FAIL;
-    }
+    } else
+      m = maux;
     
   }
   
@@ -300,38 +303,7 @@ int start_pwm(){
   return ((spwm_setup(PWIG_DEF, HW_PWM) == 0) ? OK : FAIL);
 
 }
-/*
-static void setup_sighandlers(void){
 
-  int i;
-  for (i = 0; i < 64; i++) {
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-    
-    if( i != 17 && i != 26) { //avoid sigchld and sigalrm
-      sa.sa_handler = (void *) terminate;
-      sigaction(i, &sa, NULL);
-    } else if ( i == 26 ){
-      sa.sa_handler = (void *) handl_alrm;
-      sigaction(i, &sa, NULL);
-    }
-  }
-}
-
-static void handl_alrm(void) {}
-
-
-static void terminate(void) {
-  
-  spwm_shutdown();
-  unexportall();
-  gsl_interp_accel_free(m1->pid->accelM);
-  gsl_interp_accel_free(m2->pid->accelM);
-  gsl_interp_accel_free(m1->pid->accelD);
-  gsl_interp_accel_free(m2->pid->accelD);
-  exit(EXIT_SUCCESS);
-}
-*/
 static int conf_motor(MOTOR * mot, ENC * enc1, ENC * enc2){   //ALLOCATE accelerador interpolació per aki...
 
   int cenc = 0, ret, res_pwm_init;

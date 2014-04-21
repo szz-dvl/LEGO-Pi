@@ -14,15 +14,14 @@
 #define MAXM		20
 #define ENC_RES		4
 
-MOTOR motor1, motor2;
+//MOTOR motor1, motor2;
 //int an_fd;
 
 //ENC enc11, enc21, enc12, enc22;
 
 TSPEC t11, t12, t21, t22;
 
-MOTOR * m1 = &motor1;
-MOTOR * m2 = &motor2;
+MOTOR * m1, * m2;
 
 double *acum4 = NULL, *acum3 = NULL, *acum2 = NULL, *acum1 = NULL;
 
@@ -152,63 +151,70 @@ double pcoef2[MAX_COEF] = { 5784.08437837837846018373966217041015625, 4445.20846
 double dcoef2[MAX_COEF] = { 1129.16526209913718048483133316040039062, 883.12832455475847837078617885708808899, 819.31381796521941396349575370550155640, 742.33985454770515843847533687949180603, 685.03265188058412604732438921928405762, 666.17199380024021593271754682064056396, 627.18803536872428594506345689296722412, 599.68030858976464969600783661007881165, 585.16856491592193378892261534929275513, 571.32514217480252227687742561101913452, 553.57073691453115316107869148254394531, 548.80894970490135165164247155189514160, 537.02872878985044735600240528583526611, 525.58145446398498279449995607137680054, 506.85942229072389864086289890110492706, 487.50514143674456590815680101513862610, 439.71799989441075240392819978296756744, 425.31908384162727543298387899994850159, 411.85678335247609993530204519629478455, 409.68090676785232062684372067451477051, 0.0 };
 
 
-int main (int argc, char * argv[]){
+int main (int argc, char * argv[]) {
 
+  int tst = argc < 2 ? 1 : atoi(argv[1]);
+  
+  ENC en11, en12, en21, en22;
+  //PID p1, p2;
+  
+  /*e11.pin = M1_ENC1;
+    e11.isr = &dbg_isr_11;
+    e12.pin = ENULL;
+    e12.isr = NULL;
+    e21.pin = M2_ENC1;
+    e21.isr = &dbg_isr_21;
+    e22.pin = ENULL;
+    e22.isr = NULL;
+    
+    
+    e11.pin = ENULL;
+    e11.isr = NULL;
+    e12.pin = M1_ENC2;
+    e12.isr = &dbg_isr_12;
+    e21.pin = ENULL;
+    e21.isr = NULL;
+    e22.pin = M2_ENC2;
+    e22.isr = &dbg_isr_22;
+  */
 
-int tst = argc < 2 ? 1 : atoi(argv[1]);
+  /*p1.svel = MAX_COEF;
+    cptable(p1.cp, MAX_COEF , pcoef1);
+    cptable(p1.cd, MAX_COEF , dcoef1);
+    
+    p2.svel = MAX_COEF;
+    cptable(p2.cp, MAX_COEF , pcoef2);
+    cptable(p2.cd, MAX_COEF , dcoef2);
+  */
+  
+  //MOTOR mot1, mot2;
 
-ENC en11, en12, en21, en22;
-//PID p1, p2;
+  //MOTOR motor1, motor2;
 
-/*e11.pin = M1_ENC1;
-e11.isr = &dbg_isr_11;
-e12.pin = ENULL;
-e12.isr = NULL;
-e21.pin = M2_ENC1;
-e21.isr = &dbg_isr_21;
-e22.pin = ENULL;
-e22.isr = NULL;
+  //MOTOR * mot1;
+  //MOTOR * mot2;
+  
+  en11.pin = M1_ENC1;
+  en11.isr = &dbg_isr_11;
+  en12.pin = M1_ENC2;
+  en12.isr = &dbg_isr_12;
+  en21.pin = M2_ENC1;
+  en21.isr = &dbg_isr_21;
+  en22.pin = M2_ENC2;
+  en22.isr = &dbg_isr_22;
 
+  lego_init();
 
-e11.pin = ENULL;
-e11.isr = NULL;
-e12.pin = M1_ENC2;
-e12.isr = &dbg_isr_12;
-e21.pin = ENULL;
-e21.isr = NULL;
-e22.pin = M2_ENC2;
-e22.isr = &dbg_isr_22;
-*/
+  int ret = motor_new(m1, &en11, &en12, 1) ? OK : FAIL;
+  ret = ret ? motor_new(m2, &en21, &en22, 2) ? OK : FAIL : FAIL;
 
-/*p1.svel = MAX_COEF;
-cptable(p1.cp, MAX_COEF , pcoef1);
-cptable(p1.cd, MAX_COEF , dcoef1);
+  ret = ret ? pid_conf(m1, pcoef1, dcoef1) ? OK : FAIL : FAIL;
+  ret = ret ? pid_conf(m2, pcoef2, dcoef2) ? OK : FAIL : FAIL;
 
-p2.svel = MAX_COEF;
-cptable(p2.cp, MAX_COEF , pcoef2);
-cptable(p2.cd, MAX_COEF , dcoef2);
-*/
-
-//MOTOR mot1, mot2;
-
-en11.pin = M1_ENC1;
-en11.isr = &dbg_isr_11;
-en12.pin = M1_ENC2;
-en12.isr = &dbg_isr_12;
-en21.pin = M2_ENC1;
-en21.isr = &dbg_isr_21;
-en22.pin = M2_ENC2;
-en22.isr = &dbg_isr_22;
-
-lego_init();
-
-int ret = motor_new(&en11, &en12, 1) ? OK : FAIL;
-ret = ret ? motor_new( &en21, &en22, 2) ? OK : FAIL : FAIL;
-
-ret = ret ? pid_conf( m1, pcoef1, dcoef1) ? OK : FAIL : FAIL;
-ret = ret ? pid_conf( m2, pcoef2, dcoef2) ? OK : FAIL : FAIL;
-
+  //m1=mot1;
+  //m2=mot2;
 //get_in("Ready??", 0);
+
 struct timespec time;
 
 

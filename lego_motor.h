@@ -15,18 +15,18 @@
 #define PW2V(x)     	        (x / (MAX_PW/MAX_VEL))
 #define CLK_ID		        CLOCK_PROCESS_CPUTIME_ID
 #define MAX_VEL		        200 /*si 9V y VEL = 160 es comportara com amb bateries de LEGO */
-#define ENULL		       -1	/* Encoder desactivat */
+#define ENULL		        -1	/* Encoder desactivat */
 #define SETUP		        INT_EDGE_SETUP
 #define RISING		        INT_EDGE_RISING
 #define MAX_COEF	        21
-#define MIN_COEF	         5      /* AKIMA spline conditions */
-#define PIDNULL		         0
-#define PIDDEF		         1
-#define TTCDEF		         55.7
-#define MIN_VEL		         10
-#define ST_US		         20000
-#define USXT_MIN                 700
-#define USXT_MAX                 7000
+#define MIN_COEF	        5      /* AKIMA spline conditions */
+#define PIDNULL		        0
+#define PIDDEF		        1
+#define TTCDEF		        55.7
+#define MIN_VEL		        10
+#define ST_US		        20000
+#define USXT_MIN                700
+#define USXT_MAX                7000
 
 
 typedef pthread_mutex_t MUTEX;
@@ -76,12 +76,12 @@ enum mot2 {M2_PINF = 25, M2_PINR = 18, M2_ENC1 = 24, M2_ENC2 = 23, M2_CHANN = 1}
 
 	/* End Cosillas del debug */
 
-extern MOTOR  motor1;
-extern MOTOR  motor2;
+//extern MOTOR  motor1;
+//extern MOTOR  motor2;
 
 extern bool wait_for_stop(MOTOR *, double);
 extern void init_motors(void);
-extern int motor_new(ENC *, ENC *, int);
+extern int motor_new(MOTOR * m , ENC * e1, ENC * e2, int id);
 extern int mot_stop(MOTOR *, bool reset);
 extern int move_t (MOTOR *, int, char *, int, double);
 extern void wfmtr (MOTOR *);

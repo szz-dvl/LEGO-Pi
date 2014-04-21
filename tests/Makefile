@@ -1,12 +1,11 @@
-DESTDIR=../
-
+DESTDIR=./
 
 DEBUG	= -g -O2
 CC	= gcc
 INCLUDE	= -I.
 CFLAGS = $(DEBUG) -Wall
 LIBS = -lwiringPi -lrt -llego -lgsl -lgslcblas
-TARGET = test install
+
 
 KNRM = \e[0m"
 KRED = "\e[31m
@@ -14,37 +13,34 @@ KRED = "\e[31m
 # Should not alter anything below this line
 ###############################################################################
 
-EXE = lego_test interpolation
+EXE = interpol digitst legotst
 
-SRC = lego_test.c interpolation.c
+all: $(EXE)
 
-OBJ = $(SRC:.c=.o)
 
-all:	$(EXE)
+legotst:
+	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
+	@$(CC) $(CFLAGS) lego_test.c $(LIBS) -o lego_test
 
-%.o: %.c 
-	 @$(CC) $(CFLAGS) -c $< -o $@
+interpol:
+	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
+	@$(CC) $(CFLAGS) interpolation.c $(LIBS) -o interpol
 
-$(EXE): $(OBJ)
-	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@ 
-	@$(CC) $< -o $@ $(LIBS)
+digitst:
+	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
+	@$(CC) $(CFLAGS) digital_test.c $(LIBS) -o digi_test
 
 .PHONEY: clean
 clean:
 	@/bin/echo -e $(KRED)[Cleaning Tests]$(KNRM)
-	@rm -f $(OBJ) *~ core tags Makefile.bak lego_test interpolation
-
-.PHONEY: install
-install: $(TEST)
-	@/bin/echo -e $(KRED)[Install Tests]$(KNRM)
-	@install -m 0755 lego_test $(DESTDIR)
-	@install -m 0755 interpolation $(DESTDIR)
+	@rm -f *.o *~ core tags Makefile.bak
 
 .PHONEY: uninstall
 uninstall:
 	@/bin/echo -e $(KRED)[UnInstall Tests]$(KNRM)
 	@rm -f $(DESTDIR)/lego_test
-	@rm -f $(DESTDIR)/interpolation
+	@rm -f $(DESTDIR)/interpol
+	@rm -f $(DESTDIR)/digi_test
 
-lego_test.o: $(DESTDIR)lego.h 
+
 

@@ -1,6 +1,18 @@
-#include "lego.h"
+//#include "lego.h"
+#include "lego_shared.h"
+#include "lego_motor.h"
+#include "lego_analog.h"
+#include "lego_digital.h"
 
-static int pr_criticals = QUIET;
+//#include <lego/lego_i2c.h>
+
+#define PRINT            1
+#define QUIET            0
+#define LOG_LVL_DBG      2
+#define LOG_LVL_ADV      1
+#define LOG_LVL_FATAL    0
+
+static int pr_criticals = PRINT;
 static int pr_debug = QUIET;
 
 static void LEGO_shutdown (void);
@@ -49,12 +61,15 @@ void set_verbose (int lvl) {
   if (lvl == LOG_LVL_FATAL) {
     pr_criticals = QUIET;
     pr_debug = QUIET;
+    i2c_set_loglvl(LOG_QUIET);
   } else if (lvl == LOG_LVL_ADV) {
     pr_criticals = PRINT;
     pr_debug = QUIET;
+    i2c_set_loglvl(LOG_QUIET);
   } else if (lvl == LOG_LVL_DBG) {
     pr_criticals = PRINT;
     pr_debug = PRINT;
+    i2c_set_loglvl(LOG_PRINT);
   } else 
     printf("Log level \"%d\" out of bounds\n", lvl);
     
