@@ -3,7 +3,7 @@
 //#include <gsl/gsl_math.h>
 //#include <gsl/gsl_statistics.h>
 
-#include <lego/lego_motor.h>
+#include <lego.h>
 #include <gsl/gsl_sort.h>
 
 #define STATS_SIZE	18
@@ -203,7 +203,7 @@ int main (int argc, char * argv[]) {
   en22.pin = M2_ENC2;
   en22.isr = &dbg_isr_22;
 
-  mt_init();
+  lego_init();
 
   int ret = mt_new(m1, &en11, &en12, 1) ? OK : FAIL;
   ret = ret ? mt_new(m2, &en21, &en22, 2) ? OK : FAIL : FAIL;
@@ -252,8 +252,8 @@ time.tv_nsec = 0;
        }else
 	 printf("\n");
        
-       printf("MOTOR 1: %d,%d,%d,%d\n", (int)m1->pinf, (int)m1->pinr, is_null(m1->enc1) ? ENULL : (int)m1->enc1->pin, is_null(m1->enc2) ? ENULL : (int)m1->enc2->pin);
-       printf("MOTOR 2: %d,%d,%d,%d\n", (int)m2->pinf, (int)m2->pinr, is_null(m2->enc1) ? ENULL : (int)m2->enc1->pin, is_null(m2->enc2) ? ENULL : (int)m2->enc2->pin);
+       printf("MOTOR 1: %d,%d,%d,%d\n", (int)m1->pinf, (int)m1->pinr, mt_enc_is_null(m1->enc1) ? ENULL : (int)m1->enc1->pin, mt_enc_is_null(m1->enc2) ? ENULL : (int)m1->enc2->pin);
+       printf("MOTOR 2: %d,%d,%d,%d\n", (int)m2->pinf, (int)m2->pinr, mt_enc_is_null(m2->enc1) ? ENULL : (int)m2->enc1->pin, mt_enc_is_null(m2->enc2) ? ENULL : (int)m2->enc2->pin);
 
        if(!mt_move(m1,"fwd", vel))
 	 printf("mot_fwd FAIL!");
@@ -276,8 +276,8 @@ time.tv_nsec = 0;
        /*	if (pid)
 		join_threads();*/
 
-       mt_move_t(m1, tticks(m1, turns), "fwd", vel, 0); mt_wait(m1); //moure  un motor en direccio "fwd", al vel% de la velocitat maxima, fins a fer "turns" voltes
-       ticks = get_ticks(m1);
+       mt_move_t(m1, mt_tticks(m1, turns), "fwd", vel, 0); mt_wait(m1); //moure  un motor en direccio "fwd", al vel% de la velocitat maxima, fins a fer "turns" voltes
+       ticks = mt_get_ticks(m1);
        printf("tics received: %d\n", ticks);
      }
      break;;
@@ -298,10 +298,10 @@ time.tv_nsec = 0;
        /*m->pid->kp = gains;
 	 m->pid->ki = gains;
 	 m->pid->kd = gains;*/
-       printf("MOTOR: %d,%d,%d,%d\n", (int)m->pinf, (int)m->pinr, is_null(m->enc1) ? ENULL : (int)m->enc1->pin, is_null(m->enc2) ? ENULL : (int)m->enc2->pin);
+       printf("MOTOR: %d,%d,%d,%d\n", (int)m->pinf, (int)m->pinr, mt_enc_is_null(m->enc1) ? ENULL : (int)m->enc1->pin, mt_enc_is_null(m->enc2) ? ENULL : (int)m->enc2->pin);
        
        init_acums(turns, m);
-       thread_rtn = mt_move_t(m, tticks(m, turns), "f", vel, pctr);
+       thread_rtn = mt_move_t(m, mt_tticks(m, turns), "f", vel, pctr);
        while (m->moving == true){
 	 printf("moving\n");
 	 sleep(1);
@@ -321,8 +321,8 @@ time.tv_nsec = 0;
        init_acums(turns, m);
        reset_acums(turns, m);
        mt_wait_for_stop(m,2);
-       reset_encoders(m);
-       thread_rtn = mt_move_t(m, tticks(m, turns), "f", vel, 0);mt_wait(m);
+       mt_reset_enc(m);
+       thread_rtn = mt_move_t(m, mt_tticks(m, turns), "f", vel, 0);mt_wait(m);
        
        mt_wait_for_stop(m,1);
        int tot = mt_get_ticks(m);
@@ -395,7 +395,7 @@ time.tv_nsec = 0;
        RESULT res[MAXM/step], res2[MAXM/step];
        RFIVE data [MAXM/step];
        
-       mt_pid_setnull(m->pid);
+       mt_pid_set_null(m->pid);
        init_acums((int)MAXM, m);
        
        for (turns = step; turns <= MAXM; turns += step){
@@ -403,9 +403,9 @@ time.tv_nsec = 0;
 	 index = ((turns/step)-1);
 	 mt_wait_for_stop(m, 0.3);
 	 reset_acums((int)MAXM, m);
-	 reset_encoders(m);
+	 mt_reset_enc(m);
 	 clock_gettime(CLK_ID, &tini);
-	 mt_move_t(m, tticks(m, turns), "f", vel,0);mt_wait(m);
+	 mt_move_t(m, mt_tticks(m, turns), "f", vel,0);mt_wait(m);
 	 ticks = mt_get_ticks(m);
 	 clock_gettime(CLK_ID, &taux);
 	 enano = (taux.tv_nsec - tini.tv_nsec);
@@ -481,7 +481,7 @@ time.tv_nsec = 0;
        init_acums(5000, m);
        reset_acums(5000, m);
        printf("tot activat, m_e1: %d, m_e2: %d,\n", e1->pin, e2->pin);
-       ticks = mt_move_t(m, tticks(m, turns), "f", vel, 0); mt_wait(m);
+       ticks = mt_move_t(m, mt_tticks(m, turns), "f", vel, 0); mt_wait(m);
        printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, mt_tticks(m, turns), e1->tics, e2->tics);
        printf("desactivant encoder 2 ... \n");
        mt_wait_for_stop(m,2);
@@ -492,8 +492,8 @@ time.tv_nsec = 0;
        //get_in("Mira com esta el pin 22 cap d'escombra!", 1);
        
        mt_wait_for_stop(m, 3);
-       reset_encoders(m);
-       ticks = mt_move_t(m, tticks(m, turns), "f", vel, 0); mt_wait(m);
+       mt_reset_enc(m);
+       ticks = mt_move_t(m, mt_tticks(m, turns), "f", vel, 0); mt_wait(m);
        printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, mt_tticks(m, turns), e1->tics, mt_enc_is_null(e2) ? 0 : e2->tics);
        printf("reactivant encoder 2 ...\n");
        e2aux.pin = pin2;
@@ -503,18 +503,18 @@ time.tv_nsec = 0;
        //get_in("Mira com esta el pin 22 cap d'escombra!", 1);
        mt_wait_for_stop(m, 3);
        
-       reset_encoders(m);
-       ticks = mt_move_t(m, tticks(m, turns), "f", vel, 0);mt_wait(m);
+       mt_reset_enc(m);
+       ticks = mt_move_t(m, mt_tticks(m, turns), "f", vel, 0);mt_wait(m);
        printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, mt_tticks(m, turns), e1->tics, mt_enc_is_null(e2) ? 0 : e2->tics);
        printf("desactivant encoder 1 ... \n");
        e1->pin = ENULL;
        mt_reconf(m, e1, NULL); //e2 untouched.
-       e1pin = is_null(e1) ? ENULL : e1->pin;
+       e1pin = mt_enc_is_null(e1) ? ENULL : e1->pin;
        printf("m_e1 desactivat , m_e1: %d, m_e2: %d,\n", e1pin, e2->pin);
        mt_wait_for_stop(m, 3);
        //get_in("Mira com esta el pin 27 cap d'escombra!", 1);
        
-       reset_encoders(m);
+       mt_reset_enc(m);
        ticks = mt_move_t(m, mt_tticks(m, turns), "f", vel, 0);mt_wait(m);
        printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, mt_tticks(m, turns), mt_enc_is_null(e1) ? 0 :e1->tics, e2->tics);
        printf("reactivant encoder 1 ...\n");
@@ -527,15 +527,16 @@ time.tv_nsec = 0;
        //get_in("Mira com esta el pin 27 cap d'escombra!", 1);
        mt_wait_for_stop(m, 3);
        
-       reset_encoders(m);
-       ticks = mt_move_t(m, tticks(m, turns), "f", vel, 0);mt_wait(m);
-       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, tticks(m, turns), e1->tics, e2->tics);
+       mt_reset_enc(m);
+       ticks = mt_move_t(m, mt_tticks(m, turns), "f", vel, 0);mt_wait(m);
+       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, mt_tticks(m, turns), e1->tics, e2->tics);
        printf("tornant a defaults ...\n");
        mt_reconf(m, NULL, NULL);
        printf("tot activat, m_e1: %d, m_e2: %d,\n", e1->pin, e2->pin);
        mt_wait_for_stop(m, 3);
-       reset_encoders(m);
-       ticks = mt_move_t(m, tticks(m, turns), "f", vel, 0);mt_wait(m);
+
+       mt_reset_enc(m);
+       ticks = mt_move_t(m, mt_tticks(m, turns), "f", vel, 0);mt_wait(m);
        printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, mt_tticks(m, turns), mt_enc_is_null(e1) ? 0 : e1->tics, e2->tics);
        printf("intentant desactivar els 2 a l'hora ...\n");
        e1->pin = ENULL;
@@ -632,8 +633,8 @@ time.tv_nsec = 0;
 	 }
 	 
 	 for (k = MIN_VEL+(step/2); k < MAX_VEL; k += step){
-	   get_params(m1, k, &micras1, &desv1);
-	   get_params(m2, k, &micras2, &desv2);
+	   mt_get_params(m1, k, &micras1, &desv1);
+	   mt_get_params(m2, k, &micras2, &desv2);
 	   printf("params for %2d%% power mot 1 >> tbticks: %d, desv: %d\n",k,micras1, desv1);
 	   printf("params for %2d%% power mot 2 >> tbticks: %d, desv: %d\n",k,micras2, desv2);
 	   // micras = desv = 0;
@@ -694,7 +695,7 @@ time.tv_nsec = 0;
        
        
        printf("\n\nSTARTING MOVE_T\n\n");
-       mt_move_t(m, tticks(m, turns), "f", vel, pctr);mt_wait(m);
+       mt_move_t(m, mt_tticks(m, turns), "f", vel, pctr);mt_wait(m);
        /*printf("\n\nSTARTING MOVE\n\n");
 	 move(m, "f", vel);
 	 while(get_in("stop?", 1) != 1);
@@ -807,8 +808,8 @@ time.tv_nsec = 0;
  
  mt_stop(m1, true);
  mt_stop(m2, true);
- mt_shutdown();
- //lego_shutdown();
+ //mt_shutdown();
+ lego_shutdown();
  
  return ret;
  
@@ -896,20 +897,20 @@ void init_acums (int turns, MOTOR * m){
 //    int size = (int)((BASE*turns)+((BASE*turns)*0.2));
     int size = (int)(BASE*turns);
     if(m->id == 1){
-        if(!is_null(m->enc1)) {
+        if(!mt_enc_is_null(m->enc1)) {
             if( (acum1 = (double *)calloc(size,sizeof(double))) == NULL)
 				printf("Init ac1 fails\n");
 			}
-        if(!is_null(m->enc2)) {
+        if(!mt_enc_is_null(m->enc2)) {
             if( (acum3 = (double *)calloc(size,sizeof(double))) == NULL)
 				printf("Init ac3 fails\n");
 			}
     } else {
-        if(!is_null(m->enc1)) {
+        if(!mt_enc_is_null(m->enc1)) {
             if( (acum2 = (double *)calloc(size,sizeof(double))) == NULL)
 				printf("Init ac2 fails\n");
 		}
-        if(!is_null(m->enc2)) {
+        if(!mt_enc_is_null(m->enc2)) {
             if( (acum4 = (double *)calloc(size,sizeof(double))) == NULL)
 				printf("Init ac4 fails\n");
 		}
@@ -953,14 +954,14 @@ void reinit_acums (int turns, MOTOR * m){
 void free_acums(MOTOR * m){
 
     if( m->id == 1 ){
-        if(!is_null(m->enc1))
+        if(!mt_enc_is_null(m->enc1))
 			free(acum1);
-        if(!is_null(m->enc2))
+        if(!mt_enc_is_null(m->enc2))
 			free(acum3);
     } else {
-        if(!is_null(m->enc1))
+        if(!mt_enc_is_null(m->enc1))
           	free(acum2);
-        if(!is_null(m->enc2))
+        if(!mt_enc_is_null(m->enc2))
             free(acum4);
     }
 }
@@ -970,14 +971,14 @@ void reset_acums(int turns, MOTOR * m){
 //    int size = (int)((BASE*turns)+((BASE*turns)*0.2));
     int size = (int)(BASE*turns);
     if( m->id == 1 ){
-        if(!is_null(m->enc1))
+        if(!mt_enc_is_null(m->enc1))
             memset(acum1,0.0,size*sizeof(double));
-        if(!is_null(m->enc2))
+        if(!mt_enc_is_null(m->enc2))
             memset(acum3,0.0,size*sizeof(double));
     } else {
-        if(!is_null(m->enc1))
+        if(!mt_enc_is_null(m->enc1))
             memset(acum2,0.0,size*sizeof(double));
-        if(!is_null(m->enc2))
+        if(!mt_enc_is_null(m->enc2))
             memset(acum4,0.0,size*sizeof(double));
     }
 }
@@ -1040,13 +1041,13 @@ void reset_acums(int turns){
 void close_acums(int ticks){
 
     //int size = ((BASE*turns)+((BASE*turns)*0.2));
-    if(!is_null(m1->enc1))
+    if(!mt_enc_is_null(m1->enc1))
         acum1[ticks] = '\0';
-    if(!is_null(m1->enc2))
+    if(!mt_enc_is_null(m1->enc2))
         acum3[ticks] = '\0';
-    if(!is_null(m2->enc1))
+    if(!mt_enc_is_null(m2->enc1))
         acum2[ticks] = '\0';
-    if(!is_null(m2->enc2)){
+    if(!mt_enc_is_null(m2->enc2)){
         acum4[ticks] = '\0';
     }
 }
@@ -1054,500 +1055,501 @@ void close_acums(int ticks){
 
 
 void comp_res(RESULT * res, int mostres, int step, int id){
-
- int i, velo, index;
- double * frame[mostres]; //= (double **)malloc(mostres * sizeof(double *));
-
- printf("\t\t\t\t\t AVERAGE\t\tVARIANCE\t\tSTND_DEV\t\tABS_DEV\t\t\n\n");
-
-    for (velo = step; velo <= MAX_VEL; velo += step){
-        for (i = 0; i < mostres; i++){
-            index = ((((velo/step)-1)*mostres) + i);
-//			printf("scanning index: %d ===> ", index);
-			frame[i] = res[index].res;
-        }
-			comp_vel(velo, mostres, frame, id);
-
-        for (i = 0; i < mostres; i++){
-            index = ((((velo/step)-1)*mostres) + i);
-			frame[i] = res[index].per;
-			/*printf("per k le meto: ");
-			prw(PER_SIZE, res[index].per);*/
-		}
-			comp_perc(velo, mostres, frame, id);
-			printf("\n");
+  
+  int i, velo, index;
+  double * frame[mostres]; //= (double **)malloc(mostres * sizeof(double *));
+  
+  printf("\t\t\t\t\t AVERAGE\t\tVARIANCE\t\tSTND_DEV\t\tABS_DEV\t\t\n\n");
+  
+  for (velo = step; velo <= MAX_VEL; velo += step){
+    for (i = 0; i < mostres; i++){
+      index = ((((velo/step)-1)*mostres) + i);
+      //			printf("scanning index: %d ===> ", index);
+      frame[i] = res[index].res;
     }
-	printf("---------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
+    comp_vel(velo, mostres, frame, id);
+    
+    for (i = 0; i < mostres; i++){
+      index = ((((velo/step)-1)*mostres) + i);
+      frame[i] = res[index].per;
+      /*printf("per k le meto: ");
+	prw(PER_SIZE, res[index].per);*/
+    }
+    comp_perc(velo, mostres, frame, id);
+    printf("\n");
+  }
+  printf("---------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 }
+
 void comp_perc(int vel, int mostres, double ** frame, int id){
-
-	int k;
-	double sum = 0;
-	double aux[mostres];// = (double *)malloc(mostres * sizeof(double));
-    RESULT stat;//= (RESULT *)malloc(sizeof(RESULT));// = (double *)malloc(STATS_SIZE * sizeof(double));
-
-    for (k=0;k<PER_SIZE-1;k++){
-        col_to_row(aux, frame, k, mostres);
-        stats(&stat, false, aux, false, false, mostres, id, false,0, true);
-		sum += stat.res[0];
-	//	printf("stat percent, volta %d: ", k);
-	//	prw(mostres, aux);
-        switch(k){
-            case 0:
-                printf("vel_%d_0%%-10%%:  \t", vel);
-                break;;
-            case 1:
-                printf("vel_%d_10%%-20%%: \t", vel);
-                break;;
-            case 2:
-                printf("vel_%d_20%%-30%%: \t",vel);
-                break;;
-            case 3:
-                printf("vel_%d_30%%-40%%: \t", vel);
-                break;;
-            case 4:
-                printf("vel_%d_40%%-50%%: \t", vel);
-                break;;
-            case 5:
-                printf("vel_%d_50%%-60%%: \t", vel);
-                break;;
-            case 6:
-                printf("vel_%d_60%%-70%%: \t", vel);
-                break;;
-            case 7:
-                printf("vel_%d_70%%-80%%: \t", vel);
-                break;;
-            case 8:
-                printf("vel_%d_80%%-90%%: \t", vel);
-                break;;
-            case 9:
-                printf("vel_%d_90%%-100%%: \t", vel);
-                break;;
-            default:
-                printf("\t\t>>LIADA PADRE!!<<\t\t\n");
-                break;;
-        }
-        pr_stats(stat.res, 4);
+  
+  int k;
+  double sum = 0;
+  double aux[mostres];// = (double *)malloc(mostres * sizeof(double));
+  RESULT stat;//= (RESULT *)malloc(sizeof(RESULT));// = (double *)malloc(STATS_SIZE * sizeof(double));
+  
+  for (k=0;k<PER_SIZE-1;k++){
+    col_to_row(aux, frame, k, mostres);
+    stats(&stat, false, aux, false, false, mostres, id, false,0, true);
+    sum += stat.res[0];
+    //	printf("stat percent, volta %d: ", k);
+    //	prw(mostres, aux);
+    switch(k){
+    case 0:
+      printf("vel_%d_0%%-10%%:  \t", vel);
+      break;;
+    case 1:
+      printf("vel_%d_10%%-20%%: \t", vel);
+      break;;
+    case 2:
+      printf("vel_%d_20%%-30%%: \t",vel);
+      break;;
+    case 3:
+      printf("vel_%d_30%%-40%%: \t", vel);
+      break;;
+    case 4:
+      printf("vel_%d_40%%-50%%: \t", vel);
+      break;;
+    case 5:
+      printf("vel_%d_50%%-60%%: \t", vel);
+      break;;
+    case 6:
+      printf("vel_%d_60%%-70%%: \t", vel);
+      break;;
+    case 7:
+      printf("vel_%d_70%%-80%%: \t", vel);
+      break;;
+    case 8:
+      printf("vel_%d_80%%-90%%: \t", vel);
+      break;;
+    case 9:
+      printf("vel_%d_90%%-100%%: \t", vel);
+      break;;
+    default:
+      printf("\t\t>>LIADA PADRE!!<<\t\t\n");
+      break;;
     }
-	printf ("population_average_sum: \t\t%.5f\n", sum);
+    pr_stats(stat.res, 4);
+  }
+  printf ("population_average_sum: \t\t%.5f\n", sum);
 }
 
 void comp_vel(int vel, int mostres, double ** frame, int id){
-	int k;
-	double aux[mostres];// = (double *)malloc(mostres * sizeof(double));
-	RESULT stat;// = (RESULT *)malloc(sizeof(RESULT));// = (double *)malloc(STATS_SIZE * sizeof(double));
-
-	for (k=0;k<STATS_SIZE-1;k++){
-		col_to_row (aux, frame, k, mostres);
-		stats(&stat, false, aux, false, false, mostres, id, false,0, true);
-		switch(k){
-			case 0:
-				printf("vel_%d_average: \t", vel);
-				break;;
-			case 1:
-				printf("vel_%d_variance: \t", vel);
-				break;;
-			case 2:
-				printf("vel_%d_standard deviation: ",vel);
-				break;;
-			case 3:
-				printf("vel_%d_absolute deviation: ", vel);
-				break;;
-			case 4:
-				printf("vel_%d_autocorrelation: ", vel);
-				break;;
-			case 5:
-				printf("vel_%d_waverage: \t", vel);
-				break;;
-			case 6:
-				printf("vel_%d_wvariance: \t", vel);
-				break;;
-			case 7:
-				printf("vel_%d_wstandard deviation: ", vel);
-				break;;
-			case 8:
-				printf("vel_%d_wabsolute deviation: ", vel);
-				break;;
-			case 9:
-				printf("vel_%d_swaverage: \t", vel);
-				break;;
-			case 10:
-				printf("vel_%d_swvariance: \t", vel);
-				break;;
-			case 11:
-				printf("vel_%d_swstandard deviation: ", vel);
-				break;;
-			case 12:
-				printf("vel_%d_swabsolute deviation: ", vel);
-				break;;
-			case 13:
-				printf("vel_%d_upperq:  \t", vel);
-				break;;
-			case 14:
-				printf("vel_%d_lowerq:  \t", vel);
-				break;;
-			case 15:
-				printf("vel_%d_rmax:  \t\t", vel);
-				break;;
-			case 16:
-				printf("vel_%d_rmin:  \t\t", vel);
-				break;;
-			default:
-				printf("\t\t>>LIADA PADRE!!<<\t\t\n");
-				break;;
-		}
-		pr_stats(stat.res, 4);
-	}
+  int k;
+  double aux[mostres];// = (double *)malloc(mostres * sizeof(double));
+  RESULT stat;// = (RESULT *)malloc(sizeof(RESULT));// = (double *)malloc(STATS_SIZE * sizeof(double));
+  
+  for (k=0;k<STATS_SIZE-1;k++){
+    col_to_row (aux, frame, k, mostres);
+    stats(&stat, false, aux, false, false, mostres, id, false,0, true);
+    switch(k){
+    case 0:
+      printf("vel_%d_average: \t", vel);
+      break;;
+    case 1:
+      printf("vel_%d_variance: \t", vel);
+      break;;
+    case 2:
+      printf("vel_%d_standard deviation: ",vel);
+      break;;
+    case 3:
+      printf("vel_%d_absolute deviation: ", vel);
+      break;;
+    case 4:
+      printf("vel_%d_autocorrelation: ", vel);
+      break;;
+    case 5:
+      printf("vel_%d_waverage: \t", vel);
+      break;;
+    case 6:
+      printf("vel_%d_wvariance: \t", vel);
+      break;;
+    case 7:
+      printf("vel_%d_wstandard deviation: ", vel);
+      break;;
+    case 8:
+      printf("vel_%d_wabsolute deviation: ", vel);
+      break;;
+    case 9:
+      printf("vel_%d_swaverage: \t", vel);
+      break;;
+    case 10:
+      printf("vel_%d_swvariance: \t", vel);
+      break;;
+    case 11:
+      printf("vel_%d_swstandard deviation: ", vel);
+      break;;
+    case 12:
+      printf("vel_%d_swabsolute deviation: ", vel);
+      break;;
+    case 13:
+      printf("vel_%d_upperq:  \t", vel);
+      break;;
+    case 14:
+      printf("vel_%d_lowerq:  \t", vel);
+      break;;
+    case 15:
+      printf("vel_%d_rmax:  \t\t", vel);
+      break;;
+    case 16:
+      printf("vel_%d_rmin:  \t\t", vel);
+      break;;
+    default:
+      printf("\t\t>>LIADA PADRE!!<<\t\t\n");
+      break;;
+    }
+    pr_stats(stat.res, 4);
+  }
 }
 
 void pr_stats(double * stats, int len){
-
-int i, dig = 0;
-	printf("\t\t");
-	for(i = 0; i<len; i++){
-		dig = floor(log10(abs((int)stats[i]))) + 1;
-		 if (dig > 8)
-			printf("%.5f,\t", stats[i]);
-		 else if (stats[i] != stats[i]) //is nan?
-			printf("%.5f,\t\t\t", stats[i]);
-		 else
-			printf("%.5f,\t\t", stats[i]);
-	}
-	printf("\n");
+  
+  int i, dig = 0;
+  printf("\t\t");
+  for(i = 0; i<len; i++){
+    dig = floor(log10(abs((int)stats[i]))) + 1;
+    if (dig > 8)
+      printf("%.5f,\t", stats[i]);
+    else if (stats[i] != stats[i]) //is nan?
+      printf("%.5f,\t\t\t", stats[i]);
+    else
+      printf("%.5f,\t\t", stats[i]);
+  }
+  printf("\n");
 }
 
 void col_to_row(double * res, double ** table, int col, int rows){
-
-int k;
-	for(k=0; k<rows; k++){
-		if ( col == 15 || col == 16 ){
-			if ( table[k][col] == 0 )
-				res[k] = table[k][col-2];
-		} else
- 			res[k] = table[k][col];
-	}
-	res[k] = '\0';
+  
+  int k;
+  for(k=0; k<rows; k++){
+    if ( col == 15 || col == 16 ){
+      if ( table[k][col] == 0 )
+	res[k] = table[k][col-2];
+    } else
+      res[k] = table[k][col];
+  }
+  res[k] = '\0';
 }
 
 
 void presf (RESULT * res, int mostres, int step){
-
-	int i, k, velo, index;
-	for (velo = step; velo <= MAX_VEL; velo += step){
-		printf("\nVELOCIDAD  = %d:\n", velo);
-		for (i = 0; i < mostres; i++){
-			index = ((((velo/step)-1)*mostres) + i);
-			printf("mostra %2d,(%3d): ", i+1, index);
-			for (k = 0; k < STATS_SIZE-1; k++)
-				printf("%.5f, ", res[index].res[k]);
-			printf("\n");
-		}
-		printf("percent:\n");
-		for (i = 0; i < mostres; i++){
-			index = ((((velo/step)-1)*mostres) + i);
-			for (k = 0; k < 10; k++)
-				printf("%.5f, ", res[index].per[k]);
-			printf("\n");
-		}
-	}
+  
+  int i, k, velo, index;
+  for (velo = step; velo <= MAX_VEL; velo += step){
+    printf("\nVELOCIDAD  = %d:\n", velo);
+    for (i = 0; i < mostres; i++){
+      index = ((((velo/step)-1)*mostres) + i);
+      printf("mostra %2d,(%3d): ", i+1, index);
+      for (k = 0; k < STATS_SIZE-1; k++)
+	printf("%.5f, ", res[index].res[k]);
+      printf("\n");
+    }
+    printf("percent:\n");
+    for (i = 0; i < mostres; i++){
+      index = ((((velo/step)-1)*mostres) + i);
+      for (k = 0; k < 10; k++)
+	printf("%.5f, ", res[index].per[k]);
+      printf("\n");
+    }
+  }
 }
 
 
 int get_in(char *to_print, int type){
-	switch(type){
-    case 1:;;
-        int ret_int;
-        printf("%s", to_print);
-        scanf("\n%d",&ret_int);
-		fflush(NULL);
-        return ret_int;
-    default:;;
-        char ret;
-        printf("%s", to_print);
-        scanf("\n%c",&ret);
-    	fflush(NULL);
-	    return ret;
-    }
+  switch(type){
+  case 1:;;
+    int ret_int;
+    printf("%s", to_print);
+    scanf("\n%d",&ret_int);
+    fflush(NULL);
+    return ret_int;
+  default:;;
+    char ret;
+    printf("%s", to_print);
+    scanf("\n%c",&ret);
+    fflush(NULL);
+    return ret;
+  }
 }
 
 int cpacum(double * out, int alloc, int id, int encoder){
-
-int i;
-	if (id == 1){
-		if (encoder == 1){
-			for(i=1;(acum1[i]!='\0' && i < alloc); i++)
-				out[i] = acum1[i];
-		} else {
-			for(i=1;(acum3[i]!='\0' && i < alloc); i++)
-	            out[i] = acum3[i];
-		}
-	} else {
-		 if (encoder == 1){
-            for(i=1;(acum2[i]!='\0' && i < alloc); i++)
-                out[i] = acum2[i];
-        } else {
-            for(i=1;(acum4[i]!='\0' && i < alloc); i++)
-                out[i] = acum4[i];
-        }
-
-	}
-	out[i]='\0';
-//printf("la i ar fina: %d", i);
-	return i;
+  
+  int i;
+  if (id == 1){
+    if (encoder == 1){
+      for(i=1;(acum1[i]!='\0' && i < alloc); i++)
+	out[i] = acum1[i];
+    } else {
+      for(i=1;(acum3[i]!='\0' && i < alloc); i++)
+	out[i] = acum3[i];
+    }
+  } else {
+    if (encoder == 1){
+      for(i=1;(acum2[i]!='\0' && i < alloc); i++)
+	out[i] = acum2[i];
+    } else {
+      for(i=1;(acum4[i]!='\0' && i < alloc); i++)
+	out[i] = acum4[i];
+    }
+    
+  }
+  out[i]='\0';
+  //printf("la i ar fina: %d", i);
+  return i;
 }
 
 
 int cptable(double * out, int alloc, double * in){
-
-int i;
-
-    for(i=0; i < alloc; i++)
-        out[i] = in[i];
-	return i;
+  
+  int i;
+  
+  for(i=0; i < alloc; i++)
+    out[i] = in[i];
+  return i;
 }
 
 
 int stats (RESULT * out, bool to_print, double * vect, bool wweights, bool capped, int alloc, int id, bool clean, int encoder, bool no_table){
-
-//	printf("printing ACUM1 (inside stats), ALLOC = %d: \n", alloc);
-//	prac(alloc, acum1);
-
-	double data[alloc];
-	int len;
-
-	if (vect == NULL)
-		len = cpacum(data, alloc, id, encoder);
-	else
-		len = cptable(data, alloc, vect);
-
-	//len --;
-	if(to_print && !no_table)
-		prac(len, data);
-
-	int i, k, ret=1;
-	double avrg = avg(len, data);
-
-    if(capped){
-		for (k=0, i = len-10; (i < len && k < 10); i++, k++)
-        	data[i] = data[k] = avrg;
-	}
-
-    if(clean){
-		for (i = 0;i < len; i++){
-    	    if(data[i] <= 650)
-				data[i] = avrg;
-		}
-	}
-
-	double mean, min, max, wmean, wvariance, wsd, wabs, swmean, swvariance, swsd, swabs, median, upperq, lowerq, /*middleq*/ uq, lq, rmin, rmax;
-	min = max = wmean = wvariance = wsd = wabs = rmin = rmax = swmean = swvariance = swsd = swabs = median = upperq = lowerq = /*middleq*/  uq = lq = 0;
-
-/* la varian?a i desviaci? tipica surt molt gran */
-//	printf("DEBUG: ");
-//	prw(STATS_SIZE-1,out->res);
-//	printf("El que treu la funcio de la mitja: %f\n", gsl_stats_mean(data, 1, len-1));
-	mean = out->res[0] = gsl_stats_mean(data, 1, len);
-//	printf("MEAAAAN: %f\n",out->res[0]);
-	double variance = out->res[1] = gsl_stats_variance_m(data, 1, len, mean);
-	double sd = out->res[2] = gsl_stats_sd_m(data, 1, len, mean);
-
-	double abs = out->res[3] = gsl_stats_absdev_m (data, 1, len, mean);
-	double autocorr = out->res[4] = gsl_stats_lag1_autocorrelation_m (data, 1, len, mean);
-	//double perc[PER_SIZE];
-
-	/* calcul dels valors amb pesos, "descartem" el 10% dels tics del final i del principi */
-
-	if(wweights){
-		double weights[len];// = malloc(len * sizeof(double));
-		double sweights[len];// = malloc(len * sizeof(double));
-
-		ret=2;
-		cal_weight(len, weights, 1 ,3);
-
-		wmean = out->res[5] = gsl_stats_wmean (weights, 1, data, 1, len);
-		wvariance = out->res[6] = gsl_stats_wvariance_m (weights, 1, data, 1, len, wmean);
-		wsd = out->res[7] = gsl_stats_wsd_m (weights, 1,data, 1, len, wmean);
-		wabs = out->res[8] = gsl_stats_wabsdev_m (weights,1,data,1,len, wmean);
-		gsl_stats_minmax(&min, &max, data, 1, len);
-
-		gsl_sort (data,1,len);
-		smart_weights(len, sweights, 0.1, max, data,id,out->per);
-	
-		//cp_loc(out->per, id);
-		get_limits(out->per, &uq, &lq, 0.70, max, &rmin, &rmax);
-		//prw(PER_SIZE-1,perc);
-
-		if(to_print){
-			printf("uq: %.3f, lq: %.3f\n", uq, lq);
-//			prw(10,per);
-		}
-		median = gsl_stats_median_from_sorted_data (data,1,len);
-		upperq = gsl_stats_quantile_from_sorted_data (data,1,len,0.8);//uq
-		lowerq = gsl_stats_quantile_from_sorted_data (data,1,len,0.2);//lq
-
-		// Smart weights:
-		swmean = out->res[9] = gsl_stats_wmean (sweights, 1, data, 1, len);
-    	swvariance = out->res[10] = gsl_stats_wvariance_m (sweights, 1, data, 1, len, wmean);
-    	swsd = out->res[11] = gsl_stats_wsd_m (sweights, 1,data, 1, len, wmean);
-    	swabs = out->res[12] = gsl_stats_wabsdev_m (sweights,1,data,1,len, wmean);
-
-		out->res[13] = upperq;
-		out->res[14] = lowerq;
-		out->res[15] = rmax;
-		out->res[16] = rmin;
-	} else {
-		for (k=5; k <= 16; k++)
-	        out->res[k] = 0;
-		for (k=0; k < PER_SIZE; k++)
-            out->per[k] = 0;
-	}
-	out->per[PER_SIZE-1] = '\0';
-	out->res[STATS_SIZE-1] = '\0';
-	//cptable(out->per, PER_SIZE-1, perc);
-	//printf("LEN: %d\n", cptable(out->per, PER_SIZE-1, perc));
-
-	if(to_print){
-		printf("ticks received: %d\nmean: %.5f\nvariance: %.5f\nstandard deviation: %.5f\nmedian: %.5f\nquantil superior: %.5f\nquantil inferior: %.5f\nrmax: %.5f\nrmin: %.5f\n", len, out->res[0], variance, sd, median, upperq, lowerq, rmax, rmin);
-		printf("autocorrelation: %.5f\nmin: %.5f\nmax:%.5f\nabsolute_deviation: %.5f\n\nweights: \nwmean: %.5f\nwvariance: %.5f\nwstandard_deviation: %.5f\nwabs_dev: %.5f\n\n", autocorr,min,max,abs, wmean, wvariance, wsd, wabs);
-		printf("smart weights: \nswmean: %.5f\nswvariance: %.5f\nswstandard_deviation: %.5f\nswabs_dev: %.5f\n\n",swmean, swvariance, swsd, swabs);
-		prw(PER_SIZE-1,out->per);
-	}
-	//prw(10,per);
-	return ret;
-
+  
+  //	printf("printing ACUM1 (inside stats), ALLOC = %d: \n", alloc);
+  //	prac(alloc, acum1);
+  
+  double data[alloc];
+  int len;
+  
+  if (vect == NULL)
+    len = cpacum(data, alloc, id, encoder);
+  else
+    len = cptable(data, alloc, vect);
+  
+  //len --;
+  if(to_print && !no_table)
+    prac(len, data);
+  
+  int i, k, ret=1;
+  double avrg = avg(len, data);
+  
+  if(capped){
+    for (k=0, i = len-10; (i < len && k < 10); i++, k++)
+      data[i] = data[k] = avrg;
+  }
+  
+  if(clean){
+    for (i = 0;i < len; i++){
+      if(data[i] <= 650)
+	data[i] = avrg;
+    }
+  }
+  
+  double mean, min, max, wmean, wvariance, wsd, wabs, swmean, swvariance, swsd, swabs, median, upperq, lowerq, /*middleq*/ uq, lq, rmin, rmax;
+  min = max = wmean = wvariance = wsd = wabs = rmin = rmax = swmean = swvariance = swsd = swabs = median = upperq = lowerq = /*middleq*/  uq = lq = 0;
+  
+  /* la varian?a i desviaci? tipica surt molt gran */
+  //	printf("DEBUG: ");
+  //	prw(STATS_SIZE-1,out->res);
+  //	printf("El que treu la funcio de la mitja: %f\n", gsl_stats_mean(data, 1, len-1));
+  mean = out->res[0] = gsl_stats_mean(data, 1, len);
+  //	printf("MEAAAAN: %f\n",out->res[0]);
+  double variance = out->res[1] = gsl_stats_variance_m(data, 1, len, mean);
+  double sd = out->res[2] = gsl_stats_sd_m(data, 1, len, mean);
+  
+  double abs = out->res[3] = gsl_stats_absdev_m (data, 1, len, mean);
+  double autocorr = out->res[4] = gsl_stats_lag1_autocorrelation_m (data, 1, len, mean);
+  //double perc[PER_SIZE];
+  
+  /* calcul dels valors amb pesos, "descartem" el 10% dels tics del final i del principi */
+  
+  if(wweights){
+    double weights[len];// = malloc(len * sizeof(double));
+    double sweights[len];// = malloc(len * sizeof(double));
+    
+    ret=2;
+    cal_weight(len, weights, 1 ,3);
+    
+    wmean = out->res[5] = gsl_stats_wmean (weights, 1, data, 1, len);
+    wvariance = out->res[6] = gsl_stats_wvariance_m (weights, 1, data, 1, len, wmean);
+    wsd = out->res[7] = gsl_stats_wsd_m (weights, 1,data, 1, len, wmean);
+    wabs = out->res[8] = gsl_stats_wabsdev_m (weights,1,data,1,len, wmean);
+    gsl_stats_minmax(&min, &max, data, 1, len);
+    
+    gsl_sort (data,1,len);
+    smart_weights(len, sweights, 0.1, max, data,id,out->per);
+    
+    //cp_loc(out->per, id);
+    get_limits(out->per, &uq, &lq, 0.70, max, &rmin, &rmax);
+    //prw(PER_SIZE-1,perc);
+    
+    if(to_print){
+      printf("uq: %.3f, lq: %.3f\n", uq, lq);
+      //			prw(10,per);
+    }
+    median = gsl_stats_median_from_sorted_data (data,1,len);
+    upperq = gsl_stats_quantile_from_sorted_data (data,1,len,0.8);//uq
+    lowerq = gsl_stats_quantile_from_sorted_data (data,1,len,0.2);//lq
+    
+    // Smart weights:
+    swmean = out->res[9] = gsl_stats_wmean (sweights, 1, data, 1, len);
+    swvariance = out->res[10] = gsl_stats_wvariance_m (sweights, 1, data, 1, len, wmean);
+    swsd = out->res[11] = gsl_stats_wsd_m (sweights, 1,data, 1, len, wmean);
+    swabs = out->res[12] = gsl_stats_wabsdev_m (sweights,1,data,1,len, wmean);
+    
+    out->res[13] = upperq;
+    out->res[14] = lowerq;
+    out->res[15] = rmax;
+    out->res[16] = rmin;
+  } else {
+    for (k=5; k <= 16; k++)
+      out->res[k] = 0;
+    for (k=0; k < PER_SIZE; k++)
+      out->per[k] = 0;
+  }
+  out->per[PER_SIZE-1] = '\0';
+  out->res[STATS_SIZE-1] = '\0';
+  //cptable(out->per, PER_SIZE-1, perc);
+  //printf("LEN: %d\n", cptable(out->per, PER_SIZE-1, perc));
+  
+  if(to_print){
+    printf("ticks received: %d\nmean: %.5f\nvariance: %.5f\nstandard deviation: %.5f\nmedian: %.5f\nquantil superior: %.5f\nquantil inferior: %.5f\nrmax: %.5f\nrmin: %.5f\n", len, out->res[0], variance, sd, median, upperq, lowerq, rmax, rmin);
+    printf("autocorrelation: %.5f\nmin: %.5f\nmax:%.5f\nabsolute_deviation: %.5f\n\nweights: \nwmean: %.5f\nwvariance: %.5f\nwstandard_deviation: %.5f\nwabs_dev: %.5f\n\n", autocorr,min,max,abs, wmean, wvariance, wsd, wabs);
+    printf("smart weights: \nswmean: %.5f\nswvariance: %.5f\nswstandard_deviation: %.5f\nswabs_dev: %.5f\n\n",swmean, swvariance, swsd, swabs);
+    prw(PER_SIZE-1,out->per);
+  }
+  //prw(10,per);
+  return ret;
+  
 }
 
 void get_limits(double per[], double * uq, double * lq, double min_pop, double max, double * rmin, double * rmax){
-
-	bool found = false;
-	int i,k;
-	//prw(PER_SIZE-1, per);
-	for (i=0; i<10 && !found; i++){
-		for(k=i+1; k<10 && !found; k++){
-			if(((per[i] + per[k]) >= min_pop))
-				found = true;
-		}
-	}
-	k--;i--;
-	/*printf("DEBUG: i->%d, k->%d\n", i,k);
-	prw(10,per);*/
-	double uqbase = 0.5 + (min_pop/2);
-	double lqbase = 0.5 - (min_pop/2);
-
-	if (found){
-		double total = per[i] + per[k];
-		if (total > min_pop){
-			double to_div = total - min_pop;
-			//printf("DEBUG: entro aqui!\n");
-			// *uq = (per[k] > (min_pop/2)) ? (per[i] < (min_pop/2)) ? (uqbase + ((per[k]-(min_pop/2)) - ((min_pop/2) - per[i]))) : (uqbase + (per[k]-(min_pop/2))) : uqbase;
-			// *lq = (per[i] > (min_pop/2)) ? (per[k] < (min_pop/2)) ? (lqbase - ((per[i]-(min_pop/2)) - ((min_pop/2) - per[k]))) : (lqbase - (per[i]-(min_pop/2))) : lqbase;
-			*uq = uqbase +(to_div/2);
-			*lq = lqbase -(to_div/2);
-			//printf("valores: uq: %f, lq: %f\n", *uq, *lq);
-		} else {
-			*uq = uqbase;
-			*lq = lqbase;
-		}
-		*rmin = ((double)i/10) * max;
-		*rmax = ((double)(k+1)/10) * max;
-		//printf("valores: rmin: %f, rmax: %f, i: %d, k: %d, max: %f\n", *rmin, *rmax, i, k, max);
-	} else {
-		*rmin = 0;
-		*rmax = 0;
-		*uq = uqbase;
-		*lq = lqbase;
-	}
-
-	//double range_min,range_max;
+  
+  bool found = false;
+  int i,k;
+  //prw(PER_SIZE-1, per);
+  for (i=0; i<10 && !found; i++){
+    for(k=i+1; k<10 && !found; k++){
+      if(((per[i] + per[k]) >= min_pop))
+	found = true;
+    }
+  }
+  k--;i--;
+  /*printf("DEBUG: i->%d, k->%d\n", i,k);
+    prw(10,per);*/
+  double uqbase = 0.5 + (min_pop/2);
+  double lqbase = 0.5 - (min_pop/2);
+  
+  if (found){
+    double total = per[i] + per[k];
+    if (total > min_pop){
+      double to_div = total - min_pop;
+      //printf("DEBUG: entro aqui!\n");
+      // *uq = (per[k] > (min_pop/2)) ? (per[i] < (min_pop/2)) ? (uqbase + ((per[k]-(min_pop/2)) - ((min_pop/2) - per[i]))) : (uqbase + (per[k]-(min_pop/2))) : uqbase;
+      // *lq = (per[i] > (min_pop/2)) ? (per[k] < (min_pop/2)) ? (lqbase - ((per[i]-(min_pop/2)) - ((min_pop/2) - per[k]))) : (lqbase - (per[i]-(min_pop/2))) : lqbase;
+      *uq = uqbase +(to_div/2);
+      *lq = lqbase -(to_div/2);
+      //printf("valores: uq: %f, lq: %f\n", *uq, *lq);
+    } else {
+      *uq = uqbase;
+      *lq = lqbase;
+    }
+    *rmin = ((double)i/10) * max;
+    *rmax = ((double)(k+1)/10) * max;
+    //printf("valores: rmin: %f, rmax: %f, i: %d, k: %d, max: %f\n", *rmin, *rmax, i, k, max);
+  } else {
+    *rmin = 0;
+    *rmax = 0;
+    *uq = uqbase;
+    *lq = lqbase;
+  }
+  
+  //double range_min,range_max;
 }
 
 void prac (int len, double * vec){
-
-int i=0;
-double val;
-    for (; i < len; i++){
-        val = vec[i];
-        if( ( (i != 0) && ((i%30) == 0) ) )
-            printf("%5d\n", (int)val);
-        else
-            printf("%5d, ", (int)val);
-    }
-    printf("\n\n");
-
+  
+  int i=0;
+  double val;
+  for (; i < len; i++){
+    val = vec[i];
+    if( ( (i != 0) && ((i%30) == 0) ) )
+      printf("%5d\n", (int)val);
+    else
+      printf("%5d, ", (int)val);
+  }
+  printf("\n\n");
+  
 }
 
 void prw (int len, double per[]){
-
-int i;
-double aux;
-	for (i=0; i < len; i++){
-			aux = per[i];
-			printf("%.35f, ", aux);
-	}
-	printf("\n");
-
+  
+  int i;
+  double aux;
+  for (i=0; i < len; i++){
+    aux = per[i];
+    printf("%.35f, ", aux);
+  }
+  printf("\n");
+  
 }
 
 
 double avg (int len, double * data){
-
-long long sum = 0;
-int i;
-    for (i = 10; i <len-10; i++){
-//		printf("volta: %d, sum: %lld\n", i, sum);
-		sum+=data[i];
-    }
-
-	return ((sum/(len-20)));
+  
+  long long sum = 0;
+  int i;
+  for (i = 10; i <len-10; i++){
+    //		printf("volta: %d, sum: %lld\n", i, sum);
+    sum+=data[i];
+  }
+  
+  return ((sum/(len-20)));
 }
 
 
 void cal_weight(int len, double * weights, double less, double max){
 
-int i;
-int head = 10;
-int tail = len - head;
-int first = len/10;
-int last = len - first;
-
-	for (i=0; i<len; i++){
-		if ((i <= head) || (i >= tail))
-			weights[i] = 0;
-		else if ((i <= first) || (i >= last) )
-			weights[i] = (double)less;
-			else
-				weights[i] = (double)max;
-	}
-
+  int i;
+  int head = 10;
+  int tail = len - head;
+  int first = len/10;
+  int last = len - first;
+ 
+  for (i=0; i<len; i++){
+    if ((i <= head) || (i >= tail))
+      weights[i] = 0;
+    else if ((i <= first) || (i >= last) )
+      weights[i] = (double)less;
+    else
+      weights[i] = (double)max;
+  }
+  
 }
 
 void smart_weights(int len, double * weights, double step, double max, double *data, int id, double per []){
+  
+  /* La idea: contar la poblacion de cada quantil (menos la del quantil anterior), y, sacar el porcentage respeto a la poblacion total (todos los tics), a partir de ahi assignar los pesos 
+     de cada elemento dependiendo del percentage de poblacion del quantil al que corresponda */
+  //	int tam = PER_SIZE;
+  double quantil;// perc[tam];
+  int res;
+  int i;
 
-	/* La idea: contar la poblacion de cada quantil (menos la del quantil anterior), y, sacar el porcentage respeto a la poblacion total (todos los tics), a partir de ahi assignar los pesos 
-	de cada elemento dependiendo del percentage de poblacion del quantil al que corresponda */
-//	int tam = PER_SIZE;
-	double quantil;// perc[tam];
-	int res;
-	int i;
-
-	for (i=0, quantil=step;quantil<=1;quantil+=step, i++){
-		res = no_quantil(len,data,quantil,max,step);
-		per[i] = (double)((double)res/len);
-	}
-	per[i]='\0';
-//	cp_per(perc, tam, id);
-//	prw(tam, perc);
-
-	for (i=0; i<len; i++){
-		weights[i] = per[(int)(((data[i]/max)-step)*10)];
-	}
-
+  for (i=0, quantil=step;quantil<=1;quantil+=step, i++){
+    res = no_quantil(len,data,quantil,max,step);
+    per[i] = (double)((double)res/len);
+  }
+  per[i]='\0';
+  //	cp_per(perc, tam, id);
+  //	prw(tam, perc);
+  
+  for (i=0; i<len; i++){
+    weights[i] = per[(int)(((data[i]/max)-step)*10)];
+  }
+  
 }
 
 /*void cp_per (double * per, int tam, int id){
-	int i;
+  int i;
 
-	if (id == 1){
+  if (id == 1){
 		for (i=0;i<tam;i++)
 			pop_perc1[i] = per[i];
 		pop_perc1[i]='\0';
@@ -1563,32 +1565,31 @@ void smart_weights(int len, double * weights, double step, double max, double *d
 */
 int no_quantil (int len, double * data, double perc, double max, double step){
 
-	/* NO-quantil, es decir lo coontrario, dado un porcentage del valor del m?ximo, cuanta poblaci?n esta por debajo de ese valor, (Distribuciones?) */
-	/* sorted data */
-
-	int i;
-	double ref = perc * max;
-
-	int last = 0;
-	double val = data[0];
-	double ant = 0;
-	double ult = (perc - step) * max;
-
-	for (i=1; val < ref; i++) {
-		if (val < ant)
-			printf("\n\t\t>>WEIRD DATA<<\t\t\n\n");
-		if (ult >= val)
-			last = i;
-		ant = val;
-		val = data[i];
-	}
-	val=data[i];
-	last++;
-
-//	printf("no-quantil says: act: %d - last: %d = %d | ant = %.5f, ref = %.5f | data content: %.5f\n", i, last, i-last, ult, ref, val);
-
-	return (i - last);
-
+  /* NO-quantil, es decir lo coontrario, dado un porcentage del valor del m?ximo, cuanta poblaci?n esta por debajo de ese valor, (Distribuciones?) */
+  /* sorted data */
+  
+  int i;
+  double ref = perc * max;
+  
+  int last = 0;
+  double val = data[0];
+  double ant = 0;
+  double ult = (perc - step) * max;
+  
+  for (i=1; val < ref; i++) {
+    if (val < ant)
+      printf("\n\t\t>>WEIRD DATA<<\t\t\n\n");
+    if (ult >= val)
+      last = i;
+    ant = val;
+    val = data[i];
+  }
+  val=data[i];
+  last++;
+  
+  //	printf("no-quantil says: act: %d - last: %d = %d | ant = %.5f, ref = %.5f | data content: %.5f\n", i, last, i-last, ult, ref, val);
+  return (i - last);
+  
 }
 
 
