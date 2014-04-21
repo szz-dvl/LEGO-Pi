@@ -1,4 +1,3 @@
-//#include "lego.h"
 #include "lego_shared.h"
 #include "lego_motor.h"
 #include "lego_analog.h"
@@ -77,8 +76,9 @@ void set_verbose (int lvl) {
 
 static void LEGO_shutdown () {
 
-  mot_clear();
+  mt_shutdown();
   analog_shutdown();
+  dg_shutdown();  
   exit(EXIT_FAILURE);
 }
 
@@ -129,8 +129,9 @@ static void handl_alrm(void) {}
 
 static void terminate(void) {
   
-  mot_clear();
-  analog_shutdown();  
+  mt_shutdown();
+  analog_shutdown();
+  dg_shutdown();
   exit(EXIT_SUCCESS);
 
 }
@@ -138,15 +139,16 @@ static void terminate(void) {
 void lego_init () {
   
   wiringPiSetupGpio();
-  init_motors();
+  mt_init();
   analog_setup();
 
 }
 
 void lego_shutdown (void) {
   
-  mot_clear();
+  mt_shutdown();
   analog_shutdown();
+  dg_shutdown();
   exit(EXIT_SUCCESS);
 
 }

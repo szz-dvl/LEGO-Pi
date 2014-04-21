@@ -13,14 +13,18 @@ KRED = "\e[31m
 # Should not alter anything below this line
 ###############################################################################
 
-EXE = interpol digitst legotst
+EXE = interpol digitst analogtst motortst
 
 all: $(EXE)
 
 
-legotst:
+analogtst:
 	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
-	@$(CC) $(CFLAGS) lego_test.c $(LIBS) -o lego_test
+	@$(CC) $(CFLAGS) analog_test.c $(LIBS) -o ag_test
+
+motortst:
+	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
+	@$(CC) $(CFLAGS) motor_test.c $(LIBS) -o mt_test
 
 interpol:
 	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
@@ -28,7 +32,7 @@ interpol:
 
 digitst:
 	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
-	@$(CC) $(CFLAGS) digital_test.c $(LIBS) -o digi_test
+	@$(CC) $(CFLAGS) digital_test.c $(LIBS) -o dg_test
 
 .PHONEY: clean
 clean:
@@ -38,9 +42,9 @@ clean:
 .PHONEY: uninstall
 uninstall:
 	@/bin/echo -e $(KRED)[UnInstall Tests]$(KNRM)
-	@rm -f $(DESTDIR)/lego_test
+	@rm -f $(DESTDIR)/mt_test
 	@rm -f $(DESTDIR)/interpol
-	@rm -f $(DESTDIR)/digi_test
-
+	@rm -f $(DESTDIR)/dg_test
+	@rm -f $(DESTDIR)/ag_test
 
 

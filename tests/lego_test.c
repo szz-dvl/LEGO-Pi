@@ -3,7 +3,7 @@
 //#include <gsl/gsl_math.h>
 //#include <gsl/gsl_statistics.h>
 
-#include <lego.h>
+#include <lego/lego_motor.h>
 #include <gsl/gsl_sort.h>
 
 #define STATS_SIZE	18
@@ -203,13 +203,13 @@ int main (int argc, char * argv[]) {
   en22.pin = M2_ENC2;
   en22.isr = &dbg_isr_22;
 
-  lego_init();
+  mt_init();
 
-  int ret = motor_new(m1, &en11, &en12, 1) ? OK : FAIL;
-  ret = ret ? motor_new(m2, &en21, &en22, 2) ? OK : FAIL : FAIL;
+  int ret = mt_new(m1, &en11, &en12, 1) ? OK : FAIL;
+  ret = ret ? mt_new(m2, &en21, &en22, 2) ? OK : FAIL : FAIL;
 
-  ret = ret ? pid_conf(m1, pcoef1, dcoef1) ? OK : FAIL : FAIL;
-  ret = ret ? pid_conf(m2, pcoef2, dcoef2) ? OK : FAIL : FAIL;
+  ret = ret ? mt_pid_conf(m1, pcoef1, dcoef1) ? OK : FAIL : FAIL;
+  ret = ret ? mt_pid_conf(m2, pcoef2, dcoef2) ? OK : FAIL : FAIL;
 
   //m1=mot1;
   //m2=mot2;
@@ -224,7 +224,7 @@ time.tv_nsec = 0;
 
  if (ret){
    int ticks, thread_rtn;
-   set_verbose(1);
+   //set_verbose(1);
    switch (tst){
    case 1: //  Test per init_motors() i per les funcions de moviment basiques:
      {
@@ -234,15 +234,15 @@ time.tv_nsec = 0;
        bool calib = argc < 6 ? false : atoi(argv[5]) != 0 ? true : false;
        
        //set_verbose(2);
-       mot_reconf(m1, NULL, NULL); //back to defaults
-       mot_reconf(m2, NULL, NULL); //back to defaults
-       pid_setgains(m1->pid, gains ,gains ,gains);
-       pid_setgains(m2->pid, gains ,gains ,gains);
+       mt_reconf(m1, NULL, NULL); //back to defaults
+       mt_reconf(m2, NULL, NULL); //back to defaults
+       mt_pid_set_gains(m1->pid, gains ,gains ,gains);
+       mt_pid_set_gains(m2->pid, gains ,gains ,gains);
        
        printf("kp: %f, kd: %f, ki: %f, calib: %d\n", gains, gains , gains, calib);
        int mostres = MAX_COEF-1;
        if(calib){
-	 cal_motors(mostres, 0.8);
+	 mt_calibrate(mostres, 0.8);
 	 printf("\n");
 	 printf("coefs_punts_1: ");prw(mostres, m1->pid->cp);
 	 printf("coefs_punts_2: ");prw(mostres, m2->pid->cp);
@@ -255,28 +255,28 @@ time.tv_nsec = 0;
        printf("MOTOR 1: %d,%d,%d,%d\n", (int)m1->pinf, (int)m1->pinr, is_null(m1->enc1) ? ENULL : (int)m1->enc1->pin, is_null(m1->enc2) ? ENULL : (int)m1->enc2->pin);
        printf("MOTOR 2: %d,%d,%d,%d\n", (int)m2->pinf, (int)m2->pinr, is_null(m2->enc1) ? ENULL : (int)m2->enc1->pin, is_null(m2->enc2) ? ENULL : (int)m2->enc2->pin);
 
-       if(!move(m1,"fwd", vel))
+       if(!mt_move(m1,"fwd", vel))
 	 printf("mot_fwd FAIL!");
        
        nanosleep(&time, NULL);
-       ticks = mot_stop(m1, true);
-       wait_for_stop(m1, 0.8);
+       ticks = mt_stop(m1, true);
+       mt_wait_for_stop(m1, 0.8);
        printf("tics received: %d\n", ticks);
        //reset_acums(turns);
        /*	if (pid)
 		join_threads();*/
-       if(!move(m2, "b", vel))
+       if(!mt_move(m2, "b", vel))
 	 printf("mot_rev FAIL!");
        
        nanosleep(&time, NULL);
-       ticks = mot_stop(m2, true);
-       wait_for_stop(m2, 0.8);
+       ticks = mt_stop(m2, true);
+       mt_wait_for_stop(m2, 0.8);
        printf("tics received: %d\n", ticks);
        //reset_acums(turns);
        /*	if (pid)
 		join_threads();*/
 
-       move_t(m1, tticks(m1, turns), "fwd", vel, 0);wfmtr(m1); //moure  un motor en direccio "fwd", al vel% de la velocitat maxima, fins a fer "turns" voltes
+       mt_move_t(m1, tticks(m1, turns), "fwd", vel, 0); mt_wait(m1); //moure  un motor en direccio "fwd", al vel% de la velocitat maxima, fins a fer "turns" voltes
        ticks = get_ticks(m1);
        printf("tics received: %d\n", ticks);
      }
@@ -293,20 +293,20 @@ time.tv_nsec = 0;
        
        printf("pid status :  %d\n", m->pid->svel);
        
-       mot_reconf(m, NULL, NULL); //back to defaults
-       pid_setgains(m->pid, gains ,gains ,gains);
+       mt_reconf(m, NULL, NULL); //back to defaults
+       mt_pid_set_gains(m->pid, gains ,gains ,gains);
        /*m->pid->kp = gains;
 	 m->pid->ki = gains;
 	 m->pid->kd = gains;*/
        printf("MOTOR: %d,%d,%d,%d\n", (int)m->pinf, (int)m->pinr, is_null(m->enc1) ? ENULL : (int)m->enc1->pin, is_null(m->enc2) ? ENULL : (int)m->enc2->pin);
        
        init_acums(turns, m);
-       thread_rtn = move_t(m, tticks(m, turns), "f", vel, pctr);
+       thread_rtn = mt_move_t(m, tticks(m, turns), "f", vel, pctr);
        while (m->moving == true){
 	 printf("moving\n");
 	 sleep(1);
        }
-       printf("pthread_create says: %d, ticks received: %d, ticks expected: %d\n", thread_rtn, get_ticks(m), tticks(m, turns));
+       printf("pthread_create says: %d, ticks received: %d, ticks expected: %d\n", thread_rtn, mt_get_ticks(m), mt_tticks(m, turns));
      }
      break;;
    case 3: // interrupcions, aixo de moment estan un pel xungo, pero per comprovar si els delays entre interrupcions son estables a diferents velocitats:
@@ -320,15 +320,15 @@ time.tv_nsec = 0;
        int turns = argc < 5 ? 7 : atoi(argv[4]);
        init_acums(turns, m);
        reset_acums(turns, m);
-       wait_for_stop(m,2);
+       mt_wait_for_stop(m,2);
        reset_encoders(m);
-       thread_rtn = move_t(m, tticks(m, turns), "f", vel, 0);wfmtr(m);
+       thread_rtn = mt_move_t(m, tticks(m, turns), "f", vel, 0);mt_wait(m);
        
-       wait_for_stop(m,1);
-       int tot = get_ticks(m);
+       mt_wait_for_stop(m,1);
+       int tot = mt_get_ticks(m);
        close_acums(tot);
-       if(ecount(m) == 1){
-	 int encid = is_null(m->enc1) ? 2 : 1;
+       if(mt_enc_count(m) == 1){ //REVISAR CUANDO 0 ENC OK!
+	 int encid = mt_enc_is_null(m->enc1) ? 2 : 1;
 	 stats(&out,true, NULL, true, true, tot, m->id, true, encid, false);
        } else {
 	 stats(&out,true, NULL, true, true, tot, m->id, true, 1, false);
@@ -354,12 +354,12 @@ time.tv_nsec = 0;
 	   index = ((((velo/step)-1)*mostres) + i);
 	   if ((index%50 == 0) && (index != 0))
 	     printf("mostres salvades: %d\n", index);
-	   wait_for_stop(motor,2);
-	   reset_encoders(motor);
-	   alloc = move_t(motor, tticks(motor, turns), "f", velo, 0);wfmtr(motor);
+	   mt_wait_for_stop(motor,2);
+	   mt_reset_enc(motor);
+	   alloc = mt_move_t(motor, mt_tticks(motor, turns), "f", velo, 0);mt_wait(motor);
 	   close_acums(alloc);
-	   if(ecount(motor) == 1){
-	     int encid = is_null(motor->enc1) ? 2 : 1;
+	   if(mt_enc_count(motor) == 1){
+	     int encid = mt_enc_is_null(motor->enc1) ? 2 : 1;
 	     if(encid == 1){
 	       stats(&rese1[index], false, NULL, true, true, alloc, motor->id, true, encid, true);
 	     }else{
@@ -373,10 +373,10 @@ time.tv_nsec = 0;
 					}
        }
        printf ("\nMOTOR %d, STEP: %d, MOSTRES %d x step:\n\n\t\t\tENC 1:\n", motor->id, step, mostres);
-       if(!is_null(motor->enc1))
+       if(!mt_enc_is_null(motor->enc1))
 	 comp_res(rese1, mostres, step, motor->id);
        printf ("\n\n\t\t\tENC: 2\n");
-       if(!is_null(motor->enc2))
+       if(!mt_enc_is_null(motor->enc2))
 	 comp_res(rese2, mostres, step, motor->id);
      }
      break;;
@@ -395,18 +395,18 @@ time.tv_nsec = 0;
        RESULT res[MAXM/step], res2[MAXM/step];
        RFIVE data [MAXM/step];
        
-       pid_setnull(m->pid);
+       mt_pid_setnull(m->pid);
        init_acums((int)MAXM, m);
        
        for (turns = step; turns <= MAXM; turns += step){
 	 
 	 index = ((turns/step)-1);
-	 wait_for_stop(m, 0.3);
+	 mt_wait_for_stop(m, 0.3);
 	 reset_acums((int)MAXM, m);
 	 reset_encoders(m);
 	 clock_gettime(CLK_ID, &tini);
-	 move_t(m, tticks(m, turns), "f", vel,0);wfmtr(m);
-	 ticks = get_ticks(m);
+	 mt_move_t(m, tticks(m, turns), "f", vel,0);mt_wait(m);
+	 ticks = mt_get_ticks(m);
 	 clock_gettime(CLK_ID, &taux);
 	 enano = (taux.tv_nsec - tini.tv_nsec);
 	 esec = (int)(taux.tv_sec - tini.tv_sec);
@@ -419,8 +419,8 @@ time.tv_nsec = 0;
 	   printf("voltes: %d, telapsed: %.5lf seg\ntxvolta: %.5lf seg\ntbticks_total: %.5lf micras\nticks/sec: %.5lf\n", turns, elapsed , txturn/1000000, tbticks, txsec);
 	 data[index].tturn = txturn;
 	 data[index].txsec = txsec;
-	 if(ecount(m) == 1){
-	   int encid = is_null(m->enc1) ? 2 : 1;
+	 if(mt_enc_count(m) == 1){
+	   int encid = mt_enc_is_null(m->enc1) ? 2 : 1;
 	   if(encid == 1){
 	     stats(&res[index], false, NULL, true, true, ticks, m->id, true, encid, true);
 	     if(to_pr)
@@ -481,66 +481,66 @@ time.tv_nsec = 0;
        init_acums(5000, m);
        reset_acums(5000, m);
        printf("tot activat, m_e1: %d, m_e2: %d,\n", e1->pin, e2->pin);
-       ticks = move_t(m, tticks(m, turns), "f", vel, 0); wfmtr(m);
-       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, tticks(m, turns), e1->tics, e2->tics);
+       ticks = mt_move_t(m, tticks(m, turns), "f", vel, 0); mt_wait(m);
+       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, mt_tticks(m, turns), e1->tics, e2->tics);
        printf("desactivant encoder 2 ... \n");
-       wait_for_stop(m,2);
+       mt_wait_for_stop(m,2);
        e2->pin = ENULL;
-       mot_reconf(m, NULL, e2); //e1 untouched.
-       e2pin = is_null(e2) ? ENULL : e2->pin;
+       mt_reconf(m, NULL, e2); //e1 untouched.
+       e2pin = mt_enc_is_null(e2) ? ENULL : e2->pin;
        printf("m_e2 desactivat , m_e1: %d, m_e2: %d,\n", e1->pin, e2pin);
        //get_in("Mira com esta el pin 22 cap d'escombra!", 1);
        
-       wait_for_stop(m, 3);
+       mt_wait_for_stop(m, 3);
        reset_encoders(m);
-       ticks = move_t(m, tticks(m, turns), "f", vel, 0); wfmtr(m);
-       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, tticks(m, turns), e1->tics, is_null(e2) ? 0 : e2->tics);
+       ticks = mt_move_t(m, tticks(m, turns), "f", vel, 0); mt_wait(m);
+       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, mt_tticks(m, turns), e1->tics, mt_enc_is_null(e2) ? 0 : e2->tics);
        printf("reactivant encoder 2 ...\n");
        e2aux.pin = pin2;
        e2aux.isr = m == m1 ? &dbg_isr_12 : &dbg_isr_22;
-       mot_reconf(m, NULL, &e2aux); // e1 untouched
+       mt_reconf(m, NULL, &e2aux); // e1 untouched
        printf("tot activat, m_e1: %d, m_e2: %d,\n", e1->pin, e2->pin);
-       //				get_in("Mira com esta el pin 22 cap d'escombra!", 1);
-       wait_for_stop(m, 3);
+       //get_in("Mira com esta el pin 22 cap d'escombra!", 1);
+       mt_wait_for_stop(m, 3);
        
        reset_encoders(m);
-       ticks = move_t(m, tticks(m, turns), "f", vel, 0);wfmtr(m);
-       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, tticks(m, turns), e1->tics, is_null(e2) ? 0 : e2->tics);
+       ticks = mt_move_t(m, tticks(m, turns), "f", vel, 0);mt_wait(m);
+       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, mt_tticks(m, turns), e1->tics, mt_enc_is_null(e2) ? 0 : e2->tics);
        printf("desactivant encoder 1 ... \n");
        e1->pin = ENULL;
-       mot_reconf(m, e1, NULL); //e2 untouched.
+       mt_reconf(m, e1, NULL); //e2 untouched.
        e1pin = is_null(e1) ? ENULL : e1->pin;
        printf("m_e1 desactivat , m_e1: %d, m_e2: %d,\n", e1pin, e2->pin);
-       wait_for_stop(m, 3);
-       //				get_in("Mira com esta el pin 27 cap d'escombra!", 1);
+       mt_wait_for_stop(m, 3);
+       //get_in("Mira com esta el pin 27 cap d'escombra!", 1);
        
        reset_encoders(m);
-       ticks = move_t(m, tticks(m, turns), "f", vel, 0);wfmtr(m);
-       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, tticks(m, turns), is_null(e1) ? 0 :e1->tics, e2->tics);
+       ticks = mt_move_t(m, mt_tticks(m, turns), "f", vel, 0);mt_wait(m);
+       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, mt_tticks(m, turns), mt_enc_is_null(e1) ? 0 :e1->tics, e2->tics);
        printf("reactivant encoder 1 ...\n");
        e1aux.pin = pin1;
        //e1aux.isr = m == m1 ? &dbg_isr_11 : &dbg_isr_21;
        e1aux.isr = m->id == 1 ? &isr_print_1 : &isr_print_2;
        //m->ticsxturn = 360;
-       mot_reconf(m, &e1aux, NULL); // e1 untouched
+       mt_reconf(m, &e1aux, NULL); // e2 untouched
        printf("tot activat, m_e1: %d, m_e2: %d,\n", e1->pin, e2->pin);
-       //				get_in("Mira com esta el pin 27 cap d'escombra!", 1);
-       wait_for_stop(m, 3);
+       //get_in("Mira com esta el pin 27 cap d'escombra!", 1);
+       mt_wait_for_stop(m, 3);
        
        reset_encoders(m);
-       ticks = move_t(m, tticks(m, turns), "f", vel, 0);wfmtr(m);
+       ticks = mt_move_t(m, tticks(m, turns), "f", vel, 0);mt_wait(m);
        printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, tticks(m, turns), e1->tics, e2->tics);
        printf("tornant a defaults ...\n");
-       mot_reconf(m, NULL, NULL);
+       mt_reconf(m, NULL, NULL);
        printf("tot activat, m_e1: %d, m_e2: %d,\n", e1->pin, e2->pin);
-       wait_for_stop(m, 3);
+       mt_wait_for_stop(m, 3);
        reset_encoders(m);
-       ticks = move_t(m, tticks(m, turns), "f", vel, 0);wfmtr(m);
-       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, tticks(m, turns), is_null(e1) ? 0 :e1->tics, e2->tics);
+       ticks = mt_move_t(m, tticks(m, turns), "f", vel, 0);mt_wait(m);
+       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, mt_tticks(m, turns), mt_enc_is_null(e1) ? 0 : e1->tics, e2->tics);
        printf("intentant desactivar els 2 a l'hora ...\n");
        e1->pin = ENULL;
        e2->pin = ENULL;
-       mot_reconf(m, e1, e2);
+       mt_reconf(m, e1, e2);
        /* mot_reconf(m,NULL,NULL) es tambien v?lido, pero lo que hace es un reload de las structs globales, que son con las que hacemos pruebas asi pues nada... */
      }
      break;;
@@ -555,7 +555,7 @@ time.tv_nsec = 0;
        
        if (m != NULL) { 
 	 printf("calibrating MOTOR: %d", m->id);
-	 cal_motors(mostres, twait);
+	 mt_calibrate(mostres, twait);
 	 printf("\n");
 	 printf("coefs_punts: ");prw(mostres, m->pid->cp);
 	 printf("coef_dev:    ");prw(mostres, m->pid->cd);
@@ -566,13 +566,13 @@ time.tv_nsec = 0;
 	   else if ((i == MAX_VEL) && !clavat)
 	     i = (MAX_VEL - (step/4));
 	   
-	   get_params(m,i,&micras, &desv);
+	   mt_get_params(m,i,&micras, &desv);
 	   printf("params for %3d vel >> tbticks: %d, desv: %d\n",i,micras, desv);
 	   //micras = desv = 0;
 	 }
        } else {
 	 printf("\ntrying to calibrate BOTH motors\n");
-	 cal_motors(mostres, twait);
+	 mt_calibrate(mostres, twait);
 	 /*printf("\n");
 	   printf("coefs_punts_1: ");prw(mostres, m1->pid->cp);
 	   printf("coefs_punts_2: ");prw(mostres, m2->pid->cp);
@@ -585,8 +585,8 @@ time.tv_nsec = 0;
 	   else if ((i == MAX_VEL) && !clavat)
 	     i = (MAX_VEL - (step/4));
 	   
-	   get_params(m1,i,&micras, &desv);
-	   get_params(m2,i,&micras2,&desv2);
+	   mt_get_params(m1,i,&micras, &desv);
+	   mt_get_params(m2,i,&micras2,&desv2);
 	   printf("MOTOR1: params for %3d vel >> tbticks: %d, desv: %d\n",i,micras, desv);
 	   printf("MOTOR2: params for %3d vel >> tbticks: %d, desv: %d\n",i,micras2, desv2);
 	   //micras = desv = 0;
@@ -609,7 +609,7 @@ time.tv_nsec = 0;
 					printf("MOTOR 2: dcoef_avans d'entrar"); prw(10, m2->pid->cd);
        */
        for(i = 0; i < iters; i++){
-	 cal_motors(mostres, twait);
+	 mt_calibrate(mostres, twait);
 	 if(iters == 1){
 	   printf("\n");
 	   printf("coefs_punts_1: ");prw(mostres, m1->pid->cp);
@@ -674,15 +674,15 @@ time.tv_nsec = 0;
        
        printf ("motor: %d, vel: %d, ttc: %f, kp: %f, ki: %f, kd: %f, calib: %s, turns: %d\n", m->id, vel, ttc, kp, ki, kd, calib ? "true" : "false", turns);
        
-       set_verbose(LOG_LVL_DBG);
-       mot_reconf(m, NULL, NULL); //back to defaults
-       pid_setgains(m->pid, kp ,ki ,kd);
+       //set_verbose(LOG_LVL_DBG);
+       mt_reconf(m, NULL, NULL); //back to defaults
+       mt_pid_set_gains(m->pid, kp ,ki ,kd);
        m->pid->ttc = ttc;
        
        int mostres = 10;
        
        if(calib){
-	 cal_motors(mostres, 0.6);
+	 mt_calibrate(mostres, 0.6);
 	 printf("\n");
 	 printf("coefs_punts_1: ");prw(mostres, m1->pid->cp);
 	 printf("coefs_punts_2: ");prw(mostres, m2->pid->cp);
@@ -694,7 +694,7 @@ time.tv_nsec = 0;
        
        
        printf("\n\nSTARTING MOVE_T\n\n");
-       move_t(m, tticks(m, turns), "f", vel, pctr);wfmtr(m);
+       mt_move_t(m, tticks(m, turns), "f", vel, pctr);mt_wait(m);
        /*printf("\n\nSTARTING MOVE\n\n");
 	 move(m, "f", vel);
 	 while(get_in("stop?", 1) != 1);
@@ -719,14 +719,14 @@ time.tv_nsec = 0;
        
        //int turns = argc < 9 ? 10 : atoi(argv[8]);
        
-       set_verbose(LOG_LVL_DBG);
+       //set_verbose(LOG_LVL_DBG);
        printf ("vel: %d, ttc: %f, kp: %f, ki: %f, kd: %f, calib: \"%s\"\n", vel, ttc, kp, ki, kd, calib ? "true" : "false");
        
-       mot_reconf(m1, NULL, NULL); //back to defaults
-       mot_reconf(m2, NULL, NULL); //back to defaults
+       mt_reconf(m1, NULL, NULL); //back to defaults
+       mt_reconf(m2, NULL, NULL); //back to defaults
        
-       pid_setgains(m1->pid, kp ,ki ,kd);
-       pid_setgains(m2->pid, kp ,ki ,kd);
+       mt_pid_set_gains(m1->pid, kp ,ki ,kd);
+       mt_pid_set_gains(m2->pid, kp ,ki ,kd);
        
        m1->pid->ttc = ttc;
        m2->pid->ttc = ttc;
@@ -734,7 +734,7 @@ time.tv_nsec = 0;
        int mostres = 10;
        
        if(calib){
-	 cal_motors(mostres, 0.6);
+	 mt_calibrate(mostres, 0.6);
 	 printf("\n");
 	 printf("coefs_punts_1: ");prw(mostres, m1->pid->cp);
 	 printf("coefs_punts_2: ");prw(mostres, m2->pid->cp);
@@ -744,15 +744,15 @@ time.tv_nsec = 0;
        } else
 	 printf("\n");
        
-       move_sinc("fwd", vel);
+       mt_move_sinc("fwd", vel);
        while(get_in("stop?", 1) != 1);
-       mot_stop(m1,true);
-       mot_stop(m2,true);
+       mt_stop(m1,true);
+       mt_stop(m2,true);
      }
      break;;
    case 11:
      {
-       set_verbose(LOG_LVL_DBG);
+       //set_verbose(LOG_LVL_DBG);
        int vel = argc < 3 ? 70 : atoi(argv[2]);
        double ttc = argc < 4 ? TTCDEF : atof(argv[3]);
        double kp = argc < 5 ? 1 : atof(argv[4]);
@@ -767,11 +767,11 @@ time.tv_nsec = 0;
        
        printf ("vel: %d, ttc: %f, kp: %f, ki: %f, kd: %f, calib: \"%s\"\n", vel, ttc, kp, ki, kd, calib ? "true" : "false");
        
-       mot_reconf(m1, NULL, NULL); //back to defaults
-       mot_reconf(m2, NULL, NULL); //back to defaults
+       mt_reconf(m1, NULL, NULL); //back to defaults
+       mt_reconf(m2, NULL, NULL); //back to defaults
        
-       pid_setgains(m1->pid, kp ,ki ,kd);
-       pid_setgains(m2->pid, kp ,ki ,kd);
+       mt_pid_set_gains(m1->pid, kp ,ki ,kd);
+       mt_pid_set_gains(m2->pid, kp ,ki ,kd);
        //                pid_setnull(m1->pid);
        //                pid_setnull(m2->pid);
        
@@ -781,7 +781,7 @@ time.tv_nsec = 0;
        int mostres = 10;
        
        if(calib){
-	 cal_motors(mostres, 0.6);
+	 mt_calibrate(mostres, 0.6);
 	 printf("\n");
 	 printf("coefs_punts_1: ");prw(mostres, m1->pid->cp);
 	 printf("coefs_punts_2: ");prw(mostres, m2->pid->cp);
@@ -791,53 +791,11 @@ time.tv_nsec = 0;
        } else
 	 printf("\n");
        
-       int res = move_sinc_t("fwd", vel, (turns*720), pctr);wfmtrs();
+       int res = mt_move_sinc_t("fwd", vel, (turns*720), pctr);mt_wait_all();
        printf("move_sinc-says: \"%s\"\n", res ? "OK" : "FAIL");
        //while(get_in("stop?", 1) != 1);
-       mot_stop(m1,true);
-       mot_stop(m2,true);
-     }
-     break;;
-   case 12: //analogs rapidillu
-     {
-       int times = argc < 3 ? 5 : atoi(argv[2]), i;
-       ANDVC push, l1, l2, l3;       
-       double lres1, lres2, lres3;
-       set_verbose(LOG_LVL_ADV);
-       
-       new_analog(&push, 3, PUSH);
-       new_analog(&l1,0, LIGHT);
-       new_analog(&l2,1, LIGHT);
-       new_analog(&l3,2, LIGHT);
-
-       for(i=0; i<times; i++){
-	 while(!analog_pushed(&push));
-	
-	 if (l1.l_on) {
-	   printf("entro l1 light on\n");
-	   analog_light_off(&l1);
-	 } else { 
-	   analog_light_on(&l1);
-	   printf("entro l1 light off\n");
-	 }
-	 if (l2.l_on)
-	   analog_light_off(&l2);
-	 else
-	   analog_light_on(&l2);
-
-	 if (l3.l_on)
-	   analog_light_off(&l3);
-	 else
-	   analog_light_on(&l3);
-	 
-	 sleep(1);
-	 
-	 lres1 = analog_read_voltage(&l1);
-	 lres2 = analog_read_voltage(&l2);
-	 lres3 = analog_read_voltage(&l3);
-	 printf("LIGHT_1 says: %.2f, LIGHT_2 says: %.2f, LIGHT_3 says: %.2f\n", lres1, lres2, lres3);
-	 
-       }
+       mt_stop(m1,true);
+       mt_stop(m2,true);
      }
      break;;
    default:
@@ -847,9 +805,10 @@ time.tv_nsec = 0;
    printf("ERRORAKO en init de motores\n");
  }
  
- mot_stop(m1, true);
- mot_stop(m2, true);
- lego_shutdown();
+ mt_stop(m1, true);
+ mt_stop(m2, true);
+ mt_shutdown();
+ //lego_shutdown();
  
  return ret;
  

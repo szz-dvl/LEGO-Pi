@@ -110,11 +110,13 @@ static void get_stats(STAT *, MOTOR *, int);
 static void init_acums(int, MOTOR *);
 static void reset_acums(int, MOTOR *);
 static void free_acums(MOTOR *);
+static void get_params (MOTOR * m, int vel, int * ex_micras, int * ex_desv);
 static int get_len(double []);
 static void get_vels (int , double [], int);
 static void cal_weight(int, double [], double, double);
 static double avg(int, double[]);
 static void cmp_res(PID *, STAT[], STAT[], int);
+static int ecount (MOTOR * m);
 //static int table_tam(int); DEPRECATED
 //static void prod(mpf_t, int, int [], int); DEPRECATED
 //long long prod(int, int [], int); DEPRECATED
@@ -244,7 +246,7 @@ int mot_unexportall(){
   
 }
 */
-void init_motors(){
+extern void mt_init(){
   
   msinc->acting = false;
   start_pwm();
@@ -261,7 +263,7 @@ void init_motors(){
   }
 */
 
-int motor_new ( MOTOR * m, ENC * e1, ENC * e2, int id ){
+extern int mt_new ( MOTOR * m, ENC * e1, ENC * e2, int id ){
   
   
   if (id != 1 && id != 2)
@@ -297,7 +299,7 @@ int motor_new ( MOTOR * m, ENC * e1, ENC * e2, int id ){
   
 }
 
-int start_pwm(){
+static int start_pwm(){
 
   spwm_set_loglevel(LOG_LEVEL_ERRORS);
   return ((spwm_setup(PWIG_DEF, HW_PWM) == 0) ? OK : FAIL);
@@ -324,7 +326,7 @@ static int conf_motor(MOTOR * mot, ENC * enc1, ENC * enc2){   //ALLOCATE acceler
   /* a pid_conf resetejo l'accelerador, per tant aki he d'allocatar-lo */
   mot->pid->accelM = gsl_interp_accel_alloc();
   mot->pid->accelD = gsl_interp_accel_alloc();
-  ret = pid_conf(mot, pcoef_def, dcoef_def);
+  ret = mt_pid_conf(mot, pcoef_def, dcoef_def);
   if(!ret)
     not_critical("conf_motor: Error configuring PID on motor %d\n", mot->id);
   
@@ -360,7 +362,7 @@ static int conf_motor(MOTOR * mot, ENC * enc1, ENC * enc2){   //ALLOCATE acceler
   return (ret && res_pwm_init);
 }
 
-int mot_reconf(MOTOR * m, ENC * e1, ENC * e2){
+extern int mt_reconf(MOTOR * m, ENC * e1, ENC * e2){
   
   int ret = 0;
 
@@ -384,7 +386,7 @@ int mot_reconf(MOTOR * m, ENC * e1, ENC * e2){
 
   if(ret){
     if(ecount(m) == 0){
-      fatal("mot_reconf: Configuration let motor %d without encoders, shutting down...\n", m->id);
+      fatal("mt_reconf: Configuration let motor %d without encoders, shutting down...\n", m->id);
     } else {
       m->ticsxturn = ecount(m) == 1 ? 360 : 720;
       ret = OK;
@@ -393,14 +395,15 @@ int mot_reconf(MOTOR * m, ENC * e1, ENC * e2){
   return ret ;
 }
 
-int pid_conf(MOTOR * m, double * pcoef, double * dcoef){ 
+extern int mt_pid_conf(MOTOR * m, double * pcoef, double * dcoef){ 
 
   int sizep,sized;
+
   for (sizep = 0; pcoef[sizep] != 0; sizep++);
   for (sized = 0; dcoef[sized] != 0; sized++);
   
   if (((pcoef == NULL) && (dcoef == NULL)) || ((sizep == sized) == 0)){
-    pid_setnull(m->pid);
+    mt_pid_set_null(m->pid);
   }
   else if((pcoef != NULL) && (dcoef != NULL)){
     if(sized == sizep)
@@ -410,7 +413,7 @@ int pid_conf(MOTOR * m, double * pcoef, double * dcoef){
     }
 
     mpid_load_coef(m->pid, pcoef, dcoef, sizep);
-    pid_setgains(m->pid, PIDDEF, PIDDEF, PIDDEF);
+    mt_pid_set_gains(m->pid, PIDDEF, PIDDEF, PIDDEF);
     m->pid->ttc = TTCDEF;
   }
   else {
@@ -495,32 +498,32 @@ static int set_pulse (int vel, int gpio, int chann){
   return OK;
 }
 
-int mot_stop(MOTOR * mot, bool reset){
+extern int mt_stop(MOTOR * mot, bool reset){
   
   mot->moving = false;
   int ticks;
 
   if (spwm_clear_channel(mot->chann) != 0)
-    not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d", mot->chann, mot->id);
+    not_critical("mt_stop: Error clearing DMA channel: %d, on motor: %d", mot->chann, mot->id);
 
   digitalWrite(mot->pinf, LOW);
   digitalWrite(mot->pinr, LOW);
-  ticks = get_ticks(mot);
+  ticks = mt_get_ticks(mot);
   
   if(reset)
-    reset_encoders(mot);
+    mt_reset_enc(mot);
   
   msinc->acting = false;
   return ticks;
 }
 
-bool is_null (ENC * enc) {
+extern bool mt_enc_is_null (ENC * enc) {
 
   return(enc->pin == ENULL);
 
 }
 
-void reset_encoder(ENC * enc){
+static void reset_encoder(ENC * enc){
 
   pthread_mutex_lock(&enc->mtx);
   enc->tics = 0;
@@ -528,23 +531,23 @@ void reset_encoder(ENC * enc){
 
 }
 
-int mot_fwd(MOTOR * mot, int vel){
+static int mot_fwd(MOTOR * mot, int vel){
 
   PID auxpid; //save pid state.
   bool altered = false;
 
-  if(vel < MIN_VEL && !pid_null(mot->pid)) {
+  if(vel < MIN_VEL && !mt_pid_is_null(mot->pid)) {
     not_critical("move_till_ticks: Setting PID null, the minimun velocity allowed with PID control is %d\n", MIN_VEL);
-    pid_setgains(&auxpid, mot->pid->kp, mot->pid->ki, mot->pid->kd);
-    pid_setnull(mot->pid);
+    mt_pid_set_gains(&auxpid, mot->pid->kp, mot->pid->ki, mot->pid->kd);
+    mt_pid_set_null(mot->pid);
     altered = true;
   }
 
-  if (!is_null(mot->enc1)){
+  if (!mt_enc_is_null(mot->enc1)){
     reset_encoder(mot->enc1);
     clock_gettime(CLK_ID, &mot->enc1->tmp);
   }
-  if (!is_null(mot->enc2)){
+  if (!mt_enc_is_null(mot->enc2)){
     reset_encoder(mot->enc2);
     clock_gettime(CLK_ID, &mot->enc2->tmp);
   }
@@ -557,28 +560,28 @@ int mot_fwd(MOTOR * mot, int vel){
   
   mot->moving = true;
   
-  if (!pid_null(mot->pid))
+  if (!mt_pid_is_null(mot->pid))
     pid_launch(mot, vel, 0, "fwd", 0, msinc->acting);
   
   if(altered)
-    pid_setgains(mot->pid, auxpid.kp, auxpid.ki, auxpid.kd);
+    mt_pid_set_gains(mot->pid, auxpid.kp, auxpid.ki, auxpid.kd);
 
   return OK;
 }
 
-bool pid_null (PID * pid){
+extern bool mt_pid_is_null (PID * pid){
 
   return ((pid->kp == PIDNULL) && (pid->ki == PIDNULL) && (pid->kd == PIDNULL));
 
 }
 
-void pid_setnull (PID * pid){
+extern void mt_pid_set_null (PID * pid){
 
   pid->kp = pid->ki = pid->kd = PIDNULL;
   
 }
 
-void pid_setgains (PID * pid, double kp, double ki, double kd){
+extern void mt_pid_set_gains (PID * pid, double kp, double ki, double kd){
 
   pid->kp = kp;
   pid->ki = ki;
@@ -587,24 +590,24 @@ void pid_setgains (PID * pid, double kp, double ki, double kd){
 }
 
 
-int mot_rev (MOTOR * mot, int vel){
+static int mot_rev (MOTOR * mot, int vel){
   
   PID auxpid; //save pid state.
   bool altered = false;
 
-  if(vel < MIN_VEL && !pid_null(mot->pid)) {
+  if(vel < MIN_VEL && !mt_pid_is_null(mot->pid)) {
     not_critical("move_till_ticks: Setting PID null, the minimun velocity allowed with PID control is %d\n", MIN_VEL);
-    pid_setgains(&auxpid, mot->pid->kp, mot->pid->ki, mot->pid->kd);
-    pid_setnull(mot->pid);
+    mt_pid_set_gains(&auxpid, mot->pid->kp, mot->pid->ki, mot->pid->kd);
+    mt_pid_set_null(mot->pid);
     altered = true;
   }
 
-  if (!is_null(mot->enc1)){
+  if (!mt_enc_is_null(mot->enc1)){
     reset_encoder(mot->enc1);
     clock_gettime(CLK_ID, &mot->enc1->tmp);
   }
   
-  if (!is_null(mot->enc2)){
+  if (!mt_enc_is_null(mot->enc2)){
     reset_encoder(mot->enc2);
     clock_gettime(CLK_ID, &mot->enc2->tmp);
   }
@@ -617,23 +620,23 @@ int mot_rev (MOTOR * mot, int vel){
 
   mot->moving = true;
 
-  if (!pid_null(mot->pid))
+  if (!mt_pid_is_null(mot->pid))
     pid_launch(mot, vel, 0, "bw", 0, msinc->acting);
 
   if(altered)
-    pid_setgains(mot->pid, auxpid.kp, auxpid.ki, auxpid.kd);
+    mt_pid_set_gains(mot->pid, auxpid.kp, auxpid.ki, auxpid.kd);
 
   return OK;
 }
 
-int move (MOTOR * m, char * dir, int vel){
+extern int mt_move (MOTOR * m, char * dir, int vel){
 
   THARG_MV * args = (THARG_MV *)malloc(sizeof(THARG_MV));
   pthread_t worker; 
   pthread_attr_t tattr;
 
   if(!m->moving){
-    if(!pid_null(m->pid)){
+    if(!mt_pid_is_null(m->pid)){
       
       args->mot = m;
       args->vel = vel;
@@ -688,16 +691,16 @@ static void * mv_thread (void * arg){
 }
 
 
-int move_till_ticks_b (MOTOR * mot, int ticks, char * dir, int vel, bool reset, double posCtrl){
+static int move_till_ticks_b (MOTOR * mot, int ticks, char * dir, int vel, bool reset, double posCtrl){
   
   //printf("entro con pid -> kp : %f, ki: %f, kd: %f\n", mot->pid->kp, mot->pid->ki, mot->pid->kd);
  
   PID auxpid; //save pid state.
   bool restored = false;
 
-  pid_setgains(&auxpid, mot->pid->kp, mot->pid->ki, mot->pid->kd);
+  mt_pid_set_gains(&auxpid, mot->pid->kp, mot->pid->ki, mot->pid->kd);
   //printf("auxpid -> kp : %f, ki: %f, kd: %f\n", auxpid.kp, auxpid.ki, auxpid.kd);
-  pid_setnull(mot->pid); //force pid null since we will launch it later on.
+  mt_pid_set_null(mot->pid); //force pid null since we will launch it later on.
   
   if (strcmp(dir, "f") == 0 || strcmp(dir, "fw") == 0 || strcmp(dir, "fwd") == 0){
     if(!mot_fwd(mot, vel)) {
@@ -714,26 +717,26 @@ int move_till_ticks_b (MOTOR * mot, int ticks, char * dir, int vel, bool reset, 
     return FAIL;
   }
 
-  if(vel < MIN_VEL && !pid_null(&auxpid)) 
+  if(vel < MIN_VEL && !mt_pid_is_null(&auxpid)) 
     not_critical("move_till_ticks: Setting PID null, the minimun velocity allowed with PID control is %d\n", MIN_VEL);
   else {
-    pid_setgains(mot->pid, auxpid.kp, auxpid.ki, auxpid.kd);
+    mt_pid_set_gains(mot->pid, auxpid.kp, auxpid.ki, auxpid.kd);
     restored = true;
   }
   //printf("despues de reset pid -> kp : %f, ki: %f, kd: %f\n", mot->pid->kp, mot->pid->ki, mot->pid->kd);
 
-  if(pid_null(mot->pid))
-    while(get_ticks(mot) < ticks);
+  if(mt_pid_is_null(mot->pid))
+    while(mt_get_ticks(mot) < ticks);
   else
     pid_launch(mot, vel, ticks, dir, posCtrl, msinc->acting);
 
   if (!restored)
-    pid_setgains(mot->pid, auxpid.kp, auxpid.ki, auxpid.kd);
+    mt_pid_set_gains(mot->pid, auxpid.kp, auxpid.ki, auxpid.kd);
 
-  return (mot_stop(mot, reset));
+  return (mt_stop(mot, reset));
 }
 
-void mot_clear () { //aki "free" d'accelerador de interpolacions 
+extern void mt_shutdown () { //aki "free" d'accelerador de interpolacions 
   
   if(!destroy_mutex())
     not_critical("mot_clear: Error destroying mutexs\n");
@@ -745,7 +748,7 @@ void mot_clear () { //aki "free" d'accelerador de interpolacions
   gsl_interp_accel_free(m2->pid->accelD);
 }
 
-int destroy_mutex (void){
+static int destroy_mutex (void){
 
   MOTOR * m;
   int i = 1, ret = OK;
@@ -765,17 +768,17 @@ int destroy_mutex (void){
   return ret;
 }
 
-void wfmtr(MOTOR * m){
+extern void mt_wait(MOTOR * m){
   while (m->moving)
     udelay(2500);
 }
 
-void wfmtrs(){
+extern void mt_wait_all(){
   while (m1->moving || m2->moving)
     udelay(2500);
 }
 
-int move_t (MOTOR * mot, int ticks, char * dir, int vel, double posCtrl){
+extern int mt_move_t (MOTOR * mot, int ticks, char * dir, int vel, double posCtrl){
 
   THARG_MTT * arg = (THARG_MTT *)malloc(sizeof(THARG_MTT));
   pthread_t worker; //= &threads[0].id; //pos 1 per mtt
@@ -808,7 +811,7 @@ int move_t (MOTOR * mot, int ticks, char * dir, int vel, double posCtrl){
   return ret;
 }
 
-void * mtt_thread (void * arg){
+static void * mtt_thread (void * arg){
 
   THARG_MTT * args = (THARG_MTT *) arg;
   
@@ -817,15 +820,8 @@ void * mtt_thread (void * arg){
   pthread_exit(NULL);
 }
 
-/*double difft (TSPEC * ini, TSPEC * fi){
 
-  long enano = (fi->tv_nsec - ini->tv_nsec);
-  int esec = (int)(fi->tv_sec - ini->tv_sec);
-  return ((double) esec*1000000+(enano/1000)); //micras
-
-  }*/
-
-bool wait_for_stop(MOTOR * m, double diff){   //pensar con difft
+extern bool mt_wait_for_stop(MOTOR * m, double diff){   //pensar con difft
 
   //double diff -> segundos con decimales....
 
@@ -837,7 +833,7 @@ bool wait_for_stop(MOTOR * m, double diff){   //pensar con difft
   int esec1, esec2;
   double el1, el2;
 
-  if ((!is_null(m->enc1)) && (!is_null(m->enc2))){
+  if ((!mt_enc_is_null(m->enc1)) && (!mt_enc_is_null(m->enc2))){
     do {
       clock_gettime(CLK_ID, &taux);
       enano1 = (taux.tv_nsec - tini1->tv_nsec);
@@ -848,7 +844,7 @@ bool wait_for_stop(MOTOR * m, double diff){   //pensar con difft
       el2 = esec2+(enano2*0.000000001);
     } while ( (el1 < diff) || (el2 < diff) );
 
-  } else if (is_null(m->enc1)) {
+  } else if (mt_enc_is_null(m->enc1)) {
     do {
       clock_gettime(CLK_ID, &taux);
       enano2 = (taux.tv_nsec - tini2->tv_nsec);
@@ -868,31 +864,31 @@ bool wait_for_stop(MOTOR * m, double diff){   //pensar con difft
   return true;
 }
 
-void reset_encoders (MOTOR * mot){
+extern void mt_reset_enc (MOTOR * mot){
 
-  if(!is_null(mot->enc1))
+  if(!mt_enc_is_null(mot->enc1))
     reset_encoder(mot->enc1);
-  if(!is_null(mot->enc2))
+  if(!mt_enc_is_null(mot->enc2))
     reset_encoder(mot->enc2);
 
 }
 
-int get_ticks (MOTOR * mot) {
+extern int mt_get_ticks (MOTOR * mot) {
 
   int ticks;
 
-  if (is_null(mot->enc1)){
+  if (mt_enc_is_null(mot->enc1)){
     pthread_mutex_lock(&mot->enc2->mtx);
     ticks = mot->enc2->tics;
     pthread_mutex_unlock(&mot->enc2->mtx);
-  } else if (is_null(mot->enc2)){
+  } else if (mt_enc_is_null(mot->enc2)){
     pthread_mutex_lock(&mot->enc1->mtx);
     ticks = mot->enc1->tics;
     pthread_mutex_unlock(&mot->enc1->mtx);
   } else {
-    lock_motor(mot);
+    mt_lock(mot);
     ticks = (mot->enc1->tics + mot->enc2->tics);
-    unlock_motor(mot);
+    mt_unlock(mot);
   }
 
   //printf("salgo de get_ticks: %d ...\n", ticks);
@@ -900,27 +896,34 @@ int get_ticks (MOTOR * mot) {
   return ticks;
 }
 
-TSPEC * get_time (ENC * enc) {
+extern TSPEC * mt_get_time (ENC * enc) {
   
-  if (!is_null(enc))
+  if (!mt_enc_is_null(enc))
     return(&enc->tmp);
   else
     return NULL;
 }
 
-int tticks (MOTOR * m, int turns){
+extern int mt_tticks (MOTOR * m, int turns){
   
   return(m->ticsxturn * turns);
 
 }
 
-int ecount (MOTOR * m){
+static int ecount (MOTOR * m){
   
-  return (!is_null(m->enc1) + !is_null(m->enc2));
+  return (!mt_enc_is_null(m->enc1) + !mt_enc_is_null(m->enc2));
 
 }
 
-void cal_motors (int mostres, double wait){
+
+extern int mt_enc_count (MOTOR * m){
+  
+  return (!mt_enc_is_null(m->enc1) + !mt_enc_is_null(m->enc2));
+
+}
+
+extern void mt_calibrate (int mostres, double wait){
 
   THARG_MCAL * arg1 = (THARG_MCAL *)malloc(sizeof(THARG_MCAL));
   THARG_MCAL * arg2 = (THARG_MCAL *)malloc(sizeof(THARG_MCAL));
@@ -948,7 +951,7 @@ void cal_motors (int mostres, double wait){
 
 }
 
-void * mcal_thread (void * arg){
+static void * mcal_thread (void * arg){
 
   THARG_MCAL * args = (THARG_MCAL *) arg;
   
@@ -958,7 +961,7 @@ void * mcal_thread (void * arg){
 }
 
 
-void mot_cal (MOTOR * m, int mostres, double wait){
+static void mot_cal (MOTOR * m, int mostres, double wait){
   
   int ms;
   ms = mostres > MAX_COEF-1 ? MAX_COEF-1 : mostres < MIN_COEF ? MIN_COEF : mostres;
@@ -980,8 +983,8 @@ void mot_cal (MOTOR * m, int mostres, double wait){
   int ex_pin2 = m->id ==1 ? M1_ENC2 : M2_ENC2;
   ENC aux1, aux2; //save previous state;
   PID auxpid;
-  pid_setgains(&auxpid, m->pid->kp, m->pid->ki, m->pid->kd);
-  pid_setnull(m->pid); //force pid null since we will launch it later on.
+  mt_pid_set_gains(&auxpid, m->pid->kp, m->pid->ki, m->pid->kd);
+  mt_pid_set_null(m->pid); //force pid null since we will launch it later on.
   
   aux1.pin = m->enc1->pin;
   aux1.isr = m->enc1->isr;
@@ -993,7 +996,7 @@ void mot_cal (MOTOR * m, int mostres, double wait){
   m->enc2->pin = ex_pin2;
   m->enc2->isr = m->id == 1 ? &isr_cal_12 : &isr_cal_22;
   
-  mot_reconf(m, m->enc1, m->enc2); //configure ISr to store all the delays between ticks
+  mt_reconf(m, m->enc1, m->enc2); //configure ISr to store all the delays between ticks
   m->pid->svel = step;
   
   init_acums(turns, m);			   //init & reset global arrays.
@@ -1004,12 +1007,12 @@ void mot_cal (MOTOR * m, int mostres, double wait){
     if( index  == ms-1 )
       vel = MAX_VEL;
     if ( wait != 0 )
-      wait_for_stop(m, wait);
+      mt_wait_for_stop(m, wait);
     //printf("entro con wait = %f\n", wait);
     //printf("Despres de fer el reset:\n");
     //prac(((BASE*turns)+((BASE*turns)*0.2)), acum1);
     reset_acums(turns, m);
-    move_till_ticks_b (m, tticks(m, turns), dir, vel, reset, 0);
+    move_till_ticks_b (m, mt_tticks(m, turns), dir, vel, reset, 0);
     get_stats(&es1[index], m, 1);
     get_stats(&es2[index], m, 2);
     //printf("motor: %d, vel: %d, mean1: %f, mean2: %f, dev1: %f, dev2: %f\n", m->id, vel ,es1[index].mean, es2[index].mean, es1[index].absd, es2[index].absd);
@@ -1021,12 +1024,12 @@ void mot_cal (MOTOR * m, int mostres, double wait){
   prstat(es1, es2, ms);
   END Cacota que hay que quitar */
   cmp_res(m->pid, es1, es2, ms);
-  pid_setgains(m->pid, auxpid.kp, auxpid.ki, auxpid.kd);
-  mot_reconf(m, &aux1, &aux2);
+  mt_pid_set_gains(m->pid, auxpid.kp, auxpid.ki, auxpid.kd);
+  mt_reconf(m, &aux1, &aux2);
   //free_acums(m);  <=== Un pokito poltergaist
 }
 
-void get_vels (int svel, double out[], int size) {
+static void get_vels (int svel, double out[], int size) {
   
   int i;
 
@@ -1036,7 +1039,7 @@ void get_vels (int svel, double out[], int size) {
 
 }
 
-void get_params (MOTOR * m, int vel, int * ex_micras, int * ex_desv){
+static void get_params (MOTOR * m, int vel, int * ex_micras, int * ex_desv){
   
   int size, i;
   for (size = 0; m->pid->cp[size] != 0; size++);
@@ -1066,7 +1069,38 @@ void get_params (MOTOR * m, int vel, int * ex_micras, int * ex_desv){
 
 }
 
-void cmp_res(PID * pid, STAT es1[], STAT es2[], int size){
+extern void mt_get_params (MOTOR * m, int vel, int * ex_micras, int * ex_desv){
+  
+  int size, i;
+  for (size = 0; m->pid->cp[size] != 0; size++);
+  double x[size];
+  int v = vel < MIN_VEL ? MIN_VEL : vel; 
+  int *res;
+  gsl_interp *interp;
+
+  if(vel < MIN_VEL)
+    not_critical("get_params: Getting parameters for %d velocity, the minimum allowed for interpolation\n", MIN_VEL);
+
+  *ex_micras = 0;
+  *ex_desv = 0;
+    
+  /* Funcion para calcular puntosX (velocidades para mi) a partir de svel (step velocidad)*/
+
+  get_vels(m->pid->svel, x, size);
+  interp = gsl_interp_alloc(gsl_interp_akima_periodic, size);
+
+  for(i = 0; i < 2; i++){
+    res = i == 0 ? ex_micras : ex_desv; 
+    gsl_interp_init(interp, x, i == 0 ? m->pid->cp : m->pid->cd, size);
+    *res = (int)gsl_interp_eval(interp, x, i == 0 ? m->pid->cp : m->pid->cd, (double)v, i == 0 ? m->pid->accelM : m->pid->accelD);
+  }
+  
+  gsl_interp_free(interp);
+
+}
+
+
+static void cmp_res(PID * pid, STAT es1[], STAT es2[], int size){
   
   int i;
   double points[size];
@@ -1133,7 +1167,7 @@ void get_stats(STAT * out, MOTOR * m , int eid){
   out->absd = absd_aut;//((absd_aut + sd_aut)/2);//absd = absd_aut;
 }
 
-void cal_weight(int len, double weights[], double less, double max){
+static void cal_weight(int len, double weights[], double less, double max){
 
 int i;
 int head = 10;
@@ -1152,7 +1186,7 @@ int last = len - first;
 }
 
 
-double avg (int len, double * data){
+static double avg (int len, double * data){
 
   long long sum = 0;
   int i;
@@ -1169,7 +1203,7 @@ double avg (int len, double * data){
 }
 
 
-int get_len(double in[]){
+static int get_len(double in[]){
 
   int i;
 
@@ -1195,83 +1229,67 @@ double val;
 
 }
 
-/*
-void prai (int len, int * vec){
 
-int i=0;
-int val;
-    for (; i < len; i++){
-        val = vec[i];
-        if( ( (i != 0) && ((i%15) == 0) ) )
-            printf("%3d\n", val);
-        else
-            printf("%3d, ", val);
-    }
-    printf("\n\n");
-
-}
-*/
-
-void init_acums(int turns, MOTOR * m){
+static void init_acums(int turns, MOTOR * m){
   
   int size = (int)((BASE*turns)+((BASE*turns)*0.2));
   if( m->id == 1 ){
-    if(!is_null(e11))
+    if(!mt_enc_is_null(e11))
       //acum1 = (double *)calloc(size,sizeof(double));
       acum1 = (double *)realloc(acum1,size*sizeof(double));
-    if(!is_null(e12))
+    if(!mt_enc_is_null(e12))
       //acum3 = (double *)calloc(size,sizeof(double)); 
       acum3 = (double *)realloc(acum3,size*sizeof(double));
   } else {
-    if(!is_null(e21))
+    if(!mt_enc_is_null(e21))
       //acum2 = (double *)calloc(size,sizeof(double)); 
       acum2 = (double *)realloc(acum2,size*sizeof(double));
-    if(!is_null(e22))
+    if(!mt_enc_is_null(e22))
       //acum4 = (double *)calloc(size,sizeof(double)); 
       acum4 = (double *)realloc(acum4,size*sizeof(double));
   }
 }
 
-void free_acums(MOTOR * m){
+static void free_acums(MOTOR * m){
   
   if( m->id == 1 ){
-    if(!is_null(e11)){
+    if(!mt_enc_is_null(e11)){
       free(acum1);
       acum1 = NULL;
     }
-    if(!is_null(e12)){
+    if(!mt_enc_is_null(e12)){
       free(acum3);
       acum3 = NULL; 
     }
   } else {
-    if(!is_null(e21)){
+    if(!mt_enc_is_null(e21)){
       free(acum2);
       acum2 = NULL;
     }
-    if(!is_null(e22)){
+    if(!mt_enc_is_null(e22)){
       free(acum4);
       acum4 = NULL;
     }
   }
 }
 
-void reset_acums(int turns, MOTOR * m){
+static void reset_acums(int turns, MOTOR * m){
 
   int size = ((BASE*turns)+((BASE*turns)*0.2));
   if( m->id == 1 ){
-    if(!is_null(e11))
+    if(!mt_enc_is_null(e11))
       memset(acum1,0.0,size*sizeof(double));
-    if(!is_null(e12))
+    if(!mt_enc_is_null(e12))
       memset(acum3,0.0,size*sizeof(double));
   } else {
-    if(!is_null(e21))
+    if(!mt_enc_is_null(e21))
       memset(acum2,0.0,size*sizeof(double));
-    if(!is_null(e22))
+    if(!mt_enc_is_null(e22))
       memset(acum4,0.0,size*sizeof(double));
   }
 }
 
-int us_to_vel(int us, MOTOR * m){
+static int us_to_vel(int us, MOTOR * m){
 
 int usTicks, unused, vel;
 
@@ -1293,7 +1311,7 @@ int usTicks, unused, vel;
 
 }*/
 
-void pid_launch (MOTOR * m, int vel, int limit, char * dir, double posCtrl, bool sinc){
+static void pid_launch (MOTOR * m, int vel, int limit, char * dir, double posCtrl, bool sinc){
 
   //limit: en cas de voler arribar fins a uns ticks determinats > 0, 0 altrament.
   
@@ -1389,7 +1407,7 @@ void pid_launch (MOTOR * m, int vel, int limit, char * dir, double posCtrl, bool
   double range = ((double)((MAX_VEL-vel)/2)/100); // la puta crema
   bool stop = false;
   
-  while (get_ticks(m) == 0); //wait hasta tener datos
+  while (mt_get_ticks(m) == 0); //wait hasta tener datos
   
   if(limit == 0){
     while (m->moving){
@@ -1456,7 +1474,7 @@ void pid_launch (MOTOR * m, int vel, int limit, char * dir, double posCtrl, bool
     
     while (!stop) {
       
-      now_tk = get_ticks(m);
+      now_tk = mt_get_ticks(m);
       //printf("now_tk: %d\n ", now_tk);
       
       if (now_tk < limit){
@@ -1571,7 +1589,7 @@ void pid_launch (MOTOR * m, int vel, int limit, char * dir, double posCtrl, bool
 	prevErr = Err;
 	errCont ++;
 	clock_gettime(CLK_ID, &fi);
-	while ( (difft(&ini, &fi) < dt) && (get_ticks(m) < limit) )
+	while ( (difft(&ini, &fi) < dt) && (mt_get_ticks(m) < limit) )
 	  clock_gettime(CLK_ID, &fi);
 	
       } else {
@@ -1586,7 +1604,7 @@ void pid_launch (MOTOR * m, int vel, int limit, char * dir, double posCtrl, bool
   
 }
 
-int get_sincro_new_vals(MOTOR *m, int usSP, int *minpw, int *basepw, int *maxpw, int basebkup, int minbkup, int maxbkup, int usSPbkup, double diff){
+static int get_sincro_new_vals(MOTOR *m, int usSP, int *minpw, int *basepw, int *maxpw, int basebkup, int minbkup, int maxbkup, int usSPbkup, double diff){
   
   int newsp = usSP, newbase, newmin, newmax, dErrmin, dErrmax, dErr, velAux, inc = 100;
   
@@ -1688,7 +1706,7 @@ int get_sincro_new_vals(MOTOR *m, int usSP, int *minpw, int *basepw, int *maxpw,
   
 }
 
-int get_pid_new_vals(MOTOR * m, int sp, int * minpw, int * basepw, int * maxpw, double pctr, int ticksdt){
+static int get_pid_new_vals(MOTOR * m, int sp, int * minpw, int * basepw, int * maxpw, double pctr, int ticksdt){
 
   int maxsp, unused, res, auxmin = *minpw, ret;
 
@@ -1713,15 +1731,15 @@ int get_pid_new_vals(MOTOR * m, int sp, int * minpw, int * basepw, int * maxpw, 
 
 }
 
-long long get_MVac(MOTOR * m, long long *last, int *tdt, int tdtmin, int tdtbase, int tdtmax, int errCont){
+static long long get_MVac(MOTOR * m, long long *last, int *tdt, int tdtmin, int tdtbase, int tdtmax, int errCont){
 
   TSPEC taux;
   int t1, t2, t, d1, d2, d, dt, newdt;
 
-  lock_motor(m);
+  mt_lock(m);
   t1 = m->enc1->tics;
   t2 = m->enc2->tics;
-  unlock_motor(m);
+  mt_unlock(m);
   
   clock_gettime(CLK_ID, &taux);
   
@@ -1763,16 +1781,16 @@ static int reset_pulse (MOTOR * m, long long usPidOut, int act_pw, int gpio, int
 
     debug ("MOTOR_%d: ENTRO BASE: PIDout: %lld, PHbackup * 3 : %d\n", m->id, usPidOut, PHbkup*3);
     if (act_pw == maxpw || (act_pw > basepw && act_pw > minpw)){ //vengo de maxima
-      //lock_motor(m);
+      //mt_lock(m);
       spwm_clear_channel_gpio(m->chann,gpio);
       spwm_add_channel_pulse(m->chann, gpio, 0, basepw == MAX_PW ? MAX_PW - 1 : basepw );
-      //unlock_motor(m);
+      //mt_unlock(m);
       
     } else if(act_pw == minpw || (act_pw < maxpw && act_pw < basepw)){  //vengo de la minima,
       incr = basepw - act_pw;
-      //lock_motor(m);
+      //mt_lock(m);
       spwm_add_channel_pulse(m->chann, gpio, basepw, (basepw + incr) >= MAX_PW ? ((MAX_PW - 1) - basepw) : incr );
-      //unlock_motor(m);
+      //mt_unlock(m);
     }
     
     debug ("MOTOR_%d: BASE: PIDout: %lld, max_pw: %d >= act_pw: %d >= min_pw: %d, incr : %d\n\n", m->id, usPidOut, maxpw, basepw, minpw, incr);
@@ -1785,9 +1803,9 @@ static int reset_pulse (MOTOR * m, long long usPidOut, int act_pw, int gpio, int
       newpw = maxpw;
     
     incr = newpw - act_pw;
-    //lock_motor(m);
+    //mt_lock(m);
     spwm_add_channel_pulse(m->chann, gpio, act_pw, (act_pw + incr) >= MAX_PW ? ((MAX_PW - 1) - act_pw) : incr );
-    //unlock_motor(m);
+    //mt_unlock(m);
     debug ("MOTOR_%d: MAX: PIDout: %lld, max_pw: %d >= act_pw: %d >= min_pw: %d, incr: %d\n\n", m->id, usPidOut, maxpw, newpw, minpw, incr);
     return newpw;
     
@@ -1797,10 +1815,10 @@ static int reset_pulse (MOTOR * m, long long usPidOut, int act_pw, int gpio, int
     else
       newpw = minpw;
     
-    //lock_motor(m);
+    //mt_lock(m);
     spwm_clear_channel_gpio(m->chann,gpio);
     spwm_add_channel_pulse(m->chann, gpio, 0, newpw);
-    //unlock_motor(m);
+    //mt_unlock(m);
     debug ("MOTOR_%d: MIN: PIDout: %lld, max_pw: %d >= act_pw: %d >= min_pw: %d\n\n", m->id, usPidOut, maxpw, newpw, minpw);
     return newpw;
   } //si no no_act
@@ -1812,7 +1830,7 @@ static int reset_pulse (MOTOR * m, long long usPidOut, int act_pw, int gpio, int
 }
 
 
-void lock_motor (MOTOR * m){
+extern void mt_lock (MOTOR * m){
   
   pthread_mutex_lock(&m->enc1->mtx);
   pthread_mutex_lock(&m->enc2->mtx);
@@ -1820,13 +1838,13 @@ void lock_motor (MOTOR * m){
 
 }
 
-void unlock_motor (MOTOR * m){
+extern void mt_unlock (MOTOR * m){
 
   pthread_mutex_unlock(&m->enc1->mtx);
   pthread_mutex_unlock(&m->enc2->mtx);
 }
 
-int move_sinc (char * dir, int vel){
+extern int mt_move_sinc (char * dir, int vel){
 
   /* mover los 2 motores en sincronia */
   int ret = OK;
@@ -1863,8 +1881,8 @@ int move_sinc (char * dir, int vel){
     /* aqui llamamos a la funcion publica move para cada motor, que creara un thread para cada uno, como hemos activado la sincronia, el control PID se precupara de ir sincronizando los motores */
 
     clock_gettime(CLK_ID, &msinc->tstamp); //timestamp que compartiran los motores, para ir sincronizandolos
-    ret = move(m1, dir, vel1);
-    ret = ret ? move(m2, dir, vel2) : FAIL;
+    ret = mt_move(m1, dir, vel1);
+    ret = ret ? mt_move(m2, dir, vel2) : FAIL;
 
   } else {
     not_critical("move_sinc: Motors alrady moving, stop them first\n");
@@ -1875,7 +1893,7 @@ int move_sinc (char * dir, int vel){
 
 }
 
-int move_sinc_t (char * dir, int vel, int lim, double posCtrl){
+extern int mt_move_sinc_t (char * dir, int vel, int lim, double posCtrl){
 
   /* mover los 2 motores en sincronia hasta ticks = lim */
   int ret = OK;
@@ -1925,8 +1943,8 @@ int move_sinc_t (char * dir, int vel, int lim, double posCtrl){
     /* aqui llamamos a la funcion publica move_t para cada motor, que creara un thread para cada uno, como hemos activado la sincronia, el control PID se precupara de ir sincronizando los motores */
 
     clock_gettime(CLK_ID, &msinc->tstamp); // timestamp que compartiran los motores, para ir sincronizandolos
-    ret = move_t(m1, lim, dir, vel1, posCtrl);
-    ret = ret ? move_t(m2, lim, dir, vel2, posCtrl) : FAIL;
+    ret = mt_move_t(m1, lim, dir, vel1, posCtrl);
+    ret = ret ? mt_move_t(m2, lim, dir, vel2, posCtrl) : FAIL;
     
   } else {
     not_critical("move_sinc_t: Motors alrady moving, stop them first\n");
