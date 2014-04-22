@@ -95,10 +95,10 @@ extern bool mt_enc_is_null (ENC *);
 extern bool mt_pid_is_null(PID *);
 extern void mt_pid_set_null(PID *);
 extern void mt_pid_set_gains (PID *, double Kp, double Ki, double Kd);
-extern int  mt_move (MOTOR *, char * dir, int vel);
+extern int  mt_move (MOTOR *, dir dir, int vel);
 extern void mt_wait (MOTOR *);
 extern void mt_wait_all ();
-extern int  mt_move_t (MOTOR * mot, int ticks, char * dir, int vel, double posCtrl);
+extern int  mt_move_t (MOTOR * mot, int ticks, dir dir, int vel, double posCtrl);
 extern bool mt_wait_for_stop(MOTOR *, double delay);
 extern void mt_reset_enc(MOTOR *);
 extern int  mt_get_ticks(MOTOR *);
@@ -109,8 +109,8 @@ extern void mt_calibrate(int samples, double wait_between_samples);
 extern void mt_get_params(MOTOR *, int, int *, int *);
 extern void mt_lock(MOTOR * );
 extern void mt_unlock(MOTOR * );
-extern int mt_move_sinc(char *, int);
-extern int mt_move_sinc_t (char *,int,int,double);
+extern int mt_move_sinc(dir dir, int);
+extern int mt_move_sinc_t (dir dir, int, int, double);
 extern void mt_shutdown(void);
 
 

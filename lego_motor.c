@@ -25,7 +25,7 @@ typedef struct thread_element THREAD;
 struct tharg_mtt {      /*Estructura per cridar al thread que moura el motor fins a un punt concret, evitant que el programa es quedi bloquejat*/
   MOTOR * mot;
   int ticks;
-  char * dir;
+  dir dir;
   int vel;
   double pctr;
 };
@@ -34,7 +34,7 @@ typedef struct tharg_mtt THARG_MTT;
 struct tharg_mv {       /*Estructura per cridar al thread que moura el motor fins a un punt concret, evitant que el programa es quedi bloquejat*/
   MOTOR * mot;
   int vel;
-  char * dir;
+  dir dir;
 };
 typedef struct tharg_mv THARG_MV;
 
@@ -49,6 +49,7 @@ struct stats {			/* Estructura per calibracio de motors */
   double mean;
   double absd;
 };
+
 typedef struct stats STAT;
 
 struct sinc {			/* structura para sincro mototres	*/
@@ -127,7 +128,7 @@ static void * mcal_thread(void * arg);
 static void mpid_load_coef(PID *, double *, double *, int);
 static void prac(int, double *);
 //static void prai (int, int *);
-static void pid_launch(MOTOR *, int, int, char*, double, bool);
+static void pid_launch(MOTOR *, int, int, dir, double, bool);
 //static int get_MV(MOTOR *, int);
 static void * mv_thread(void *);
 static int mot_fwd(MOTOR *, int);
@@ -141,7 +142,7 @@ static int us_to_vel(int us, MOTOR *);
 static long long get_MVac(MOTOR * m, long long*, int *, int , int , int ,int);
 //static int get_ticksdt(MOTOR * m);
 static int start_pwm(void);
-static int move_till_ticks_b (MOTOR *, int, char *, int , bool, double);
+static int move_till_ticks_b (MOTOR *, int, dir, int , bool, double);
 static int get_pid_new_vals(MOTOR *, int, int * , int * , int * , double, int);
 static int get_sincro_new_vals(MOTOR *, int, int *, int *, int *, int, int, int, int, double);
 
@@ -149,8 +150,8 @@ static int get_sincro_new_vals(MOTOR *, int, int *, int *, int *, int, int, int,
 
 static int mot_stop(MOTOR * mot, bool reset);
 static bool is_null (ENC * enc);
-static int move (MOTOR * m, char * dir, int vel);
-static int move_t (MOTOR * mot, int ticks, char * dir, int vel, double posCtrl);
+static int move (MOTOR * m, dir dir, int vel);
+static int move_t (MOTOR * mot, int ticks, dir dir, int vel, double posCtrl);
 static void mot_lock (MOTOR * m);
 static void mot_unlock (MOTOR * m);
 static void reset_encs (MOTOR * mot);
@@ -251,7 +252,7 @@ extern bool mt_enc_is_null (ENC * enc) {
   return(is_null(enc));
 }
 
-extern int  mt_move (MOTOR * m, char * dir, int vel){
+extern int  mt_move (MOTOR * m, dir dir, int vel){
   return (move(m, dir, vel));
 }
 
@@ -259,7 +260,7 @@ extern void mt_get_params (MOTOR * m, int vel, int * ex_micras, int * ex_desv){
   return (get_params (m, vel, ex_micras, ex_desv));
 }
 
-extern int mt_move_t (MOTOR * m, int ticks, char * dir, int vel, double posCtrl){
+extern int mt_move_t (MOTOR * m, int ticks, dir dir, int vel, double posCtrl){
   return(move_t(m, ticks, dir, vel, posCtrl));
 }
 
@@ -555,7 +556,7 @@ static int mot_stop(MOTOR * mot, bool reset){
   int ticks;
 
   if (spwm_clear_channel(mot->chann) != 0)
-    not_critical("mt_stop: Error clearing DMA channel: %d, on motor: %d", mot->chann, mot->id);
+    not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d", mot->chann, mot->id);
 
   digitalWrite(mot->pinf, LOW);
   digitalWrite(mot->pinr, LOW);
@@ -582,7 +583,7 @@ static int mot_fwd(MOTOR * mot, int vel){
   bool altered = false;
 
   if(vel < MIN_VEL && !mt_pid_is_null(mot->pid)) {
-    not_critical("move_till_ticks: Setting PID null, the minimun velocity allowed with PID control is %d\n", MIN_VEL);
+    not_critical("mot_fwd: Setting PID null, the minimun velocity allowed with PID control is %d\n", MIN_VEL);
     mt_pid_set_gains(&auxpid, mot->pid->kp, mot->pid->ki, mot->pid->kd);
     mt_pid_set_null(mot->pid);
     altered = true;
@@ -606,7 +607,7 @@ static int mot_fwd(MOTOR * mot, int vel){
   mot->moving = true;
   
   if (!mt_pid_is_null(mot->pid))
-    pid_launch(mot, vel, 0, "fwd", 0, msinc->acting);
+    pid_launch(mot, vel, 0, FWD, 0, msinc->acting);
   
   if(altered)
     mt_pid_set_gains(mot->pid, auxpid.kp, auxpid.ki, auxpid.kd);
@@ -666,7 +667,7 @@ static int mot_rev (MOTOR * mot, int vel){
   mot->moving = true;
 
   if (!mt_pid_is_null(mot->pid))
-    pid_launch(mot, vel, 0, "bw", 0, msinc->acting);
+    pid_launch(mot, vel, 0, BWD, 0, msinc->acting);
 
   if(altered)
     mt_pid_set_gains(mot->pid, auxpid.kp, auxpid.ki, auxpid.kd);
@@ -674,7 +675,7 @@ static int mot_rev (MOTOR * mot, int vel){
   return OK;
 }
 
-static int move (MOTOR * m, char * dir, int vel){
+static int move (MOTOR * m, dir dir, int vel){
 
   THARG_MV * args = (THARG_MV *)malloc(sizeof(THARG_MV));
   pthread_t worker; 
@@ -694,17 +695,17 @@ static int move (MOTOR * m, char * dir, int vel){
       pthread_attr_destroy(&tattr);
       
     } else {
-      if (strcmp(dir, "f") == 0 || strcmp(dir, "fw") == 0 || strcmp(dir, "fwd") == 0){
+      if (dir == FWD){
 	if(!mot_fwd(m,vel)) {
 	  not_critical("move: Motor %d, Error in motor_fwd\n", m->id);
 	  return FAIL;
 	}
-      } else if (strcmp(dir, "b") == 0 || strcmp(dir, "bw") == 0 || strcmp(dir, "bwd") == 0){
+      } else if (dir == BWD){
 	if(!mot_rev(m,vel)) {
 	  not_critical("move: Motor %d, Error in motor_rev\n", m->id);
 	  return FAIL;
 	}
-      } else {
+     } else { //
 	not_critical("move: Motor %d, direction \"%s\" not understood \n", m->id, dir);
 	return FAIL;
       }
@@ -721,10 +722,10 @@ static void * mv_thread (void * arg){
   
   THARG_MV * args = (THARG_MV *) arg;
   
-  if (strcmp(args->dir, "f") == 0 || strcmp(args->dir, "fw") == 0 || strcmp(args->dir, "fwd") == 0){
+  if (args->dir == FWD){
     if(!mot_fwd(args->mot,args->vel))
       not_critical("move-thread: Motor %d, Error in motor_fwd\n", args->mot->id);
-  } else if (strcmp(args->dir, "b") == 0 || strcmp(args->dir, "bw") == 0 || strcmp(args->dir, "bwd") == 0){
+  } else if (args->dir == BWD){
     if(!mot_rev(args->mot,args->vel))
       not_critical("move-thread: Motor %d, Error in motor_rev\n", args->mot->id);
   } else {
@@ -735,7 +736,7 @@ static void * mv_thread (void * arg){
 }
 
 
-static int move_till_ticks_b (MOTOR * mot, int ticks, char * dir, int vel, bool reset, double posCtrl){
+static int move_till_ticks_b (MOTOR * mot, int ticks, dir dir, int vel, bool reset, double posCtrl){
   
   //printf("entro con pid -> kp : %f, ki: %f, kd: %f\n", mot->pid->kp, mot->pid->ki, mot->pid->kd);
  
@@ -746,12 +747,12 @@ static int move_till_ticks_b (MOTOR * mot, int ticks, char * dir, int vel, bool 
   //printf("auxpid -> kp : %f, ki: %f, kd: %f\n", auxpid.kp, auxpid.ki, auxpid.kd);
   mt_pid_set_null(mot->pid); //force pid null since we will launch it later on.
   
-  if (strcmp(dir, "f") == 0 || strcmp(dir, "fw") == 0 || strcmp(dir, "fwd") == 0){
+  if (dir == FWD){
     if(!mot_fwd(mot, vel)) {
       not_critical("move_till_ticks: Motor %d, Error in motor_fwd\n", mot->id);
       return FAIL;
     }
-  } else if (strcmp(dir, "b") == 0 || strcmp(dir, "bw") == 0 || strcmp(dir, "bwd") == 0){
+  } else if (dir == BWD){
     if(!mot_rev(mot, vel)) {
       not_critical("move_till_ticks: Motor %d, Error in motor_rev\n", mot->id);
       return FAIL;
@@ -829,7 +830,7 @@ extern void mt_wait_all(){
     udelay(2500);
 }
 
-static int move_t (MOTOR * mot, int ticks, char * dir, int vel, double posCtrl){
+static int move_t (MOTOR * mot, int ticks, dir dir, int vel, double posCtrl){
 
   THARG_MTT * arg = (THARG_MTT *)malloc(sizeof(THARG_MTT));
   pthread_t worker; //= &threads[0].id; //pos 1 per mtt
@@ -1019,7 +1020,7 @@ static void mot_cal (MOTOR * m, int mostres, double wait){
 
   int turns = 8, vel, index = 0;
   int step = (MAX_VEL/ms);
-  char * dir = "fwd";
+  dir  dir = FWD;
   bool reset = true;
   
   STAT es1[ms], es2[ms];
@@ -1309,7 +1310,7 @@ int usTicks, unused, vel;
 
 }*/
 
-static void pid_launch (MOTOR * m, int vel, int limit, char * dir, double posCtrl, bool sinc){
+static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, bool sinc){
 
   //limit: en cas de voler arribar fins a uns ticks determinats > 0, 0 altrament.
   
@@ -1365,7 +1366,7 @@ static void pid_launch (MOTOR * m, int vel, int limit, char * dir, double posCtr
   get_params(m, PW2V(maxpw), &maxus, &unused);
   get_params(m, PW2V(minpw), &minus, &unused);
 
-  int gpio = ( strcmp(dir, "fwd") == 0 || strcmp(dir, "fw") == 0 || strcmp(dir, "f") == 0 ) ? m->pinf : m->pinr;
+  int gpio = dir == FWD  ? m->pinf : m->pinr;
   
   long long LstAc = 0; 		//pillar medias parciales
 
@@ -1843,7 +1844,7 @@ static void mot_unlock (MOTOR * m){
 
 }
 
-extern int mt_move_sinc (char * dir, int vel){
+extern int mt_move_sinc (dir dir, int vel){
 
   /* mover los 2 motores en sincronia */
   int ret = OK;
@@ -1892,7 +1893,7 @@ extern int mt_move_sinc (char * dir, int vel){
 
 }
 
-extern int mt_move_sinc_t (char * dir, int vel, int lim, double posCtrl){
+extern int mt_move_sinc_t (dir dir, int vel, int lim, double posCtrl){
 
   /* mover los 2 motores en sincronia hasta ticks = lim */
   int ret = OK;
