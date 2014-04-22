@@ -28,6 +28,13 @@
 #define USXT_MIN                700
 #define USXT_MAX                7000
 
+#define MIN_PORT_MT             1
+#define MAX_PORT_MT             2
+
+typedef enum {
+  FWD,
+  BWD
+} dir;
 
 typedef pthread_mutex_t MUTEX;
 

@@ -13,7 +13,7 @@
 //#define BASE		370
 #define MAXM		20
 #define ENC_RES		4
-
+#define PRAC_TRUNC      25
 //MOTOR motor1, motor2;
 //int an_fd;
 
@@ -324,9 +324,10 @@ time.tv_nsec = 0;
        mt_reset_enc(m);
        thread_rtn = mt_move_t(m, mt_tticks(m, turns), "f", vel, 0);mt_wait(m);
        
+       //(RESULT * out, bool to_print, double * vect, bool wweights, bool capped, int alloc, int id, bool clean, int encoder, bool no_table)
        mt_wait_for_stop(m,1);
        int tot = mt_get_ticks(m);
-       close_acums(tot);
+       //close_acums(tot);
        if(mt_enc_count(m) == 1){ //REVISAR CUANDO 0 ENC OK!
 	 int encid = mt_enc_is_null(m->enc1) ? 2 : 1;
 	 stats(&out,true, NULL, true, true, tot, m->id, true, encid, false);
@@ -342,11 +343,12 @@ time.tv_nsec = 0;
      {
        int i, velo, index, alloc;
        MOTOR * motor  = argc < 3 ? m1 : atoi(argv[2]) == 1 ? m1 : atoi(argv[2]) == 2 ? m2 : m1;
-       int mostres = argc < 4 ? 100 : atoi(argv[3]);
+       int mostres = argc < 4 ? 10 : atoi(argv[3]);
        int step = argc < 5 ? 10 : atoi(argv[4]);
        RESULT rese1[(int)((MAX_VEL/step) * mostres)];// = (RESULT *) malloc(((MAX_VEL/step) * mostres) * sizeof(RESULT));
        RESULT rese2[(int)((MAX_VEL/step) * mostres)];// = (RESULT *) malloc(((MAX_VEL/step) * mostres) * sizeof(RESULT));
        int turns = argc < 6 ? 5 : atoi(argv[5]);
+
        init_acums(turns, motor);
        reset_acums(turns, motor);
        for (velo = step; velo <= MAX_VEL; velo+=step){
@@ -357,7 +359,7 @@ time.tv_nsec = 0;
 	   mt_wait_for_stop(motor,2);
 	   mt_reset_enc(motor);
 	   alloc = mt_move_t(motor, mt_tticks(motor, turns), "f", velo, 0);mt_wait(motor);
-	   close_acums(alloc);
+	   //close_acums(alloc);
 	   if(mt_enc_count(motor) == 1){
 	     int encid = mt_enc_is_null(motor->enc1) ? 2 : 1;
 	     if(encid == 1){
@@ -370,7 +372,7 @@ time.tv_nsec = 0;
 	     stats(&rese2[index], false, NULL, true, true, alloc, motor->id, true,2, true);
 	   }
 	   reset_acums(turns, motor);
-					}
+	 }
        }
        printf ("\nMOTOR %d, STEP: %d, MOSTRES %d x step:\n\n\t\t\tENC 1:\n", motor->id, step, mostres);
        if(!mt_enc_is_null(motor->enc1))
@@ -675,7 +677,7 @@ time.tv_nsec = 0;
        
        printf ("motor: %d, vel: %d, ttc: %f, kp: %f, ki: %f, kd: %f, calib: %s, turns: %d\n", m->id, vel, ttc, kp, ki, kd, calib ? "true" : "false", turns);
        
-       //set_verbose(LOG_LVL_DBG);
+       set_verbose(LOG_LVL_DBG);
        mt_reconf(m, NULL, NULL); //back to defaults
        mt_pid_set_gains(m->pid, kp ,ki ,kd);
        m->pid->ttc = ttc;
@@ -720,7 +722,7 @@ time.tv_nsec = 0;
        
        //int turns = argc < 9 ? 10 : atoi(argv[8]);
        
-       //set_verbose(LOG_LVL_DBG);
+       set_verbose(LOG_LVL_DBG);
        printf ("vel: %d, ttc: %f, kp: %f, ki: %f, kd: %f, calib: \"%s\"\n", vel, ttc, kp, ki, kd, calib ? "true" : "false");
        
        mt_reconf(m1, NULL, NULL); //back to defaults
@@ -753,7 +755,7 @@ time.tv_nsec = 0;
      break;;
    case 11:
      {
-       //set_verbose(LOG_LVL_DBG);
+       set_verbose(LOG_LVL_DBG);
        int vel = argc < 3 ? 70 : atoi(argv[2]);
        double ttc = argc < 4 ? TTCDEF : atof(argv[3]);
        double kp = argc < 5 ? 1 : atof(argv[4]);
@@ -1469,7 +1471,7 @@ void prac (int len, double * vec){
   double val;
   for (; i < len; i++){
     val = vec[i];
-    if( ( (i != 0) && ((i%30) == 0) ) )
+    if( ( (i != 0) && ((i%PRAC_TRUNC) == 0) ) )
       printf("%5d\n", (int)val);
     else
       printf("%5d, ", (int)val);

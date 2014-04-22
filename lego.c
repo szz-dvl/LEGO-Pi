@@ -124,11 +124,14 @@ void setup_sighandlers(void){
   }
 }
 
-static void handl_alrm(void) {}
+static void handl_alrm(void) {
+  printf("ALARM!!\n");
+}
 
 
 static void terminate(void) {
   
+  printf("Entering terminate.\n");
   mt_shutdown();
   analog_shutdown();
   dg_shutdown();
