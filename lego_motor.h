@@ -48,6 +48,7 @@ struct encoder {
 typedef struct encoder ENC;
 
 struct pid {
+  bool active;
   int svel;			       /* step velocitat */
   double cp[MAX_COEF];                 /* coeficients polinomi interpolador objectiu PID  << DEPRECATED ara son els punts absices directament */
   double cd[MAX_COEF];                 /* coeficients polinomi interpolador error objectiu PID << DEPRECATED ara son els punts absices directament */
@@ -89,11 +90,12 @@ enum mot2 {M2_PINF = 25, M2_PINR = 18, M2_ENC1 = 24, M2_ENC2 = 23, M2_CHANN = 1}
 extern void mt_init(void);
 extern int  mt_new(MOTOR * m , ENC * e1, ENC * e2, int id);
 extern int  mt_reconf(MOTOR *, ENC *, ENC *);
-extern int  mt_pid_conf(MOTOR *, double *, double *);
 extern int  mt_stop(MOTOR *, bool reset);
 extern bool mt_enc_is_null (ENC *);
+extern int  mt_pid_conf(MOTOR *, double *, double *);
 extern bool mt_pid_is_null(PID *);
-extern void mt_pid_set_null(PID *);
+extern void mt_pid_off (PID * pid);
+extern void mt_pid_on (PID * pid);
 extern void mt_pid_set_gains (PID *, double Kp, double Ki, double Kd);
 extern int  mt_move (MOTOR *, dir dir, int vel);
 extern bool mt_wait (MOTOR *);

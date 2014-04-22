@@ -162,6 +162,11 @@ static int get_ticks (MOTOR * mot);
 static int tticks (MOTOR * m, int turns);
 static int ecount (MOTOR * m);
 static bool m_wait(MOTOR * m);
+static int pid_conf(MOTOR * m, double * pcoef, double * dcoef);
+static void pid_on (PID * pid);
+static void pid_off (PID * pid);
+static void pid_set_gains (PID * pid, double kp, double ki, double kd);
+static bool pid_is_null (PID * pid);
 
 //static int nextpw (int, int, int, int);
 //static void handl_alrm(void);
@@ -301,6 +306,33 @@ extern bool mt_wait(MOTOR * m) {
   return (m_wait(m));
 }
 
+extern bool mt_pid_is_null (PID * pid){
+
+  return (pid->active);
+
+}
+
+extern void mt_pid_off (PID * pid){
+
+  pid->active = false;
+  
+}
+
+extern void mt_pid_on (PID * pid){
+
+  pid->active = true;
+  
+}
+
+extern void mt_pid_set_gains (PID * pid, double kp, double ki, double kd){
+  return(pid_set_gains (pid, kp, ki, kd));
+}
+
+extern int mt_pid_conf(MOTOR * m, double * pcoef, double * dcoef) {
+  return (pid_conf(m, pcoef, dcoef));
+}
+
+
 extern void mt_init(){
   
   msinc->acting = false;
@@ -378,7 +410,9 @@ static int conf_motor(MOTOR * mot, ENC * enc1, ENC * enc2){   //ALLOCATE acceler
   /* a pid_conf resetejo l'accelerador, per tant aki he d'allocatar-lo */
   mot->pid->accelM = gsl_interp_accel_alloc();
   mot->pid->accelD = gsl_interp_accel_alloc();
-  ret = mt_pid_conf(mot, pcoef_def, dcoef_def);
+  ret = pid_conf(mot, pcoef_def, dcoef_def);
+  pid_off(mot->pid);
+  
   if(!ret)
     not_critical("conf_motor: Error configuring PID on motor %d\n", mot->id);
   
@@ -449,16 +483,15 @@ static int mot_reconf(MOTOR * m, ENC * e1, ENC * e2){
   return ret;
 }
 
-extern int mt_pid_conf(MOTOR * m, double * pcoef, double * dcoef){ 
+static int pid_conf(MOTOR * m, double * pcoef, double * dcoef){ 
 
   int sizep,sized;
 
   for (sizep = 0; pcoef[sizep] != 0; sizep++);
   for (sized = 0; dcoef[sized] != 0; sized++);
  
-  if (((pcoef == NULL) && (dcoef == NULL)) || ((sizep == sized) == 0)){
-    mt_pid_set_null(m->pid);
-  }
+  if (((pcoef == NULL) && (dcoef == NULL)) || ((sizep == sized) == 0))
+    pid_off(m->pid);
   else if((pcoef != NULL) && (dcoef != NULL)){
    if(sized == sizep)
      m->pid->svel = (int)(MAX_VEL/sized);
@@ -468,7 +501,7 @@ extern int mt_pid_conf(MOTOR * m, double * pcoef, double * dcoef){
    }
    
    mpid_load_coef(m->pid, pcoef, dcoef, sizep);
-   mt_pid_set_gains(m->pid, PIDDEF, PIDDEF, PIDDEF);
+   pid_set_gains(m->pid, PIDDEF, PIDDEF, PIDDEF);
    m->pid->ttc = TTCDEF;
   }
   else {
@@ -587,13 +620,13 @@ static void reset_encoder(ENC * enc){
 
 static int mot_fwd(MOTOR * mot, int vel){
 
-  PID auxpid; //save pid state.
+  //PID auxpid; //save pid state.
   bool altered = false;
 
   if(vel < MIN_VEL && !mt_pid_is_null(mot->pid)) {
     not_critical("mot_fwd: Setting PID null, the minimun velocity allowed with PID control is %d\n", MIN_VEL);
-    mt_pid_set_gains(&auxpid, mot->pid->kp, mot->pid->ki, mot->pid->kd);
-    mt_pid_set_null(mot->pid);
+    //mt_pid_set_gains(&auxpid, mot->pid->kp, mot->pid->ki, mot->pid->kd);
+    pid_off(mot->pid);
     altered = true;
   }
 
@@ -613,29 +646,36 @@ static int mot_fwd(MOTOR * mot, int vel){
   }
   
   mot->moving = true;
-  
-  if (!mt_pid_is_null(mot->pid))
+
+  if (!pid_is_null(mot->pid))
     pid_launch(mot, vel, 0, FWD, 0, msinc->acting);
   
   if(altered)
-    mt_pid_set_gains(mot->pid, auxpid.kp, auxpid.ki, auxpid.kd);
+    pid_on(mot->pid);
 
   return OK;
 }
 
-extern bool mt_pid_is_null (PID * pid){
 
-  return ((pid->kp == PIDNULL) && (pid->ki == PIDNULL) && (pid->kd == PIDNULL));
+static bool pid_is_null (PID * pid){
+
+  return (!pid->active);
 
 }
 
-extern void mt_pid_set_null (PID * pid){
+static void pid_off (PID * pid){
 
-  pid->kp = pid->ki = pid->kd = PIDNULL;
+  pid->active = false;
   
 }
 
-extern void mt_pid_set_gains (PID * pid, double kp, double ki, double kd){
+static void pid_on (PID * pid){
+
+  pid->active = true;
+  
+}
+
+static void pid_set_gains (PID * pid, double kp, double ki, double kd){
 
   pid->kp = kp;
   pid->ki = ki;
@@ -646,13 +686,13 @@ extern void mt_pid_set_gains (PID * pid, double kp, double ki, double kd){
 
 static int mot_rev (MOTOR * mot, int vel){
   
-  PID auxpid; //save pid state.
-  bool altered = false;
+  //PID auxpid; //save pid state.
+  bool altered;
 
-  if(vel < MIN_VEL && !mt_pid_is_null(mot->pid)) {
+  if(vel < MIN_VEL && !pid_is_null(mot->pid)) {
     not_critical("mot_rev: Setting PID null, the minimun velocity allowed with PID control is %d\n", MIN_VEL);
-    mt_pid_set_gains(&auxpid, mot->pid->kp, mot->pid->ki, mot->pid->kd);
-    mt_pid_set_null(mot->pid);
+    //mt_pid_set_gains(&auxpid, mot->pid->kp, mot->pid->ki, mot->pid->kd);
+    pid_off(mot->pid);
     altered = true;
   }
 
@@ -674,11 +714,11 @@ static int mot_rev (MOTOR * mot, int vel){
 
   mot->moving = true;
 
-  if (!mt_pid_is_null(mot->pid))
+  if (!pid_is_null(mot->pid))
     pid_launch(mot, vel, 0, BWD, 0, msinc->acting);
 
   if(altered)
-    mt_pid_set_gains(mot->pid, auxpid.kp, auxpid.ki, auxpid.kd);
+    pid_on(mot->pid);
 
   return OK;
 }
@@ -691,7 +731,7 @@ static int move (MOTOR * m, dir dir, int vel){
   
   if(m->id != 0) {
     if(!m->moving) {
-      if(!mt_pid_is_null(m->pid)) {
+      if(!pid_is_null(m->pid)) {
 	
 	args->mot = m;
 	args->vel = vel;
@@ -755,13 +795,14 @@ static int move_till_ticks_b (MOTOR * mot, int ticks, dir dir, int vel, bool res
 
   if(mot->id != 0) {
     if(ecount(mot) != 0) {
-      PID auxpid; //save pid state.
+      bool initial_pid = mot->pid->active;//save pid state.
       bool restored = false;
 
-      mt_pid_set_gains(&auxpid, mot->pid->kp, mot->pid->ki, mot->pid->kd);
+      //mt_pid_set_gains(&auxpid, mot->pid->kp, mot->pid->ki, mot->pid->kd);
       //printf("auxpid -> kp : %f, ki: %f, kd: %f\n", auxpid.kp, auxpid.ki, auxpid.kd);
-      mt_pid_set_null(mot->pid); //force pid null since we will launch it later on.
+      pid_off(mot->pid); //force pid null since we will launch it later on.
       
+
       if (dir == FWD){
 	if(!mot_fwd(mot, vel)) {
 	  not_critical("move_till_ticks: Motor %d, Error in motor_fwd\n", mot->id);
@@ -777,21 +818,21 @@ static int move_till_ticks_b (MOTOR * mot, int ticks, dir dir, int vel, bool res
 	return FAIL;
       }
       
-      if(vel < MIN_VEL && !mt_pid_is_null(&auxpid)) 
+      if(vel < MIN_VEL && initial_pid) 
 	not_critical("move_till_ticks: Setting PID null, the minimun velocity allowed with PID control is %d\n", MIN_VEL);
-      else {
-	mt_pid_set_gains(mot->pid, auxpid.kp, auxpid.ki, auxpid.kd);
+      else if (initial_pid) {
+	pid_on(mot->pid);
 	restored = true;
       }
       //printf("despues de reset pid -> kp : %f, ki: %f, kd: %f\n", mot->pid->kp, mot->pid->ki, mot->pid->kd);
       
-      if(mt_pid_is_null(mot->pid))
+      if(pid_is_null(mot->pid)) {
 	while(get_ticks(mot) < ticks);
-      else
+      } else {
 	pid_launch(mot, vel, ticks, dir, posCtrl, msinc->acting);
-      
+      }
       if (!restored)
-	mt_pid_set_gains(mot->pid, auxpid.kp, auxpid.ki, auxpid.kd);
+	pid_on(mot->pid);
       
       return (mot_stop(mot, reset));
       
@@ -967,7 +1008,7 @@ static bool reset_encs (MOTOR * mot){
       reset_encoder(mot->enc2);
     return true;
   } else {
-    not_critical("wait_for_stop: Motor not properly initialised.\n");
+    not_critical("reset_encs: Motor not properly initialised.\n");
     return false;
   }
 }
@@ -992,7 +1033,7 @@ static int get_ticks (MOTOR * mot) {
     }
   
   } else 
-    not_critical("wait_for_stop: Motor not properly initialised.\n");
+    not_critical("get_ticks: Motor not properly initialised.\n");
 
   //printf("salgo de get_ticks: %d ...\n", ticks);
 
@@ -1012,7 +1053,7 @@ static int tticks (MOTOR * m, int turns){
   if(m->id != 0) 
     return(m->ticsxturn * turns);
   else {
-    not_critical("wait_for_stop: Motor not properly initialised.\n");
+    not_critical("tticks: Motor not properly initialised.\n");
     return 0;
   }
 
@@ -1023,7 +1064,7 @@ static int ecount (MOTOR * m){
   if(m->id != 0)
     return (!is_null(m->enc1) + !is_null(m->enc2));
   else {
-    not_critical("wait_for_stop: Motor not properly initialised.\n");
+    not_critical("ecount: Motor not properly initialised.\n");
     return 0;
   }
 }
@@ -1104,12 +1145,10 @@ static void mot_cal (MOTOR * m, int mostres, double wait){
   int ms;
   ms = mostres > MAX_COEF-1 ? MAX_COEF-1 : mostres < MIN_COEF ? MIN_COEF : mostres;
   
-  if(ms != mostres) {
-    if(ms < MIN_COEF)
-      not_critical("mot_cal: Setting samples to %d, the minimun allowed\n", MIN_COEF);
-    else
-      not_critical("mot_cal: Setting samples to %d, the maximum allowed\n", MAX_COEF-1);
-  }
+  if(ms != mostres) 
+    not_critical("mot_cal: Setting samples to %d, the %s allowed\n", MIN_COEF, ms < MIN_COEF ? "minimum" : "maximum");
+  
+  printf("DEBUG: entering with %d samples\n", mostres);
 
   int turns = 8, vel, index = 0;
   int step = (MAX_VEL/ms);
@@ -1120,9 +1159,9 @@ static void mot_cal (MOTOR * m, int mostres, double wait){
   int ex_pin1 = m->id ==1 ? M1_ENC1 : M2_ENC1;
   int ex_pin2 = m->id ==1 ? M1_ENC2 : M2_ENC2;
   ENC aux1, aux2; //save previous state;
-  PID auxpid;
-  mt_pid_set_gains(&auxpid, m->pid->kp, m->pid->ki, m->pid->kd);
-  mt_pid_set_null(m->pid); //force pid null since we will launch it later on.
+  //PID auxpid;
+  //mt_pid_set_gains(&auxpid, m->pid->kp, m->pid->ki, m->pid->kd);
+  pid_off(m->pid); //force pid null since we will launch it later on.
   
   aux1.pin = m->enc1->pin;
   aux1.isr = m->enc1->isr;
@@ -1142,7 +1181,7 @@ static void mot_cal (MOTOR * m, int mostres, double wait){
   memset(m->pid->cd,0.0,MAX_COEF*sizeof(double));
   
   for ( vel = MIN_VEL; index < ms ; vel+= step, index ++ ){ //interpolaremos con estos parametros, nos interesa terminar en MAX_VEL
-    if( index  == ms-1 )
+    if( index  == ms-1 ) //TERNARY CARADECUL
       vel = MAX_VEL;
     if ( wait != 0 )
       wait_for_stop(m, wait);
@@ -1151,8 +1190,10 @@ static void mot_cal (MOTOR * m, int mostres, double wait){
     //prac(((BASE*turns)+((BASE*turns)*0.2)), acum1);
     reset_acums(turns, m);
     move_till_ticks_b (m, tticks(m, turns), dir, vel, reset, 0);
+    printf("DEBUG: vuelta %d, antes stats\n", index);
     get_stats(&es1[index], m, 1);
     get_stats(&es2[index], m, 2);
+    printf("DEBUG: vuelta %d\n", index);
     //printf("motor: %d, vel: %d, mean1: %f, mean2: %f, dev1: %f, dev2: %f\n", m->id, vel ,es1[index].mean, es2[index].mean, es1[index].absd, es2[index].absd);
   }
 
@@ -1162,7 +1203,8 @@ static void mot_cal (MOTOR * m, int mostres, double wait){
   prstat(es1, es2, ms);
   END Cacota que hay que quitar */
   cmp_res(m->pid, es1, es2, ms);
-  mt_pid_set_gains(m->pid, auxpid.kp, auxpid.ki, auxpid.kd);
+  pid_on(m->pid);
+  //mt_pid_set_gains(m->pid, auxpid.kp, auxpid.ki, auxpid.kd);
   mot_reconf(m, &aux1, &aux2);
   //free_acums(m);  <=== Un pokito poltergaist
 }
@@ -1183,12 +1225,12 @@ static bool get_params (MOTOR * m, int vel, int * ex_micras, int * ex_desv){
     int size, i;
     for (size = 0; m->pid->cp[size] != 0; size++);
     double x[size];
-    int v = vel < MIN_VEL ? MIN_VEL : vel; 
+    int v = vel < MIN_VEL ? MIN_VEL : vel; //si al final la dejo externa vigilar VMAX tambien
     int *res;
     gsl_interp *interp;
     
     if(vel < MIN_VEL)
-      not_critical("get_params: Getting parameters for %d velocity, the minimum allowed for interpolation\n", MIN_VEL);
+      not_critical("get_params: Getting parameters for %d velocity, the minimum allowed\n", MIN_VEL);
 
     *ex_micras = 0;
     *ex_desv = 0;
@@ -2006,6 +2048,7 @@ extern int mt_move_sinc (dir dir, int vel){
       ret = ret ? move(m2, dir, vel2) : FAIL;
       
     } else {
+
       not_critical("move_sinc: Motors alrady moving, stop them first\n");
       ret = FAIL;
 

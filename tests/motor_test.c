@@ -303,7 +303,7 @@ time.tv_nsec = 0;
        init_acums(turns, m);
        thread_rtn = mt_move_t(m, mt_tticks(m, turns), FWD, vel, pctr);
        while (m->moving == true){
-	 printf("moving\n");
+	 printf("moving %d\n", mt_get_ticks(m));
 	 sleep(1);
        }
        printf("pthread_create says: %d, ticks received: %d, ticks expected: %d\n", thread_rtn, mt_get_ticks(m), mt_tticks(m, turns));
@@ -397,7 +397,7 @@ time.tv_nsec = 0;
        RESULT res[MAXM/step], res2[MAXM/step];
        RFIVE data [MAXM/step];
        
-       mt_pid_set_null(m->pid);
+       mt_pid_off(m->pid);
        init_acums((int)MAXM, m);
        
        for (turns = step; turns <= MAXM; turns += step){
@@ -557,7 +557,7 @@ time.tv_nsec = 0;
        int step = (MAX_VEL / mostres);
        
        if (m != NULL) { 
-	 printf("calibrating MOTOR: %d", m->id);
+	 printf("calibrating MOTOR: %d\n", m->id);
 	 mt_calibrate(mostres, twait);
 	 printf("\n");
 	 printf("coefs_punts: ");prw(mostres, m->pid->cp);
@@ -569,6 +569,7 @@ time.tv_nsec = 0;
 	   else if ((i == MAX_VEL) && !clavat)
 	     i = (MAX_VEL - (step/4));
 	   
+	   printf("QUE LLEGO AKI?\n");
 	   mt_get_params(m,i,&micras, &desv);
 	   printf("params for %3d vel >> tbticks: %d, desv: %d\n",i,micras, desv);
 	   //micras = desv = 0;
