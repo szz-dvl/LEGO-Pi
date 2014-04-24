@@ -77,7 +77,7 @@ void set_verbose (int lvl) {
 static void LEGO_shutdown () {
 
   mt_shutdown();
-  analog_shutdown();
+  ag_shutdown();
   dg_shutdown();  
   exit(EXIT_FAILURE);
 }
@@ -133,7 +133,7 @@ static void terminate(void) {
   
   printf("Entering terminate.\n");
   mt_shutdown();
-  analog_shutdown();
+  ag_shutdown();
   dg_shutdown();
   exit(EXIT_SUCCESS);
 
@@ -143,14 +143,14 @@ void lego_init () {
   
   wiringPiSetupGpio();
   mt_init();
-  analog_setup();
+  ag_init();
 
 }
 
 void lego_shutdown (void) {
   
   mt_shutdown();
-  analog_shutdown();
+  ag_shutdown();
   dg_shutdown();
   exit(EXIT_SUCCESS);
 

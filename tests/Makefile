@@ -13,26 +13,26 @@ KRED = "\e[31m
 # Should not alter anything below this line
 ###############################################################################
 
-EXE = interpol digitst analogtst motortst
+EXE = interpol dg_test ag_test mt_test
 
 all: $(EXE)
 
 
-analogtst:
+ag_test:
 	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
-	@$(CC) $(CFLAGS) analog_test.c $(LIBS) -o ag_test
+	@$(CC) $(CFLAGS) analog_test.c $(LIBS) -o $@
 
-motortst:
+mt_test:
 	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
-	@$(CC) $(CFLAGS) motor_test.c $(LIBS) -o mt_test
+	@$(CC) $(CFLAGS) motor_test.c $(LIBS) -o $@
 
 interpol:
 	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
-	@$(CC) $(CFLAGS) interpolation.c $(LIBS) -o interpol
+	@$(CC) $(CFLAGS) interpolation.c $(LIBS) -o $@
 
-digitst:
+dg_test:
 	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
-	@$(CC) $(CFLAGS) digital_test.c $(LIBS) -o dg_test
+	@$(CC) $(CFLAGS) digital_test.c $(LIBS) -o $@
 
 .PHONEY: clean
 clean:

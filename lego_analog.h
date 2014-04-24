@@ -9,32 +9,37 @@
 #define LEN		3
 #define MAX_VAL		1023  //10 bits de resolució (tot-hi que eren 12...sospito de INL...)
 #define VREF		5     //Voltatge de referencia
-#define PUSH            1
-#define LIGHT           2
 #define MAX_PORT        3
 #define MIN_PORT        0
 
+typedef enum {
 
-enum lports { L_PORT0 = 3, L_PORT1 = 30, L_PORT2 = 2, L_PORT3 = 31 };
+  PUSH,
+  LIGHT,
+  SOUND,
+  HT_GYRO,
+  AG_OTHER
 
-//extern int an_fd;
+} agType;
+
+
+enum lports { L_PORT0 = 3, L_PORT1 = 30, L_PORT2 = 2, L_PORT3 = 31 }; //al final 30 -> 28 / 31 -> 29
 
 struct analog_device {
    
-  int type;
+  agType type;
   int port;
-  int lpin;
-  bool l_on;
 
 };
 
 typedef struct analog_device ANDVC;
 
-extern void analog_setup(void);
-extern int new_analog (ANDVC*, int, int);
-extern int analog_light_on (ANDVC*);
-extern int analog_light_off (ANDVC*);
-extern double analog_read_voltage (ANDVC *);
-extern int analog_read_int (ANDVC *);
-extern bool analog_pushed (ANDVC *);
-extern void analog_shutdown (void);
+
+extern void   ag_init();
+extern bool   ag_new (ANDVC* dvc, int port, agType type);
+extern bool   ag_lgt_set_led (ANDVC* dvc, bool on);
+extern bool   ag_lgt_get_ledstate (ANDVC* dvc);
+extern bool   ag_psh_is_pushed (ANDVC * dvc, double * volt);
+extern double ag_read_volt (ANDVC * dvc);
+extern int    ag_read_int (ANDVC * dvc);
+extern void   ag_shutdown ();

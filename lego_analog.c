@@ -2,7 +2,10 @@
 
 //#define NEVER_HAPPENS   4
 
-int an_fd;
+int an_fd = 0;
+
+bool lpin_state [] = {false, false, false, false};
+int  ypin_port  [] = {L_PORT0, L_PORT1, L_PORT2, L_PORT3};
 
 static int SPIreceive (int, uint8_t [], int);
 
@@ -12,7 +15,7 @@ static int SPIreceive (int fd, uint8_t resp[], int chann) {
   int retval ;
 
   
-//FROM: http://code.google.com/p/webiopi/source/browse/trunk/python/webiopi/devices/analog/mcp3x0x.py
+  //FROM: http://code.google.com/p/webiopi/source/browse/trunk/python/webiopi/devices/analog/mcp3x0x.py
   resp[0] |= 1 ;
   resp[1] |= (1 << 7) ;	//! differential mode, single-ended...
   resp[1] |= ((chann >> 2) & 0x01) << 6 ;
@@ -33,74 +36,31 @@ static int SPIreceive (int fd, uint8_t resp[], int chann) {
   return retval ;
 }
 
-extern void analog_setup() {
+static double analog_read_voltage (ANDVC * dvc) { /* READ analog value (float), VOLTATGE */
+
+  uint8_t data [LEN] = { 0x00, 0x00, 0x00 } ;
+  int ioctl, retval = OK, res;
   
-  if (!(an_fd = wiringPiSPISetup(CS, SPI_CLK)))
-    fatal("analog_setup: Error setting up SPI interface, ERRNO: %d\n", errno);
-
-}
-
-extern int new_analog ( ANDVC* dvc, int port, int type ) {
-
-  int ret = OK;
-
-  if (port < MIN_PORT || port > MAX_PORT){
-    not_critical("new_analog: port must be between %d - %d\n", MIN_PORT, MAX_PORT);
-    ret = FAIL;
-  } else {   
-    dvc->port = port;
-    dvc->lpin = port == 0 ? L_PORT0 : port == 1 ? L_PORT1 : port == 2 ? L_PORT2 : port == 3 ? L_PORT3 : 4;
+  if (!(ioctl = SPIreceive(an_fd, data, dvc->port))) {
+    
+   not_critical("analog_read_voltage: Error comunicating to SPI device\n");
+   retval = FAIL;
+   
   }
   
-  if(ret) {
-    if( type != LIGHT && type != PUSH ) {
-      not_critical("new_analog: type must be %d (LIGHT) or %d (PUSH)\n", LIGHT, PUSH);
-      ret = FAIL;
-    } else {
-      dvc->type = type;
-      if (type == LIGHT) {
-	dvc->l_on = false;
-	//pinMode(dvc->lpin, INPUT);
-	pinMode(dvc->lpin, OUTPUT);
-      } else
-	dvc->l_on = false;	
-    }
-  }
-
-  return ret;
-
+  if(retval) {
+    //printf("entro aki? 0x%02x, 0x%02x, 0x%02x", data[0], data[1], data[2]);
+    res = data[2];
+    res |= ((data[1] & 0x07) << 8);
+    //printf (" res = %d\n", res);
+    return ((double) ((double)res/(double)MAX_VAL) * VREF);
+    
+  } else
+    return retval;
+  
 }
 
-extern int analog_light_on (ANDVC* dvc){
-  
-  int ret = OK;
-  
-  if (dvc->type != LIGHT) {
-    not_critical("analog_light_on: Device type must be %d (LIGHT)\n", LIGHT);
-    ret = FAIL;
-  } else if (!(dvc->l_on)) {
-    pinMode(dvc->lpin, INPUT); //little hack
-    dvc->l_on = true;
-  }
-  return ret;
-}
-
-extern int analog_light_off (ANDVC* dvc){
-
-  int ret = OK;
-  
-  if (dvc->type != LIGHT) {
-    not_critical("analog_light_off: Device type must be %d (LIGHT)\n", LIGHT);
-    ret = FAIL;
-  } else if (dvc->l_on) {
-    pinMode(dvc->lpin, OUTPUT); //little hack
-    dvc->l_on = false;
-  }
-  
-  return ret;
-}
-
-extern int analog_read_int (ANDVC * dvc) { /* READ analog value (integer), max avalue = 1023 */
+static int analog_read_int (ANDVC * dvc) { /* READ analog value (integer), max avalue = 1023 */
 
   uint8_t data [LEN] = { 0x00, 0x00, 0x00 } ;
   int ioctl, retval = OK, res;
@@ -121,50 +81,106 @@ extern int analog_read_int (ANDVC * dvc) { /* READ analog value (integer), max a
   
 }
 
-extern double analog_read_voltage (ANDVC * dvc) { /* READ analog value (float), VOLTATGE */
 
-  uint8_t data [LEN] = { 0x00, 0x00, 0x00 } ;
-  int ioctl, retval = OK, res;
+extern void ag_init() {
   
-  if (!(ioctl = SPIreceive(an_fd, data, dvc->port))) {
-    
-   not_critical("analog_read_voltage: Error comunicating to SPI device\n");
-   retval = FAIL;
-   
-  }
-  
-  if(retval) {
-    res = data[2];
-    res |= ((data[1] & 0x07) << 8);
-    return ((double)((double)res/(double)MAX_VAL) * VREF);
-    
-  } else
-    return retval;
-  
+  if (!(an_fd = wiringPiSPISetup(CS, SPI_CLK)))
+    not_critical("analog_setup: Error setting up SPI interface, ERRNO: %d\n", errno);
+
+  int i;
+  for (i = 0; i < 4; i++)
+    printf("%d, ", ypin_port[i]);
+
+  printf("\n");
+
 }
 
-extern bool analog_pushed (ANDVC * dvc) {
+extern bool ag_new ( ANDVC* dvc, int port, agType type ) {
+
+  int ret = true;
+
+  if (port < MIN_PORT || port > MAX_PORT){
+    not_critical("ag_new: port must be between %d - %d\n", MIN_PORT, MAX_PORT);
+    ret = false;
+  } else 
+    dvc->port = port;
   
-  double act_v;
+  if(ret) {
+    if( type != LIGHT && type != PUSH && type != HT_GYRO && type != SOUND && type != AG_OTHER ) {
+      not_critical("ag_new: Unrecognized device type\n");
+      ret = false;
+    } else {
+      dvc->type = type;
+      if (type == LIGHT) 
+      	pinMode(ypin_port[dvc->port], OUTPUT);
+      else if(type  == SOUND)
+	pinMode(ypin_port[dvc->port], INPUT); //won't change, for SOUND sensor we need 3.3V in the yellow wire (to get dB), dBA not accessible due to the lack of pins
+    }
+  }
+
+  return ret;
+
+}
+
+extern bool ag_lgt_set_led (ANDVC* dvc, bool on){
   
-  if (dvc->type != PUSH)
-    not_critical("analog_pushed: Device type must be %d (PUSH)\n", PUSH);
+  if (dvc->type != LIGHT) {
+    not_critical("ag_lgt_light_on: Device type must be %d (LIGHT)\n", LIGHT);
+    return false;
+  } else if (on) { 
+    if (!lpin_state[dvc->port]) {
+      pinMode(ypin_port[dvc->port], INPUT); //little hack
+      lpin_state[dvc->port] =  true;
+    }
+  } else {
+    if (lpin_state[dvc->port]) {
+      pinMode(ypin_port[dvc->port], OUTPUT); //little hack
+      lpin_state[dvc->port] =  false;
+    }
+  }
+  return true;
+}
+
+extern bool ag_lgt_get_ledstate (ANDVC* dvc){
+  
+  if (dvc->type != LIGHT) {
+    not_critical("ag_lgt_get_ledstate: Device type must be %d (LIGHT)\n", LIGHT);
+    return false;
+  } else
+    return lpin_state[dvc->port];
+}
+
+extern bool ag_psh_is_pushed (ANDVC * dvc, double * volt) {
+
+  if (dvc->type != PUSH) {
+    not_critical("ag_psh_is_pushed: Device type must be %d (PUSH)\n", PUSH);
+    *volt = -1;
+    return false;
+  }
   else {
-    act_v = analog_read_voltage(dvc);
-    if(act_v < (double)(VREF/2))
+    *volt = analog_read_voltage(dvc);
+    //printf("Voltage is: %f\n", *volt);
+    if(*volt < (double)(VREF/2))
       return true;
     else
       return false;
   }
-  
-  return FAIL;
+
 }
+
+extern int ag_read_int (ANDVC * dvc){
+  return (analog_read_int(dvc));
+}
+
+extern double ag_read_volt (ANDVC * dvc){
+  return (analog_read_voltage(dvc));
+}
+
   
-extern void analog_shutdown () {
-  
+extern void ag_shutdown () {
+
   if(an_fd > 0)
     close(an_fd);
-
 }
 
 
