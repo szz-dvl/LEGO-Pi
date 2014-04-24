@@ -20,8 +20,8 @@
 #define RISING		        INT_EDGE_RISING
 #define MAX_COEF	        21
 #define MIN_COEF	        5                      /* AKIMA spline conditions */
-#define PIDNULL		        0
-#define PIDDEF		        1
+//#define PIDNULL		        0
+#define PIDDEF		        0
 #define TTCDEF		        55
 #define MIN_VEL		        10
 #define ST_US		        20000

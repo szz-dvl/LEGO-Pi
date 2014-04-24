@@ -11,9 +11,9 @@ ENC * e11, * e12, * e21, * e22;
 
 double *acum1, *acum2, *acum3, *acum4;
 
-double pcoef_def[MAX_COEF] = { 6291.670787, 4974.964956, 4246.034515, 3683.674392, 3231.695571, 2894.098608, 2589.313464, 2329.800382, 2130.462146, 1960.860620, 1801.624728, 1698.443527, 1593.361824, 1493.730624, 1416.815650, 1352.296069, 1263.664475, 1179.860561, 1127.353635, 1061.691239, 0.0 };
+double pcoef_def[MAX_COEF] = { 5837.39694089577824342995882034301757812, 4437.29763943063881015405058860778808594, 3737.34827215639961650595068931579589844, 3282.11326188881457710522226989269256592, 2930.39274356875421290169470012187957764, 2626.36729752681549143744632601737976074, 2396.56913931981807763804681599140167236, 2170.58717529550403924076817929744720459, 1969.20963387265896926692221313714981079, 1822.45602936872319332906045019626617432, 1695.73273339300158113474026322364807129, 1569.82084063158617937006056308746337891, 1473.14643636506161783472634851932525635, 1383.18907963632477731152903288602828979, 1306.10837623716815869556739926338195801, 1222.95649083055104711093008518218994141, 1170.99432907457048713695257902145385742, 1094.90766701259735782514326274394989014, 1044.28679423828430117282550781965255737, 1013.68260002433055433357367292046546936, 0.0 };
 
-double dcoef_def[MAX_COEF] = { 447.969237, 446.202126, 434.001658, 412.067526, 387.965182, 355.353557, 333.029812, 314.236926, 276.861747, 266.043386, 261.272787, 225.281757, 206.351683, 206.628301, 198.755767, 198.788691, 206.969957, 215.030614, 217.598542, 219.911220, 0.0 };
+double dcoef_def[MAX_COEF] = { 1135.86026750179712507815565913915634155, 869.34624357773122937942389398813247681, 764.23768186493850862461840733885765076, 718.21105387992736268643056973814964294, 640.35936035138365696184337139129638672, 611.99801209258998824225272983312606812, 547.67186454544810203515226021409034729, 517.43259316320211382844718173146247864, 478.25867786479875576333142817020416260, 458.86468723775709577239467762410640717, 430.54190130685094572982052341103553772, 406.98481717558024683967232704162597656, 395.62010568577761659980751574039459229, 375.74271902113002852274803444743156433, 361.38899585646299783547874540090560913, 352.61160524510603408998576924204826355, 354.93183388013255807891255244612693787, 338.21632822832532383472425863146781921, 329.61436368804623953110422007739543915, 322.95587145004765261546708643436431885, 0.0 };
 
 struct thread_element {
 	pthread_t id;
@@ -116,7 +116,7 @@ static int get_len(double []);
 static void get_vels (int , double [], int);
 static void cal_weight(int, double [], double, double);
 static double avg(int, double[]);
-static void cmp_res(PID *, STAT[], STAT[], int);
+static void cmp_res(PID *, STAT * [], STAT * [], int);
 //static int table_tam(int); DEPRECATED
 //static void prod(mpf_t, int, int [], int); DEPRECATED
 //long long prod(int, int [], int); DEPRECATED
@@ -350,6 +350,9 @@ extern int mt_new ( MOTOR * m, ENC * e1, ENC * e2, int id ){
   if (id < MIN_PORT_MT && id > MAX_PORT_MT) {
     not_critical("mt_new: id \"%d\" out of range, must be between \"%d\" and \"%d\".\n", id, MIN_PORT_MT, MAX_PORT_MT);
     return FAIL;
+  } else if(m->id != 0) {
+    not_critical("mt_new: Motor %d busy\n", m->id);
+    return FAIL;
   } 
 
     MOTOR * maux;
@@ -411,7 +414,7 @@ static int conf_motor(MOTOR * mot, ENC * enc1, ENC * enc2){   //ALLOCATE acceler
   mot->pid->accelM = gsl_interp_accel_alloc();
   mot->pid->accelD = gsl_interp_accel_alloc();
   ret = pid_conf(mot, pcoef_def, dcoef_def);
-  pid_off(mot->pid);
+  pid_on(mot->pid);
   
   if(!ret)
     not_critical("conf_motor: Error configuring PID on motor %d\n", mot->id);
@@ -596,8 +599,14 @@ static int mot_stop(MOTOR * mot, bool reset){
   mot->moving = false;
   int ticks;
 
-  if (spwm_clear_channel(mot->chann) != 0)
+  if(spwm_clear_channel_gpio(mot->chann,mot->pinf) != 0)
     not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d", mot->chann, mot->id);
+
+  if(spwm_clear_channel_gpio(mot->chann,mot->pinr) != 0)
+    not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d", mot->chann, mot->id);
+  
+  /*if (spwm_clear_channel(mot->chann) != 0)
+    not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d", mot->chann, mot->id);*/
 
   digitalWrite(mot->pinf, LOW);
   digitalWrite(mot->pinr, LOW);
@@ -831,7 +840,7 @@ static int move_till_ticks_b (MOTOR * mot, int ticks, dir dir, int vel, bool res
       } else {
 	pid_launch(mot, vel, ticks, dir, posCtrl, msinc->acting);
       }
-      if (!restored)
+      if (!restored && initial_pid)
 	pid_on(mot->pid);
       
       return (mot_stop(mot, reset));
@@ -1148,14 +1157,14 @@ static void mot_cal (MOTOR * m, int mostres, double wait){
   if(ms != mostres) 
     not_critical("mot_cal: Setting samples to %d, the %s allowed\n", MIN_COEF, ms < MIN_COEF ? "minimum" : "maximum");
   
-  printf("DEBUG: entering with %d samples\n", mostres);
 
   int turns = 8, vel, index = 0;
   int step = (MAX_VEL/ms);
   dir  dir = FWD;
   bool reset = true;
   
-  STAT es1[ms], es2[ms];
+  STAT * es1[ms];// = (STAT *) malloc(ms * sizeof(STAT)); 
+  STAT * es2[ms];// = (STAT *) malloc(ms * sizeof(STAT));
   int ex_pin1 = m->id ==1 ? M1_ENC1 : M2_ENC1;
   int ex_pin2 = m->id ==1 ? M1_ENC2 : M2_ENC2;
   ENC aux1, aux2; //save previous state;
@@ -1189,11 +1198,11 @@ static void mot_cal (MOTOR * m, int mostres, double wait){
     //printf("Despres de fer el reset:\n");
     //prac(((BASE*turns)+((BASE*turns)*0.2)), acum1);
     reset_acums(turns, m);
+    es1[index] = (STAT *) malloc(sizeof(STAT));
+    es2[index] = (STAT *) malloc(sizeof(STAT));
     move_till_ticks_b (m, tticks(m, turns), dir, vel, reset, 0);
-    printf("DEBUG: vuelta %d, antes stats\n", index);
-    get_stats(&es1[index], m, 1);
-    get_stats(&es2[index], m, 2);
-    printf("DEBUG: vuelta %d\n", index);
+    get_stats(es1[index], m, 1);
+    get_stats(es2[index], m, 2);
     //printf("motor: %d, vel: %d, mean1: %f, mean2: %f, dev1: %f, dev2: %f\n", m->id, vel ,es1[index].mean, es2[index].mean, es1[index].absd, es2[index].absd);
   }
 
@@ -1257,15 +1266,15 @@ static bool get_params (MOTOR * m, int vel, int * ex_micras, int * ex_desv){
 }
 
 
-static void cmp_res(PID * pid, STAT es1[], STAT es2[], int size){
+static void cmp_res(PID * pid, STAT * es1[], STAT * es2[], int size){
   
   int i;
   double points[size];
   double dv[size];
   
   for (i = 0; i < size; i++){
-    points[i] = ((es1[i].mean + es2[i].mean)/2);
-    dv[i] = ((es1[i].absd + es2[i].absd)/2);
+    points[i] = ((es1[i]->mean + es2[i]->mean)/2);
+    dv[i] = ((es1[i]->absd + es2[i]->absd)/2);
   }
  
   mpid_load_coef(pid, points, dv, size);
@@ -1277,6 +1286,7 @@ void get_stats(STAT * out, MOTOR * m , int eid){
 
   double * data = m->id == 1 ? eid == 1 ? acum1 : acum3 : eid == 1 ? acum2 : acum4;
   int len = get_len(data);
+  //printf("DEBUG: entering get stats with len: %d\n", len);
   double weights[len];
   avg(len, data);
   double absd_aut; //sd_aut;
@@ -1457,7 +1467,6 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
   //limit: en cas de voler arribar fins a uns ticks determinats > 0, 0 altrament.
   
   //#FROM: http://en.wikipedia.org/wiki/PID_controller#Pseudocode
-
   TSPEC ini, fi;
   int usSP, absd, Mv, MvAux, prevErr = 0, Err, now_tk;  //abs es pot entendre com el error fisic del motor, axi doncs compensem l'error llegit amb aquest
   get_params(m, vel, &usSP, &absd);      //get PID objective

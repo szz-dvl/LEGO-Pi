@@ -549,52 +549,66 @@ time.tv_nsec = 0;
      break;;
    case 7://test calibrate
      {
-       MOTOR * m  = argc < 3 ? m1 : atoi(argv[2]) == 1 ? m1 : atoi(argv[2]) == 2 ? m2 : NULL;
-       int mostres = argc < 4 ? 10 : atoi(argv[3]), i;
+       int motor  = argc < 3 ? 3 : atoi(argv[2]);
+       int mostres = argc < 4 ? 20 : atoi(argv[3]), i;
        bool clavat =  argc < 5 ? false : atoi(argv[4]) != 0 ? true : false;
        double twait = argc < 6 ? 1.7 : atof(argv[5]);
-       int micras = 0, desv = 0, micras2 = 0, desv2 = 0;
+       int micras = 0, desv = 0, micras2 = 0, desv2 = 0, mtot = 0, dtot = 0;
        int step = (MAX_VEL / mostres);
+       MOTOR * m = NULL;
+
+       if (motor == 1) {
+	 m2->id = 0;
+	 m = m1;
+       } else if (motor == 2) {
+	 m1->id = 0;
+	 m = m2;
+       } else if (motor == 0) { //Must throw error
+	 m1->id = 0;
+	 m2->id = 0;
+       }
+ 
+       printf("calibrating MOTOR: %s\n", m2->id != 0 && m1->id != 0 ? "BOTH" : m2->id != 0 ? "2" : m1->id != 0 ? "1" : "0");
+       if(mt_calibrate(mostres, twait)){
        
-       if (m != NULL) { 
-	 printf("calibrating MOTOR: %d\n", m->id);
-	 mt_calibrate(mostres, twait);
-	 printf("\n");
-	 printf("coefs_punts: ");prw(mostres, m->pid->cp);
-	 printf("coef_dev:    ");prw(mostres, m->pid->cd);
-	 printf("\n");
+	 if(motor < 3) {
+	   printf("\n");
+	   printf("coefs_punts: ");prw(mostres, m->pid->cp);
+	   printf("coef_dev:    ");prw(mostres, m->pid->cd);
+	   printf("\n");
+	 } else {
+	   
+	   printf("\n");
+	   printf("coefs_punts m1: ");prw(mostres, m1->pid->cp);
+	   printf("coef_dev m1:    ");prw(mostres, m1->pid->cd);
+	   printf("\n");
+	   printf("coefs_punts m2: ");prw(mostres, m2->pid->cp);
+	   printf("coef_dev m2:    ");prw(mostres, m2->pid->cd);
+	   printf("\n");
+	 
+	 }
+	 
 	 for ( i = clavat ? MIN_VEL : MIN_VEL+(step/2); i <= MAX_VEL; i += step ){
 	   if ((i + step > MAX_VEL) && clavat)
 	     i = MAX_VEL;
 	   else if ((i == MAX_VEL) && !clavat)
 	     i = (MAX_VEL - (step/4));
+	   if(motor < 3)
+	     mt_get_params(m,i,&mtot, &dtot);
+	   else {
+	     mt_get_params(m1,i,&micras, &desv);
+	     mt_get_params(m2,i,&micras2, &desv2);
+	     mtot = (micras + micras2)/2;
+	     dtot = (desv + desv2)/2;
+	   }
 	   
-	   printf("QUE LLEGO AKI?\n");
-	   mt_get_params(m,i,&micras, &desv);
-	   printf("params for %3d vel >> tbticks: %d, desv: %d\n",i,micras, desv);
+	   printf("params for %3d vel >> tbticks: %d, desv: %d\n",i,mtot,dtot);
 	   //micras = desv = 0;
 	 }
        } else {
-	 printf("\ntrying to calibrate BOTH motors\n");
-	 mt_calibrate(mostres, twait);
-	 /*printf("\n");
-	   printf("coefs_punts_1: ");prw(mostres, m1->pid->cp);
-	   printf("coefs_punts_2: ");prw(mostres, m2->pid->cp);
-	   printf("coef_dev_1:    ");prw(mostres, m1->pid->cd);
-	   printf("coef_dev_2:    ");prw(mostres, m2->pid->cd);*/
-	 printf("\n");
-	 for ( i = clavat ? MIN_VEL : MIN_VEL+(step/2); i <= MAX_VEL; i += step ){
-	   if ((i + step > MAX_VEL) && clavat)
-	     i = MAX_VEL;
-	   else if ((i == MAX_VEL) && !clavat)
-	     i = (MAX_VEL - (step/4));
-	   
-	   mt_get_params(m1,i,&micras, &desv);
-	   mt_get_params(m2,i,&micras2,&desv2);
-	   printf("MOTOR1: params for %3d vel >> tbticks: %d, desv: %d\n",i,micras, desv);
-	   printf("MOTOR2: params for %3d vel >> tbticks: %d, desv: %d\n",i,micras2, desv2);
-	   //micras = desv = 0;
-	 }
+	 
+	 printf("Error calibrating motors.\n");
+	 
        }
      }
      break;;
@@ -809,9 +823,11 @@ time.tv_nsec = 0;
    printf("ERRORAKO en init de motores\n");
  }
  
- mt_stop(m1, true);
- mt_stop(m2, true);
- //mt_shutdown();
+ if(m1->moving && m1->id != 0)
+   mt_stop(m1, true);
+ if(m2->moving && m2->id != 0)
+   mt_stop(m2, true);
+
  lego_shutdown();
  
  return ret;

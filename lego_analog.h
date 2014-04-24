@@ -15,7 +15,7 @@
 #define MIN_PORT        0
 
 
-enum lports { L_PORT0 = 15, L_PORT1 = 30, L_PORT2 = 14, L_PORT3 = 31 };
+enum lports { L_PORT0 = 3, L_PORT1 = 30, L_PORT2 = 2, L_PORT3 = 31 };
 
 //extern int an_fd;
 
