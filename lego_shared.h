@@ -21,6 +21,36 @@
 #define FAIL		-1
 #define WEIRD		-2
 
+
+#ifndef SHAREFILE_INCLUDED
+#define SHAREFILE_INCLUDED
+
+struct init_struct {
+
+  bool pr_debug;
+  bool pr_criticals;
+  bool wpi;
+  bool mt;
+  bool ag;
+  bool dg;
+
+};
+
+typedef struct init_struct INIT;
+
+
+#ifdef  MAIN_FILE
+
+INIT status = {false, true, false, false, false, false};
+
+#else
+
+extern INIT status;
+
+#endif
+#endif
+
+
 typedef struct timespec TSPEC;
 
 extern void udelay(int);

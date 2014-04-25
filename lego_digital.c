@@ -1,13 +1,13 @@
 //#include <lego/lego_i2c.h>
 #include "lego_digital.h"
 
+INIT status;
 
+static uint8_t port_busy = 0;
 
-uint8_t port_busy = 0;
+static I2C_DVC ** ptable; //to shutdown every device 
 
-I2C_DVC ** ptable; //to shutdown every device 
-
-int retries;
+static int retries;
 
 char * us_titles [] = {
   "Product Version: ",
@@ -137,10 +137,17 @@ static bool send_message (DGDVC * dev, msgIdx msg, uint16_t * reply);
 static void raw_data_to_str (uint16_t raw [], char out[], int len);
 
 
-extern void dg_init(int retry){
-  retries = retry;
+extern bool dg_init(int retry){
+  if (retry < 0) {
+    not_critical("dg_init: Setting retries to 0.\n");
+    retries = 0;
+  } else
+    retries = retry;
+
   ptable = calloc(MAX_PORT_DG+1, sizeof(I2C_DVC *));
-  init_i2c(LOG_QUIET);
+  status.dg = init_i2c(status.pr_debug ? LOG_PRINT : LOG_QUIET);
+  
+  return status.dg;
 }
 
 extern bool dg_new (DGDVC * dev, dgType type, int port) {
@@ -159,7 +166,7 @@ extern bool dg_new (DGDVC * dev, dgType type, int port) {
       dev->dvc = (I2C_DVC *)malloc(sizeof(I2C_DVC));
      
       if(!i2c_new_device(dev->dvc, LEGO_ADDR, LEGO_FREQ, port == 0 ? SDA_0 : SDA_1, port == 0 ? SCL_0 : SCL_1, type == LEGO_US ? GPPUD_PULLDOWN : GPPUD_PULLUP, GPPUD_PULLUP)){
-	not_critical("dg_new: Port is busy.\n");
+	not_critical("dg_new: Digital port %d busy.\n", port);
 	return false;
       } else
 	port_busy |= (1 << port);
@@ -195,7 +202,7 @@ extern bool dg_new_unknown (DGDVC * dev, uint8_t addr, int freq, int port) {
     dev->vers = 0;
     dev->dvc = (I2C_DVC *)malloc(sizeof(I2C_DVC));
     if(!i2c_new_device(dev->dvc, addr, freq, port == 0 ? SDA_0 : SDA_1, port == 0 ? SCL_0 : SCL_1, GPPUD_PULLUP, GPPUD_PULLUP)){
-      not_critical("dg_new_unknown: Port is busy.\n");
+      not_critical("dg_new_unknown: Digital port %d busy.\n", port);
       return false;
     } else { 
       port_busy |= (1 << port);
@@ -215,6 +222,8 @@ extern void dg_shutdown () {
   if (port_busy & 0x02)
     i2c_shutdown(ptable[1]);
 
+  status.dg = false;
+
 }
  
 static void check_device(DGDVC * dev) {
@@ -231,7 +240,7 @@ static void check_device(DGDVC * dev) {
     for(i=0; i<regs[HT_SEN_TYPE].len; i++) {
       data_aux[0] = regs[HT_SEN_TYPE].base + i;
       ret = false;
-      while (!ret && retry > 0){
+      while (!ret && retry >= 0){
 	if(!(ret = i2c_transfer(dev->dvc, data_aux, 1, false, data_in, 1, false, regs[HT_SEN_TYPE].delay))){
 	  retry --;
 	  debug("I2C transaction failed, REG = 0x%02x, retry = %d\n", regs[HT_SEN_TYPE].base + i, retries - retry); //futur debug.
@@ -239,7 +248,7 @@ static void check_device(DGDVC * dev) {
 	} 
 	  
       }
-      if (retry == 0 && !ret) {
+      if (retry < 0 && !ret) {
 	not_critical("check_device: i2c transaction failed, REG = 0x%02x\n", regs[HT_SEN_TYPE].base + i);
 	return;
       } else {
@@ -251,14 +260,14 @@ static void check_device(DGDVC * dev) {
     
   } else { //Ultrasonic
     data_aux[0] = regs[US_SEN_TYPE].base;
-    while (!ret && retry > 0){
+    while (!ret && retry >= 0){
       if(!(ret = i2c_transfer(dev->dvc, data_aux, 1, true, data_in, regs[US_SEN_TYPE].len, false, regs[US_SEN_TYPE].delay))){
 	retry --;
 	debug("I2C transaction failed, REG = 0x%02x, retry = %d\n", regs[US_SEN_TYPE].base, retries - retry); //futur debug.
 	DELAY_US(DEF_DELAY);
       }
     }
-    if (retry == 0 && !ret) {
+    if (retry < 0 && !ret) {
       not_critical("check_device: i2c transaction failed, REG = 0x%02x.\n", regs[US_SEN_TYPE].base);
       return;
     } else {
@@ -330,14 +339,14 @@ static void get_version (DGDVC * dev) {
   if (IS_HITECH(dev->type)) {
       data_aux[0] = regs[HT_VER_NUM].base + 1;
       ret = false;
-      while (!ret && retry > 0){
+      while (!ret && retry >= 0){
 	if(!(ret = i2c_transfer(dev->dvc, data_aux, 1, false, data_in, 1, false, regs[HT_VER_NUM].delay))){
 	  retry --;
 	  debug("I2C transaction failed, REG = 0x%02x, retry = %d\n", regs[HT_VER_NUM].base + 1, retries - retry); 
 	  DELAY_US(DEF_DELAY);
 	}
       }
-      if (retry == 0 && !ret) {
+      if (retry < 0 && !ret) {
 	not_critical("get_version: i2c transaction failed, REG = 0x%02x.\n", regs[HT_VER_NUM].base + 1);
 	return;
       } else {
@@ -349,14 +358,14 @@ static void get_version (DGDVC * dev) {
     
   } else { //Ultrasonic
     data_aux[0] = regs[US_PR_VER].base;
-    while (!ret && retry > 0){
+    while (!ret && retry >= 0){
       if(!(ret = i2c_transfer(dev->dvc, data_aux, 1, true, data_in, regs[US_PR_VER].len, false, regs[US_PR_VER].delay))){
 	retry --;
         debug("I2C transaction failed, REG = 0x%02x, retry = %d\n", regs[US_PR_VER].base, retries - retry); 
 	DELAY_US(DEF_DELAY);
       }
     }
-    if (retry == 0 && !ret) {
+    if (retry < 0 && !ret) {
       not_critical("get_version: i2c transaction failed, REG = 0x%02x.\n", regs[US_PR_VER].base);
       return;
     } else {
@@ -377,14 +386,14 @@ extern bool dg_send_cmd (DGDVC * dev, cmdIdx cmd) {
   if (match_cmd(dev->type, cmd)){
     if (match_cmd_ver(dev->vers, cmd)){
      
-      while (!ret && retry > 0) {
+      while (!ret && retry >= 0) {
 	if(!(ret = i2c_write(dev->dvc, data_aux, 2, cmds[cmd].delay))){
 	    retry --;
 	    debug("I2C transaction failed, CMD = {0x%02x, 0x%02x} retry = %d\n", cmds[cmd].reg , cmds[cmd].val, retries - retry); //futur debug.
 	    DELAY_US(DEF_DELAY);
 	}
       }
-      if(retry == 0 && !ret){
+      if(retry < 0 && !ret){
 	not_critical("dg_send_cmd: i2c transaction failed, REG = 0x%02x, CMD = 0x%02x.\n", cmds[cmd].reg, cmds[cmd].val);
 	return false;
       }
@@ -441,14 +450,14 @@ static bool send_message (DGDVC * dev, msgIdx msg, uint16_t * reply) {
 	for(i=0; i<regs[msg].len; i++){
 	  data_aux[0] = regs[msg].base + i;
 	  ret = false;
-	  while (!ret && retry > 0){
+	  while (!ret && retry >= 0){
 	    if(!(ret = i2c_transfer(dev->dvc, data_aux, 1, false, data_in, 1, false, regs[msg].delay))){
 	      retry --;
 	      debug("I2C transaction failed, REG = 0x%02x retry = %d\n", regs[msg].base + i, retries - retry); //futur debug.
 	      DELAY_US(DEF_DELAY);
 	    }
 	  }
-	  if(retry == 0 && ! ret){
+	  if(retry < 0 && ! ret){
 	    not_critical("send_message: i2c transaction failed, REG = 0x%02x.\n", regs[msg].base + i);
 	    return false;
 	  } else
@@ -456,14 +465,14 @@ static bool send_message (DGDVC * dev, msgIdx msg, uint16_t * reply) {
 	}
       } else { //Ultrasonic
       data_aux[0] = regs[msg].base; 
-      while (!ret && retry > 0){
+      while (!ret && retry >= 0){
 	if(!(ret = i2c_transfer(dev->dvc, data_aux, 1, true, reply, regs[msg].len, false, regs[msg].delay))){
 	  retry --;
 	  debug("I2C transaction failed, REG = 0x%02x retry = %d\n", regs[msg].base, retries - retry); //futur debug.
 	  DELAY_US(DEF_DELAY);
 	}
       }
-      if(retry == 0 && !ret){
+      if(retry < 0 && !ret){
 	not_critical("send_message: i2c transaction failed, REG = 0x%02x.\n", regs[msg].base);
 	return false;
       }

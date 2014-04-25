@@ -1,5 +1,7 @@
 #include "lego_motor.h"
 
+INIT status;
+
 TSPEC t11, t12, t21, t22;
 
 MOTOR motor1, motor2;
@@ -325,6 +327,8 @@ extern void mt_pid_on (PID * pid){
 }
 
 extern void mt_pid_set_gains (PID * pid, double kp, double ki, double kd){
+  if(kp == 0 && ki == 0 &&  kd == 0)
+    not_critical("mt_pid_set_gains: seting gains to 0, PID won't act.\n");
   return(pid_set_gains (pid, kp, ki, kd));
 }
 
@@ -333,14 +337,17 @@ extern int mt_pid_conf(MOTOR * m, double * pcoef, double * dcoef) {
 }
 
 
-extern void mt_init(){
+extern bool mt_init(){
   
+  if(!status.wpi)
+    status.wpi = wiringPiSetupGpio() == 0;
+
   msinc->acting = false;
-  start_pwm();
+  status.mt = start_pwm();
   setup_sighandlers();
   m1->id = 0;
   m2->id = 0;
-  //init_threads();
+  return status.mt;
   
 }
 
@@ -388,7 +395,7 @@ extern int mt_new ( MOTOR * m, ENC * e1, ENC * e2, int id ){
 
 static int start_pwm(){
 
-  spwm_set_loglevel(LOG_LEVEL_ERRORS);
+  spwm_set_loglevel(status.pr_debug ? LOG_LEVEL_DEBUG : LOG_LEVEL_ERRORS);
   return ((spwm_setup(PWIG_DEF, HW_PWM) == 0) ? OK : FAIL);
 
 }
@@ -860,7 +867,8 @@ extern void mt_shutdown () { //aki "free" d'accelerador de interpolacions
   spwm_shutdown();
   if(!destroy_mutex())
     not_critical("mot_shutdown: Error destroying mutexs\n");
-  unexportall();
+  if(!status.ag)
+    unexportall();
   if(m1->id !=0){
     gsl_interp_accel_free(m1->pid->accelM);
     gsl_interp_accel_free(m1->pid->accelD);
@@ -870,6 +878,8 @@ extern void mt_shutdown () { //aki "free" d'accelerador de interpolacions
     gsl_interp_accel_free(m2->pid->accelM);
     gsl_interp_accel_free(m2->pid->accelD);
   }
+  
+  status.mt = false;
 }
 
 static int destroy_mutex (void){

@@ -1,5 +1,4 @@
 #include "lego_shared.h"
-
 #include <lego/lego_i2c.h>
 
 #define LEGO_ADDR        0x02 
@@ -184,7 +183,7 @@ typedef enum {
 //{0x51, 1, IWAIT, "Actual Scale Factor: "},
 //{0x52, 1, IWAIT, "Actual Scale Divisor: "},
 
-extern void dg_init(int retry);
+extern bool dg_init(int retry);
 extern bool dg_new (DGDVC * dev, dgType type, int port);
 extern bool dg_new_unknown (DGDVC * dev, uint8_t addr, int freq, int port);
 extern void dg_shutdown ();

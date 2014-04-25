@@ -2,7 +2,11 @@
 
 //#define NEVER_HAPPENS   4
 
-int an_fd = 0;
+INIT status;
+
+static int an_fd = 0;
+
+static uint8_t port_busy = 0;
 
 bool lpin_state [] = {false, false, false, false};
 int  ypin_port  [] = {L_PORT0, L_PORT1, L_PORT2, L_PORT3};
@@ -82,103 +86,147 @@ static int analog_read_int (ANDVC * dvc) { /* READ analog value (integer), max a
 }
 
 
-extern void ag_init() {
-  
-  if (!(an_fd = wiringPiSPISetup(CS, SPI_CLK)))
+extern bool ag_init() {
+
+  if(!status.wpi)
+    status.wpi = wiringPiSetupGpio() == 0;
+    
+  if (!(an_fd = wiringPiSPISetup(CS, SPI_CLK))) {
     not_critical("analog_setup: Error setting up SPI interface, ERRNO: %d\n", errno);
+    status.ag = false;
+  } else 
+    status.ag = true;
 
-  int i;
-  for (i = 0; i < 4; i++)
-    printf("%d, ", ypin_port[i]);
-
-  printf("\n");
-
+  return status.ag;
 }
 
 extern bool ag_new ( ANDVC* dvc, int port, agType type ) {
 
-  int ret = true;
+  if(status.ag) {
+    
+    int ret = true;
 
-  if (port < MIN_PORT || port > MAX_PORT){
-    not_critical("ag_new: port must be between %d - %d\n", MIN_PORT, MAX_PORT);
-    ret = false;
-  } else 
-    dvc->port = port;
-  
-  if(ret) {
-    if( type != LIGHT && type != PUSH && type != HT_GYRO && type != SOUND && type != AG_OTHER ) {
-      not_critical("ag_new: Unrecognized device type\n");
+    if (port < MIN_PORT || port > MAX_PORT){
+      not_critical("ag_new: port must be between %d - %d\n", MIN_PORT, MAX_PORT);
       ret = false;
+    } else if (!(port_busy & 1 << port)) {
+      dvc->port = port;
+      port_busy |= 1 << port;
     } else {
-      dvc->type = type;
-      if (type == LIGHT) 
-      	pinMode(ypin_port[dvc->port], OUTPUT);
-      else if(type  == SOUND)
-	pinMode(ypin_port[dvc->port], INPUT); //won't change, for SOUND sensor we need 3.3V in the yellow wire (to get dB), dBA not accessible due to the lack of pins
+      not_critical("ag_new: Analog port %d busy\n", port);
+      ret = false;
     }
+    
+    if(ret) {
+      if( type != LIGHT && type != PUSH && type != HT_GYRO && type != SOUND && type != AG_OTHER ) {
+	not_critical("ag_new: Unrecognized device type\n");
+	ret = false;
+      } else {
+	dvc->type = type;
+	if (type == LIGHT) 
+	  pinMode(ypin_port[dvc->port], OUTPUT);
+	else if(type  == SOUND)
+	  pinMode(ypin_port[dvc->port], INPUT); //won't change, for SOUND sensor we need 3.3V in the yellow wire (to get dB), dBA not accessible due to the lack of pins
+      }
+    }
+    
+    return ret;
+  } else {
+    not_critical("ag_new: Analog interface not initialised.\n");
+    return false;
   }
-
-  return ret;
-
 }
 
 extern bool ag_lgt_set_led (ANDVC* dvc, bool on){
   
-  if (dvc->type != LIGHT) {
-    not_critical("ag_lgt_light_on: Device type must be %d (LIGHT)\n", LIGHT);
-    return false;
-  } else if (on) { 
-    if (!lpin_state[dvc->port]) {
-      pinMode(ypin_port[dvc->port], INPUT); //little hack
-      lpin_state[dvc->port] =  true;
+  if(status.ag) {
+    if (dvc->type != LIGHT) {
+      not_critical("ag_lgt_light_on: Device type must be %d (LIGHT)\n", LIGHT);
+      return false;
+    } else if (on) { 
+      if (!lpin_state[dvc->port]) {
+	pinMode(ypin_port[dvc->port], INPUT); //little hack
+	lpin_state[dvc->port] =  true;
+      }
+    } else {
+      if (lpin_state[dvc->port]) {
+	pinMode(ypin_port[dvc->port], OUTPUT); //little hack
+	lpin_state[dvc->port] =  false;
+      }
     }
+    return true;
   } else {
-    if (lpin_state[dvc->port]) {
-      pinMode(ypin_port[dvc->port], OUTPUT); //little hack
-      lpin_state[dvc->port] =  false;
-    }
+    not_critical("ag_new: Analog interface not initialised.\n");
+    return false;
   }
-  return true;
+
 }
 
 extern bool ag_lgt_get_ledstate (ANDVC* dvc){
   
-  if (dvc->type != LIGHT) {
-    not_critical("ag_lgt_get_ledstate: Device type must be %d (LIGHT)\n", LIGHT);
+  if(status.ag) {
+    if (dvc->type != LIGHT) {
+      not_critical("ag_lgt_get_ledstate: Device type must be %d (LIGHT)\n", LIGHT);
+      return false;
+    } else
+      return lpin_state[dvc->port];
+  } else {
+    not_critical("ag_new: Analog interface not initialised.\n");
     return false;
-  } else
-    return lpin_state[dvc->port];
+  }
+
 }
 
 extern bool ag_psh_is_pushed (ANDVC * dvc, double * volt) {
 
-  if (dvc->type != PUSH) {
-    not_critical("ag_psh_is_pushed: Device type must be %d (PUSH)\n", PUSH);
-    *volt = -1;
-    return false;
-  }
-  else {
-    *volt = analog_read_voltage(dvc);
-    //printf("Voltage is: %f\n", *volt);
-    if(*volt < (double)(VREF/2))
-      return true;
-    else
+  if(status.ag) {
+    if (dvc->type != PUSH) {
+      not_critical("ag_psh_is_pushed: Device type must be %d (PUSH)\n", PUSH);
+      *volt = -1;
       return false;
+    }
+    else {
+      *volt = analog_read_voltage(dvc);
+      //printf("Voltage is: %f\n", *volt);
+      if(*volt < (double)(VREF/2))
+	return true;
+      else
+	return false;
+    }
+  } else {
+    not_critical("ag_new: Analog interface not initialised.\n");
+    return false;
   }
 
 }
 
 extern int ag_read_int (ANDVC * dvc){
-  return (analog_read_int(dvc));
+  if(status.ag) 
+    return (analog_read_int(dvc));
+  else {
+    not_critical("ag_new: Analog interface not initialised.\n");
+    return false;
+  }
 }
 
 extern double ag_read_volt (ANDVC * dvc){
-  return (analog_read_voltage(dvc));
+  if (status.ag) 
+    return (analog_read_voltage(dvc));
+  else {
+    not_critical("ag_new: Analog interface not initialised.\n");
+    return false;
+  }
+
 }
 
   
 extern void ag_shutdown () {
-
+  
+  if(!status.mt)
+    unexportall();
+  
+  status.ag = false;
+  
   if(an_fd > 0)
     close(an_fd);
 }

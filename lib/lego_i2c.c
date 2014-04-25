@@ -78,7 +78,7 @@ extern bool i2c_set_loglvl (int log_lvl) {
 
 }
 
-extern void init_i2c(int log_lvl) { 
+extern bool init_i2c(int log_lvl) { 
   
   gpio_reg = (volatile unsigned *) map_peripheral(GPIO_BASE, BLOCK_SIZE);
   if(gpio_reg == NULL){
@@ -92,6 +92,8 @@ extern void init_i2c(int log_lvl) {
     debug("init_i2c: log_lvl not understood, setting to QUIET mode...\n");
     pr_debug = LOG_QUIET;
   }
+
+  return true;
 }
 
 extern bool i2c_new_device ( I2C_DVC * dvc, uint8_t addr, int freq, int sda, int scl, uint32_t sda_pud, uint32_t scl_pud) {

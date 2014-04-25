@@ -53,7 +53,7 @@ struct i2c_device {
 
 typedef struct i2c_device I2C_DVC;
 
-extern void init_i2c(int log_lvl);
+extern bool init_i2c(int log_lvl);
 extern bool i2c_set_loglvl (int log_lvl);
 extern bool i2c_new_device (I2C_DVC * dvc, uint8_t addr, int freq, int sda, int scl, uint32_t sda_pud, uint32_t scl_pud);
 extern bool i2c_transfer (I2C_DVC * dvc, uint8_t * data_out, int len_out, bool rs, uint16_t * data_in, int len_in, bool word_read, int cse);

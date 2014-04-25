@@ -35,7 +35,7 @@ struct analog_device {
 typedef struct analog_device ANDVC;
 
 
-extern void   ag_init();
+extern bool   ag_init();
 extern bool   ag_new (ANDVC* dvc, int port, agType type);
 extern bool   ag_lgt_set_led (ANDVC* dvc, bool on);
 extern bool   ag_lgt_get_ledstate (ANDVC* dvc);

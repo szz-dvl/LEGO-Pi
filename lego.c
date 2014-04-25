@@ -1,3 +1,4 @@
+#define MAIN_FILE
 #include "lego_shared.h"
 #include "lego_motor.h"
 #include "lego_analog.h"
@@ -5,14 +6,16 @@
 
 //#include <lego/lego_i2c.h>
 
-#define PRINT            1
-#define QUIET            0
+//#define PRINT            1
+//#define QUIET            0
 #define LOG_LVL_DBG      2
 #define LOG_LVL_ADV      1
 #define LOG_LVL_FATAL    0
 
-static int pr_criticals = PRINT;
-static int pr_debug = QUIET;
+//static int pr_criticals = PRINT;
+//static int pr_debug = QUIET;
+
+//INIT status;
 
 static void LEGO_shutdown (void);
 static void handl_alrm(void);
@@ -33,7 +36,7 @@ void fatal (char *fmt, ...) {
 
 void not_critical (char* fmt, ...) {
 
-  if (pr_criticals == QUIET)
+  if (!status.pr_criticals)
     return;
 
   va_list args;
@@ -45,7 +48,7 @@ void not_critical (char* fmt, ...) {
 
 void debug (char* fmt, ...) {
   
-  if (pr_debug == QUIET)
+  if (!status.pr_debug)
     return;
   
   va_list args;
@@ -58,16 +61,16 @@ void debug (char* fmt, ...) {
 void set_verbose (int lvl) {
   
   if (lvl == LOG_LVL_FATAL) {
-    pr_criticals = QUIET;
-    pr_debug = QUIET;
+    status.pr_criticals = false;
+    status.pr_debug = false;
     i2c_set_loglvl(LOG_QUIET);
   } else if (lvl == LOG_LVL_ADV) {
-    pr_criticals = PRINT;
-    pr_debug = QUIET;
+    status.pr_criticals = true;
+    status.pr_debug = false;
     i2c_set_loglvl(LOG_QUIET);
   } else if (lvl == LOG_LVL_DBG) {
-    pr_criticals = PRINT;
-    pr_debug = PRINT;
+    status.pr_criticals = true;
+    status.pr_debug = true;
     i2c_set_loglvl(LOG_PRINT);
   } else 
     printf("Log level \"%d\" out of bounds\n", lvl);
@@ -78,7 +81,8 @@ static void LEGO_shutdown () {
 
   mt_shutdown();
   ag_shutdown();
-  dg_shutdown();  
+  dg_shutdown();
+  unexportall();
   exit(EXIT_FAILURE);
 }
 
@@ -132,18 +136,23 @@ static void handl_alrm(void) {
 static void terminate(void) {
   
   printf("Entering terminate.\n");
-  mt_shutdown();
-  ag_shutdown();
-  dg_shutdown();
-  exit(EXIT_SUCCESS);
+  if(status.mt)
+    mt_shutdown();
+  if(status.ag)
+    ag_shutdown();
+  if(status.dg)
+    dg_shutdown();
+  unexportall();
+  exit(EXIT_FAILURE);
 
 }
 
 void lego_init () {
   
-  wiringPiSetupGpio();
-  mt_init();
-  ag_init();
+  status.wpi = wiringPiSetupGpio() == 0;
+  status.mt = mt_init();
+  status.ag = ag_init();
+  status.dg = dg_init(3);
 
 }
 

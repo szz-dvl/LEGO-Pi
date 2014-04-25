@@ -87,7 +87,7 @@ enum mot2 {M2_PINF = 25, M2_PINR = 18, M2_ENC1 = 24, M2_ENC2 = 23, M2_CHANN = 1}
 //extern MOTOR  motor1; //mirara como hay que hacer para evitar externos i poder configurar la interrupcción
 //extern MOTOR  motor2;
 
-extern void mt_init(void);
+extern bool mt_init();
 extern int  mt_new(MOTOR * m , ENC * e1, ENC * e2, int id);
 extern int  mt_reconf(MOTOR *, ENC *, ENC *);
 extern int  mt_stop(MOTOR *, bool reset);
