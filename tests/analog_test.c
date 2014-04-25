@@ -1,8 +1,8 @@
-#include <lego.h>
+#include <lego/lego_analog.h>
 
 int main(int argc, char * argv[]) {
 
-  lego_init();
+  ag_init();
   
   int times = argc < 2 ? 5 : atoi(argv[1]), i;
   ANDVC push, l1, l2, l3;       
@@ -41,7 +41,7 @@ int main(int argc, char * argv[]) {
     
   }
 
-  lego_shutdown();
+  ag_shutdown();
   return (EXIT_SUCCESS);
 }
 

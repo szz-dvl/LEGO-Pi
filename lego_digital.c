@@ -135,7 +135,7 @@ static bool match_cmd (dgType type, cmdIdx cmd);
 static bool match_cmd_ver (int vers, cmdIdx cmd);
 static bool send_message (DGDVC * dev, msgIdx msg, uint16_t * reply);
 static void raw_data_to_str (uint16_t raw [], char out[], int len);
-
+static bool send_cmd (DGDVC * dev, cmdIdx cmd);
 
 extern bool dg_init(int retry){
   if (retry < 0) {
@@ -143,7 +143,7 @@ extern bool dg_init(int retry){
     retries = 0;
   } else
     retries = retry;
-
+  
   ptable = calloc(MAX_PORT_DG+1, sizeof(I2C_DVC *));
   status.dg = init_i2c(status.pr_debug ? LOG_PRINT : LOG_QUIET);
   
@@ -152,65 +152,85 @@ extern bool dg_init(int retry){
 
 extern bool dg_new (DGDVC * dev, dgType type, int port) {
 
-  if (type == OTHER) {
-    not_critical("dg_new: To initialise unknown devices use dg_new_unknown.\n");
-    return false;
-  } else {
-    if(port < MIN_PORT_DG || port > MAX_PORT_DG){
-      not_critical("dg_new: Port must be between %d and %d.\n", MIN_PORT_DG, MAX_PORT_DG);
+  if(status.dg) {
+
+    if (type == DG_OTHER) {
+      not_critical("dg_new: To initialise unknown devices use dg_new_unknown.\n");
       return false;
-    } else {
-      dev->type = type;
-      dev->port = port;
-      dev->vers = 0;
-      dev->dvc = (I2C_DVC *)malloc(sizeof(I2C_DVC));
-     
-      if(!i2c_new_device(dev->dvc, LEGO_ADDR, LEGO_FREQ, port == 0 ? SDA_0 : SDA_1, port == 0 ? SCL_0 : SCL_1, type == LEGO_US ? GPPUD_PULLDOWN : GPPUD_PULLUP, GPPUD_PULLUP)){
-	not_critical("dg_new: Digital port %d busy.\n", port);
+    } else if (type == LEGO_US || type == HT_COMPASS || type == HT_ACCEL || type == HT_COLOR || type == HT_IRS){
+      if(port < MIN_PORT_DG || port > MAX_PORT_DG){
+	not_critical("dg_new: Port must be between %d and %d.\n", MIN_PORT_DG, MAX_PORT_DG);
 	return false;
-      } else
-	port_busy |= (1 << port);
-	
-      check_device(dev);
-      
-      if (dev->vers == 0) {
-	not_critical("dg_new: Device does not match the demanded device type.\n");
-	port_busy &= ~(1 << port);
-	i2c_shutdown(dev->dvc);
-	return false ;
       } else {
-	ptable[port] = dev->dvc;
-	if(dev->type == HT_COLOR && dev->vers > 1)
-	  dg_send_cmd(dev, HTCS_ACT_MD);
-	return true;
-      }
-    }
+	dev->type = type;
+	dev->port = port;
+	dev->vers = 0;
+	dev->dvc = (I2C_DVC *)malloc(sizeof(I2C_DVC));
 	
+	if(!i2c_new_device(dev->dvc, LEGO_ADDR, LEGO_FREQ, port == 0 ? SDA_0 : SDA_1, port == 0 ? SCL_0 : SCL_1, type == LEGO_US ? GPPUD_PULLDOWN : GPPUD_PULLUP, GPPUD_PULLUP)){
+	  not_critical("dg_new: Digital port %d busy.\n", port);
+	  return false;
+	} else
+	  port_busy |= (1 << port);
+	
+	check_device(dev);
+	
+	if (dev->vers == 0) {
+	  not_critical("dg_new: Device does not match the demanded device type.\n");
+	  port_busy &= ~(1 << port);
+	  i2c_shutdown(dev->dvc);
+	  return false ;
+	} else {
+	  ptable[port] = dev->dvc;
+	  if(dev->type == HT_COLOR && dev->vers > 1)
+	    send_cmd(dev, HTCS_ACT_MD);
+	  return true;
+	}
+      }
+      
+    } else {
+
+      not_critical("dg_new: Unrecognized device type\n", port);
+      return false;
+    }
+  } else {
+    
+    not_critical("dg_new: Digital interface not initialised\n");
+    return false;
+
   }
 }
  
 extern bool dg_new_unknown (DGDVC * dev, uint8_t addr, int freq, int port) {
-
-  if(port < MIN_PORT_DG || port > MAX_PORT_DG){
   
-    not_critical("dg_new_unknown: Port must be between %d and %d.\n", MIN_PORT_DG, MAX_PORT_DG);
-    return false;
- 
-  } else {
-    dev->type = OTHER;
-    dev->port = port;
-    dev->vers = 0;
-    dev->dvc = (I2C_DVC *)malloc(sizeof(I2C_DVC));
-    if(!i2c_new_device(dev->dvc, addr, freq, port == 0 ? SDA_0 : SDA_1, port == 0 ? SCL_0 : SCL_1, GPPUD_PULLUP, GPPUD_PULLUP)){
-      not_critical("dg_new_unknown: Digital port %d busy.\n", port);
+  if(status.dg) {
+  
+    if(port < MIN_PORT_DG || port > MAX_PORT_DG){
+  
+      not_critical("dg_new_unknown: Port must be between %d and %d.\n", MIN_PORT_DG, MAX_PORT_DG);
       return false;
-    } else { 
-      port_busy |= (1 << port);
-      ptable[port] = dev->dvc;
+      
+    } else {
+      dev->type = DG_OTHER;
+      dev->port = port;
+      dev->vers = 0;
+      dev->dvc = (I2C_DVC *)malloc(sizeof(I2C_DVC));
+      if(!i2c_new_device(dev->dvc, addr, freq, port == 0 ? SDA_0 : SDA_1, port == 0 ? SCL_0 : SCL_1, GPPUD_PULLUP, GPPUD_PULLUP)){
+	not_critical("dg_new_unknown: Digital port %d busy.\n", port);
+	return false;
+      } else { 
+	port_busy |= (1 << port);
+	ptable[port] = dev->dvc;
+      }
     }
+    return true;
+    
+  } else {
+    
+    not_critical("dg_new_unknown: Digital interface not initialised\n");
+    return false;
+    
   }
-  
-  return true;
 
 }
 
@@ -379,34 +399,51 @@ static void get_version (DGDVC * dev) {
 
 extern bool dg_send_cmd (DGDVC * dev, cmdIdx cmd) {
 
-  bool ret = false;
-  int retry = retries;
-  uint8_t data_aux[] = {cmds[cmd].reg, cmds[cmd].val};
+  if(status.dg)
+    
+    return (send_cmd(dev, cmd));
+    
+  else {
+    
+    not_critical("dg_send_cmd: Digital interface not initialised\n");
+    return false;
+    
+  }
+
+}
+
+
+static bool send_cmd (DGDVC * dev, cmdIdx cmd) {
   
-  if (match_cmd(dev->type, cmd)){
-    if (match_cmd_ver(dev->vers, cmd)){
-     
-      while (!ret && retry >= 0) {
-	if(!(ret = i2c_write(dev->dvc, data_aux, 2, cmds[cmd].delay))){
+    bool ret = false;
+    int retry = retries;
+    uint8_t data_aux[] = {cmds[cmd].reg, cmds[cmd].val};
+  
+    if (match_cmd(dev->type, cmd)){
+      if (match_cmd_ver(dev->vers, cmd)){
+	
+	while (!ret && retry >= 0) {
+	  if(!(ret = i2c_write(dev->dvc, data_aux, 2, cmds[cmd].delay))){
 	    retry --;
 	    debug("I2C transaction failed, CMD = {0x%02x, 0x%02x} retry = %d\n", cmds[cmd].reg , cmds[cmd].val, retries - retry); //futur debug.
 	    DELAY_US(DEF_DELAY);
+	  }
 	}
-      }
-      if(retry < 0 && !ret){
-	not_critical("dg_send_cmd: i2c transaction failed, REG = 0x%02x, CMD = 0x%02x.\n", cmds[cmd].reg, cmds[cmd].val);
+	if(retry < 0 && !ret){
+	  not_critical("send_cmd: i2c transaction failed, REG = 0x%02x, CMD = 0x%02x.\n", cmds[cmd].reg, cmds[cmd].val);
+	  return false;
+	}
+      } else {
+	not_critical("send_cmd: Unsupported sensor version.\n");
 	return false;
       }
     } else {
-      not_critical("dg_send_cmd: Unsupported sensor version.\n");
+      not_critical("send_cmd: Sensor type doesn't match command.\n");
       return false;
     }
-  } else {
-    not_critical("dg_send_cmd: Sensor type doesn't match command.\n");
-    return false;
-  }
 
-  return true;
+    return true;
+    
 }
 
 static bool match_cmd (dgType type, cmdIdx cmd) {
@@ -488,156 +525,188 @@ static bool send_message (DGDVC * dev, msgIdx msg, uint16_t * reply) {
 
 extern bool dg_col_get_rgb (DGDVC * dvc, uint8_t * red, uint8_t * green, uint8_t * blue) {
 
-  bool ret = false;
-
-  if (dvc->type == HT_COLOR) {
+  if(status.dg) {
     
-    uint16_t taux[1];
-
-    //if(dvc->vers == 2)
-    //dg_send_cmd(dvc, HTCS_ACT_MD);
+    bool ret = false;
     
-    if ((ret = send_message(dvc, HTCS_RED, taux)))
-      *red = (uint8_t)taux[0];
-    else 
-      not_critical("dg_col_get_rgb: Red reading failed.\n");
-	 
-    if(send_message(dvc, HTCS_GREEN, taux))
-      *green = (uint8_t)taux[0];
-    else {
-      not_critical("dg_col_get_rgb: Green reading failed.\n");
-      ret = false;
+    if (dvc->type == HT_COLOR) {
+      
+      uint16_t taux[1];
+      
+      //if(dvc->vers == 2)
+      //send_cmd(dvc, HTCS_ACT_MD);
+    
+      if ((ret = send_message(dvc, HTCS_RED, taux)))
+	*red = (uint8_t)taux[0];
+      else 
+	not_critical("dg_col_get_rgb: Red reading failed.\n");
+      
+      if(send_message(dvc, HTCS_GREEN, taux))
+	*green = (uint8_t)taux[0];
+      else {
+	not_critical("dg_col_get_rgb: Green reading failed.\n");
+	ret = false;
+      }
+      
+      if(send_message(dvc, HTCS_BLUE, taux))
+	*blue = (uint8_t)taux[0];
+      else {
+	not_critical("dg_col_get_rgb: Blue reading failed.\n");
+	ret = false;
+      }
+      
+    } else {
+      not_critical("dg_col_get_rgb: Device type must be HT_COLOR [%d]\n", HT_COLOR);
+      return false;
     }
-
-    if(send_message(dvc, HTCS_BLUE, taux))
-      *blue = (uint8_t)taux[0];
-    else {
-      not_critical("dg_col_get_rgb: Blue reading failed.\n");
-      ret = false;
-    }
-    
-  } else {
-    not_critical("dg_col_get_rgb: Device type must be HT_COLOR [%d]\n", HT_COLOR);
-    return false;
-  }
   
-  return ret;
+    return ret;
+  
+  } else {
+    
+    not_critical("dg_col_get_rgb: Digital interface not initialised\n");
+    return false;
+    
+  }
+
 }
 
 extern bool dg_col_get_norm (DGDVC * dvc, uint8_t * red, uint8_t * green, uint8_t * blue) {
 
-  bool ret = false;
+  if(status.dg) {
+  
+    bool ret = false;
 
-  if(dvc->type == HT_COLOR) {
+    if(dvc->type == HT_COLOR) {
+      
+      uint16_t taux[1];
     
-    uint16_t taux[1];
+      if (dvc->vers == 1) {
+	
+	if ((ret = send_message(dvc, HTCS_NRM_RED, taux)))
+	  *red = (uint8_t)taux[0];
+	else 
+	  not_critical("dg_col_get_norm: Red reading failed.\n");
+	
+	if(send_message(dvc, HTCS_NRM_GREEN, taux))
+	  *green = (uint8_t)taux[0];
+	else {
+	  not_critical("dg_col_get_norm: Green reading failed.\n");
+	  ret = false;
+	}
+	
+	if(send_message(dvc, HTCS_NRM_BLUE, taux))
+	  *blue = (uint8_t)taux[0];
+	else {
+	  not_critical("dg_col_get_norm: Blue reading failed.\n");
+	  ret = false;
+	}      
+	
+      } else if(dvc->vers == 2) {
+	
+	//send_cmd(dvc, HTCS_ACT_MD);
+	
+	if ((ret = send_message(dvc, HTCS2_NRM_RED, taux)))
+	  *red = (uint8_t)taux[0];
+	else 
+	  not_critical("dg_col_get_norm: Red reading failed.\n");
+	
+	if(send_message(dvc, HTCS2_NRM_GREEN, taux))
+	  *green = (uint8_t)taux[0];
+	else {
+	  not_critical("dg_col_get_norm: Green reading failed.\n");
+	  ret = false;
+	}
+	
+	if(send_message(dvc, HTCS2_NRM_BLUE, taux))
+	  *blue = (uint8_t)taux[0];
+	else {
+	  not_critical("dg_col_get_norm: Blue reading failed.\n");
+	  ret = false;
+	}
+	
+      }
+      
+    } else {
     
-    if (dvc->vers == 1) {
-      
-      if ((ret = send_message(dvc, HTCS_NRM_RED, taux)))
-	*red = (uint8_t)taux[0];
-      else 
-	not_critical("dg_col_get_norm: Red reading failed.\n");
-      
-      if(send_message(dvc, HTCS_NRM_GREEN, taux))
-	*green = (uint8_t)taux[0];
-      else {
-	not_critical("dg_col_get_norm: Green reading failed.\n");
-	ret = false;
-      }
-      
-      if(send_message(dvc, HTCS_NRM_BLUE, taux))
-	*blue = (uint8_t)taux[0];
-      else {
-	not_critical("dg_col_get_norm: Blue reading failed.\n");
-	ret = false;
-      }      
-      
-    } else if(dvc->vers == 2) {
-      
-      //dg_send_cmd(dvc, HTCS_ACT_MD);
-
-      if ((ret = send_message(dvc, HTCS2_NRM_RED, taux)))
-	*red = (uint8_t)taux[0];
-      else 
-	not_critical("dg_col_get_norm: Red reading failed.\n");
-      
-      if(send_message(dvc, HTCS2_NRM_GREEN, taux))
-	*green = (uint8_t)taux[0];
-      else {
-	not_critical("dg_col_get_norm: Green reading failed.\n");
-	ret = false;
-      }
-      
-      if(send_message(dvc, HTCS2_NRM_BLUE, taux))
-	*blue = (uint8_t)taux[0];
-      else {
-	not_critical("dg_col_get_norm: Blue reading failed.\n");
-	ret = false;
-      }
-      
+      not_critical("dg_col_get_norm: Device type must be HT_COLOR [%d]\n", HT_COLOR);
+      return false; 
     }
-
+  
+    return ret;
+    
   } else {
     
-    not_critical("dg_col_get_norm: Device type must be HT_COLOR [%d]\n", HT_COLOR);
-    return false; 
+    not_critical("dg_col_get_norm: Digital interface not initialised\n");
+    return false;
+    
   }
-  
-  return ret;
+
 } 
 
 extern bool dg_col_get_index (DGDVC * dvc, uint8_t * idx){
 
-  if(dvc->type == HT_COLOR) {
+  if(status.dg) {
+
+  
+    if(dvc->type == HT_COLOR) {
     
-    uint16_t taux[1];
+      uint16_t taux[1];
     
-    if (dvc->vers == 1) {
-            
-      if(send_message(dvc, HTCS_COL_IDX, taux))
-	*idx = (uint8_t)taux[0];
+      if (dvc->vers == 1) {
+	
+	if(send_message(dvc, HTCS_COL_IDX, taux))
+	  *idx = (uint8_t)taux[0];
+	else {
+	  not_critical("dg_col_get_index: Color index reading failed.\n");
+	  return false;
+	}      
+	
+      } else if(dvc->vers == 2) {
+	
+	//send_cmd(dvc, HTCS_ACT_MD);
+	
+	if(send_message(dvc, HTCS2_COL_IDX, taux))
+	  *idx = (uint8_t)taux[0];
+	else {
+	  not_critical("dg_col_get_index: Color index reading failed.\n");
+	  return false;
+	}
+	
+      }
+    } else {
+      
+      not_critical("dg_col_get_index: Device type must be HT_COLOR [%d]\n", HT_COLOR);
+      return false; 
+    }
+ 
+    return true;
+  } else {
+    
+    not_critical("dg_col_get_index: Digital interface not initialised\n");
+    return false;
+    
+  }
+
+}
+  
+extern bool dg_col_get_number (DGDVC * dvc, uint8_t * num){
+  
+  if(status.dg) {
+ 
+    if(dvc->type == HT_COLOR) {
+    
+      uint16_t taux[1];
+    
+      //if (dvc->vers == 2) 
+      //send_cmd(dvc, HTCS_ACT_MD);
+    
+      if(send_message(dvc, HTCS_COL_NUM, taux))
+	*num = (uint8_t)taux[0];
       else {
-	not_critical("dg_col_get_index: Color index reading failed.\n");
-	return false;
-      }      
-      
-    } else if(dvc->vers == 2) {
-      
-      //dg_send_cmd(dvc, HTCS_ACT_MD);
-      
-      if(send_message(dvc, HTCS2_COL_IDX, taux))
-	*idx = (uint8_t)taux[0];
-      else {
-	not_critical("dg_col_get_index: Color index reading failed.\n");
+	not_critical("dg_col_get_number: Color number reading failed.\n");
 	return false;
       }
-      
-    }
-  } else {
-
-    not_critical("dg_col_get_index: Device type must be HT_COLOR [%d]\n", HT_COLOR);
-    return false; 
-  }
- 
-  return true;
-}
-
-extern bool dg_col_get_number (DGDVC * dvc, uint8_t * num){
-
-  if(dvc->type == HT_COLOR) {
-    
-    uint16_t taux[1];
-    
-    //if (dvc->vers == 2) 
-    //dg_send_cmd(dvc, HTCS_ACT_MD);
-    
-    if(send_message(dvc, HTCS_COL_NUM, taux))
-      *num = (uint8_t)taux[0];
-    else {
-      not_critical("dg_col_get_number: Color number reading failed.\n");
-      return false;
-    }
       
     } else {
       
@@ -646,67 +715,85 @@ extern bool dg_col_get_number (DGDVC * dvc, uint8_t * num){
     }
     
     return true;
+
+  } else {
+    
+    not_critical("dg_col_get_number: Digital interface not initialised\n");
+    return false;
+    
+  }
+
 }
 
 extern bool dg_col_get_white (DGDVC * dvc, uint16_t * white, bool raw, bool passive){
 
-  if(dvc->type == HT_COLOR) {
+  if(status.dg) {
+  
+    if(dvc->type == HT_COLOR) {
     
-    uint16_t taux[raw ? RAW_LEN : 1];
-    
-    if (dvc->vers == 2) { 
-      if(!raw) {
-	//dg_send_cmd(dvc, HTCS_ACT_MD);
-	
-	if(send_message(dvc, HTCS2_WHITE, taux))
-	  *white = taux[0];
-	else {
-	  not_critical("dg_col_get_white: White reading failed.\n");
-	  return false;
-	}
-      } else {
-	if(passive){
-	  if(!dg_send_cmd(dvc, HTCS_PAS_MD)){
-	    not_critical("dg_col_get_white: Enable passive mode failed.\n");
+      uint16_t taux[raw ? RAW_LEN : 1];
+      
+      if (dvc->vers == 2) { 
+	if(!raw) {
+	  //send_cmd(dvc, HTCS_ACT_MD);
+	  
+	  if(send_message(dvc, HTCS2_WHITE, taux))
+	    *white = taux[0];
+	  else {
+	    not_critical("dg_col_get_white: White reading failed.\n");
+	    return false;
+	  }
+	} else {
+	  if(passive){
+	    if(!send_cmd(dvc, HTCS_PAS_MD)){
+	      not_critical("dg_col_get_white: Enable passive mode failed.\n");
+	      goto back_to_def;
+	    }
+	  }
+	  
+	  if(!send_cmd(dvc, HTCS_RAW_MD)){
+	    not_critical("dg_col_get_white: Enable raw mode failed.\n");
 	    goto back_to_def;
+	  }
+	  
+	  if(send_message(dvc, HTCS2_RAW_WHITE, taux)){
+	    *white = taux[0] << BYTE_LEN;
+	    *white |= taux[1] & 0xff;
+	  } else {
+	    not_critical("dg_col_get_white: Raw white reading failed.\n");
+	    goto back_to_def;
+	  }
+	  
+	  if (!send_cmd(dvc, HTCS_ACT_MD)){
+	    not_critical("dg_col_get_white: Reenabling active mode failed.\n");
+	    goto back_to_def; //insisto...
 	  }
 	}
 	
-	if(!dg_send_cmd(dvc, HTCS_RAW_MD)){
-	  not_critical("dg_col_get_white: Enable raw mode failed.\n");
-	  goto back_to_def;
-	}
+      } else {
 	
-	if(send_message(dvc, HTCS2_RAW_WHITE, taux)){
-	  *white = taux[0] << BYTE_LEN;
-	  *white |= taux[1] & 0xff;
-	} else {
-	  not_critical("dg_col_get_white: Raw white reading failed.\n");
-	  goto back_to_def;
-	}
-	
-	if (!dg_send_cmd(dvc, HTCS_ACT_MD)){
-	  not_critical("dg_col_get_white: Reenabling active mode failed.\n");
-	  goto back_to_def; //insisto...
-	}
+	not_critical("dg_col_get_white: Unsupported sensor version.\n");
+	return false;
       }
       
     } else {
       
-      not_critical("dg_col_get_white: Unsupported sensor version.\n");
-      return false;
+      not_critical("dg_col_get_white: Device type must be HT_COLOR [%d].\n", HT_COLOR);
+      return false; 
     }
+    
+    return true;
     
   } else {
     
-    not_critical("dg_col_get_white: Device type must be HT_COLOR [%d].\n", HT_COLOR);
-    return false; 
+    not_critical("dg_col_get_white: Digital interface not initialised\n");
+    return false;
+    
   }
-  
-  return true;
+
 
  back_to_def:
-  if (!dg_send_cmd(dvc, HTCS_ACT_MD))
+  if (!send_cmd(dvc, HTCS_ACT_MD))
     not_critical("dg_col_get_white: Reenabling active mode failed.\n");
   return false;
 
@@ -714,93 +801,103 @@ extern bool dg_col_get_white (DGDVC * dvc, uint16_t * white, bool raw, bool pass
   
 extern bool dg_col_get_raw (DGDVC * dvc, uint16_t * red, uint16_t * green, uint16_t * blue, bool passive) {
 
-  bool ret = false;
+  if(status.dg) {
+  
+    bool ret = false;
 
-  if(dvc->type == HT_COLOR) {
-    
-    uint16_t taux[RAW_LEN];
-    
-    if (dvc->vers == 1) {
-
-      if(passive)
-	not_critical("dg_col_get_raw: Ignorign passive mode, unsupported sensor version.\n");
+    if(dvc->type == HT_COLOR) {
       
-      if ((ret = send_message(dvc, HTCS_RAW_RED, taux))) {
-	*red = taux[0] << BYTE_LEN;
-	*red |= taux[1] & 0xff; 
-      }
-      else 
-	not_critical("dg_col_get_raw: Red reading failed.\n");
+      uint16_t taux[RAW_LEN];
       
-      if(send_message(dvc, HTCS_RAW_GREEN, taux)) {
-	*green = taux[0] << BYTE_LEN;
-	*green |= taux[1] & 0xff; 
-      } else {
-	not_critical("dg_col_get_raw: Green reading failed.\n");
-	ret = false;
-      }
-      
-      if(send_message(dvc, HTCS_RAW_BLUE, taux)) {
-	*blue = taux[0] << BYTE_LEN;
-	*blue |= taux[1] & 0xff; 
-      } else {
-	not_critical("dg_col_get_raw: Blue reading failed.\n");
-	ret = false;
-      }      
-      
-    } else if(dvc->vers == 2) {
-
-      if(passive){
-	if(!dg_send_cmd(dvc, HTCS_PAS_MD)){
-	  not_critical("dg_col_get_raw: Enable passive mode failed.\n");
+      if (dvc->vers == 1) {
+	
+	if(passive)
+	  not_critical("dg_col_get_raw: Ignorign passive mode, unsupported sensor version.\n");
+	
+	if ((ret = send_message(dvc, HTCS_RAW_RED, taux))) {
+	  *red = taux[0] << BYTE_LEN;
+	  *red |= taux[1] & 0xff; 
+	}
+	else 
+	  not_critical("dg_col_get_raw: Red reading failed.\n");
+	
+	if(send_message(dvc, HTCS_RAW_GREEN, taux)) {
+	  *green = taux[0] << BYTE_LEN;
+	  *green |= taux[1] & 0xff; 
+	} else {
+	  not_critical("dg_col_get_raw: Green reading failed.\n");
+	  ret = false;
+	}
+	
+	if(send_message(dvc, HTCS_RAW_BLUE, taux)) {
+	  *blue = taux[0] << BYTE_LEN;
+	  *blue |= taux[1] & 0xff; 
+	} else {
+	  not_critical("dg_col_get_raw: Blue reading failed.\n");
+	  ret = false;
+	}      
+	
+      } else if(dvc->vers == 2) {
+	
+	if(passive){
+	  if(!send_cmd(dvc, HTCS_PAS_MD)){
+	    not_critical("dg_col_get_raw: Enable passive mode failed.\n");
+	    goto back_to_def;
+	  }
+	}
+	
+	if(!send_cmd(dvc, HTCS_RAW_MD)){
+	  not_critical("dg_col_get_raw: Enable raw mode failed.\n");
 	  goto back_to_def;
+	}
+	
+	if ((ret = send_message(dvc, HTCS2_RAW_RED, taux))) {
+	  *red = taux[0] << BYTE_LEN;
+	  *red |= taux[1] & 0xff; 
+	}
+	else 
+	  not_critical("dg_col_get_raw: Red reading failed.\n");
+	
+	if(send_message(dvc, HTCS2_RAW_GREEN, taux)) {
+	  *green = taux[0] << BYTE_LEN;
+	  *green |= taux[1] & 0xff; 
+	} else {
+	  not_critical("dg_col_get_raw: Green reading failed.\n");
+	  ret = false;
+	}
+	
+	if(send_message(dvc, HTCS2_RAW_BLUE, taux)) {
+	  *blue = taux[0] << BYTE_LEN;
+	  *blue |= taux[1] & 0xff; 
+	} else {
+	  not_critical("dg_col_get_raw: Blue reading failed.\n");
+	  ret = false;
+	}      
+	
+	if(!send_cmd(dvc, HTCS_ACT_MD)){
+	  not_critical("dg_col_get_raw: Reenable active mode failed.\n");
+	  goto back_to_def; //insisto...
 	}
       }
       
-      if(!dg_send_cmd(dvc, HTCS_RAW_MD)){
-	not_critical("dg_col_get_raw: Enable raw mode failed.\n");
-        goto back_to_def;
-      }
-
-      if ((ret = send_message(dvc, HTCS2_RAW_RED, taux))) {
-	*red = taux[0] << BYTE_LEN;
-	*red |= taux[1] & 0xff; 
-      }
-      else 
-	not_critical("dg_col_get_raw: Red reading failed.\n");
+    } else {
       
-      if(send_message(dvc, HTCS2_RAW_GREEN, taux)) {
-	*green = taux[0] << BYTE_LEN;
-	*green |= taux[1] & 0xff; 
-      } else {
-	not_critical("dg_col_get_raw: Green reading failed.\n");
-	ret = false;
-      }
-      
-      if(send_message(dvc, HTCS2_RAW_BLUE, taux)) {
-	*blue = taux[0] << BYTE_LEN;
-	*blue |= taux[1] & 0xff; 
-      } else {
-	not_critical("dg_col_get_raw: Blue reading failed.\n");
-	ret = false;
-      }      
-      
-      if(!dg_send_cmd(dvc, HTCS_ACT_MD)){
-	not_critical("dg_col_get_raw: Reenable active mode failed.\n");
-        goto back_to_def; //insisto...
-      }
+      not_critical("dg_col_get_raw: Device type must be HT_COLOR [%d]\n", HT_COLOR);
+      return false; 
     }
-
+  
+    return ret;
+    
   } else {
     
-    not_critical("dg_col_get_raw: Device type must be HT_COLOR [%d]\n", HT_COLOR);
-    return false; 
+    not_critical("dg_col_get_raw: Digital interface not initialised\n");
+    return false;
+    
   }
-  
-  return ret;
+
 
  back_to_def:
-  if (!dg_send_cmd(dvc, HTCS_ACT_MD))
+  if (!send_cmd(dvc, HTCS_ACT_MD))
     not_critical("dg_col_get_white: Reenabling active mode failed.\n");
   return false;
   
@@ -808,225 +905,283 @@ extern bool dg_col_get_raw (DGDVC * dvc, uint16_t * red, uint16_t * green, uint1
 
 extern bool dg_irs_get_dir (DGDVC * dvc, uint8_t * dir, bool dc) {
 
-  if (dvc->type == HT_IRS) {
+  if (status.dg) {
     
-    uint16_t taux[1];
-
-    if(dc) {
+    if (dvc->type == HT_IRS) {
     
-      if(send_message(dvc, HTIS_DC_DIR, taux))
-	*dir = (uint8_t)taux[0];
-      else {
-	not_critical("dg_irs_get_dir: DC Direction reading failed.\n");
-	return false;
+      uint16_t taux[1];
+      
+      if(dc) {
+	
+	if(send_message(dvc, HTIS_DC_DIR, taux))
+	  *dir = (uint8_t)taux[0];
+	else {
+	  not_critical("dg_irs_get_dir: DC Direction reading failed.\n");
+	  return false;
+	}
+	
+      } else {
+	
+	if(send_message(dvc, HTIS_AC_DIR, taux))
+	  *dir = (uint8_t)taux[0];
+	else {
+	  not_critical("dg_irs_get_dir: AC Direction reading failed.\n");
+	  return false;
+	}
+	
+	
       }
-
+      
     } else {
       
-      if(send_message(dvc, HTIS_AC_DIR, taux))
-	*dir = (uint8_t)taux[0];
-      else {
-	not_critical("dg_irs_get_dir: AC Direction reading failed.\n");
-	return false;
-      }
-
-
+      not_critical ("dg_irs_get_dir: Device type must be HT_IRS [%d]\n", HT_IRS);
+      return false;
+      
     }
 
+    return true;
+    
   } else {
-   
-    not_critical ("dg_irs_get_dir: Device type must be HT_IRS [%d]\n", HT_IRS);
+    
+    not_critical("dg_irs_get_dir: Digital interface not initialised\n");
     return false;
-
+    
   }
 
-  return true;
 
 }
 
 extern bool dg_irs_get_str (DGDVC * dvc, uint8_t * str, int num, bool dc) {
 
-  if (dvc->type == HT_IRS) {
+  if(status.dg) {
+  
+    if (dvc->type == HT_IRS) {
     
-    uint16_t taux[1];
-
-    if(num < 1 || num > MAX_IRS_STR) {
-      not_critical("dg_irs_get_str: Strength number out of bounds.\n");
-      return false;
-    }
-
-    if(dc) {
-    
-      if(send_message(dvc, HTIS_DCSTR_1 + (num - 1), taux))
-	*str = (uint8_t)taux[0];
-      else {
-	not_critical("dg_irs_get_str: DC strength %d reading failed.\n", num);
+      uint16_t taux[1];
+      
+      if(num < 1 || num > MAX_IRS_STR) {
+	not_critical("dg_irs_get_str: Strength number out of bounds.\n");
 	return false;
       }
-
+      
+      if(dc) {
+	
+	if(send_message(dvc, HTIS_DCSTR_1 + (num - 1), taux))
+	  *str = (uint8_t)taux[0];
+	else {
+	  not_critical("dg_irs_get_str: DC strength %d reading failed.\n", num);
+	  return false;
+	}
+	
+      } else {
+	
+	if(send_message(dvc, HTIS_ACSTR_1 + (num - 1), taux))
+	  *str = (uint8_t)taux[0];
+	else {
+	  not_critical("dg_irs_get_str: AC strength %d reading failed.\n", num);
+	  return false;
+	}
+	
+      }
+      
     } else {
       
-      if(send_message(dvc, HTIS_ACSTR_1 + (num - 1), taux))
-	*str = (uint8_t)taux[0];
-      else {
-	not_critical("dg_irs_get_str: AC strength %d reading failed.\n", num);
-	return false;
-      }
-
+      not_critical ("dg_irs_get_str: Device type must be HT_IRS [%d]\n", HT_IRS);
+      return false;
+      
     }
-
+    
+    return true;
+    
   } else {
-   
-    not_critical ("dg_irs_get_str: Device type must be HT_IRS [%d]\n", HT_IRS);
+    
+    not_critical("dg_irs_get_str: Digital interface not initialised\n");
     return false;
-
+    
   }
 
-  return true;
 
 }
 
 extern bool dg_irs_get_dcavg (DGDVC * dvc, uint8_t * avg) {
 
-  if (dvc->type == HT_IRS) {
+  if(status.dg) {
+
+    if (dvc->type == HT_IRS) {
     
-    uint16_t taux[1];
-    
-    if(send_message(dvc, HTIS_DC_AVG, taux))
-      *avg = (uint8_t)taux[0];
-    else {
-      not_critical("dg_irs_get_dcavg: DC Average reading failed.\n");
+      uint16_t taux[1];
+      
+      if(send_message(dvc, HTIS_DC_AVG, taux))
+	*avg = (uint8_t)taux[0];
+      else {
+	not_critical("dg_irs_get_dcavg: DC Average reading failed.\n");
+	return false;
+      }
+      
+    } else {
+      
+      not_critical ("dg_irs_get_dir: Device type must be HT_IRS [%d]\n", HT_IRS);
       return false;
+      
     }
+    
+    return true;
     
   } else {
     
-    not_critical ("dg_irs_get_dir: Device type must be HT_IRS [%d]\n", HT_IRS);
+    not_critical("dg_irs_get_dir: Digital interface not initialised\n");
     return false;
     
   }
-  
-  return true;
+
   
 }
 
 extern bool dg_irs_get_allstr (DGDVC * dvc, uint8_t strt [], bool dc) {
 
-  bool ret = true;
-
-  if (dvc->type == HT_IRS) {
+  if(status.dg) {
     
-    uint16_t taux[1];
-    int i;
-    //strt = (uint8_t *)malloc(5*sizeof(uint8_t));
-
-    if(dc) {
-
-      for (i=0; i<MAX_IRS_STR; i++){
-	if(send_message(dvc, HTIS_DCSTR_1 + i, taux))
-	  strt[i] = (uint8_t)taux[0];
-	else {
-	  not_critical("dg_irs_get_allstr: DC strength %d reading failed.\n", i);
-	  ret = false;
+    bool ret = true;
+    
+    if (dvc->type == HT_IRS) {
+      
+      uint16_t taux[1];
+      int i;
+      //strt = (uint8_t *)malloc(5*sizeof(uint8_t));
+      
+      if(dc) {
+	
+	for (i=0; i<MAX_IRS_STR; i++){
+	  if(send_message(dvc, HTIS_DCSTR_1 + i, taux))
+	    strt[i] = (uint8_t)taux[0];
+	  else {
+	    not_critical("dg_irs_get_allstr: DC strength %d reading failed.\n", i);
+	    ret = false;
+	  }
+	}
+      } else {
+	
+	for(i=0; i<MAX_IRS_STR; i++){
+	  if(send_message(dvc, HTIS_ACSTR_1 + i, taux))
+	    strt[i] = (uint8_t)taux[0];
+	  else {
+	    not_critical("dg_irs_get_allstr: AC strength %d reading failed.\n", i);
+	    ret = false;
+	  }
 	}
       }
+      
     } else {
       
-      for(i=0; i<MAX_IRS_STR; i++){
-	if(send_message(dvc, HTIS_ACSTR_1 + i, taux))
-	  strt[i] = (uint8_t)taux[0];
-	else {
-	  not_critical("dg_irs_get_allstr: AC strength %d reading failed.\n", i);
-	  ret = false;
-	}
-      }
+      not_critical ("dg_irs_get_allstr: Device type must be HT_IRS [%d]\n", HT_IRS);
+      return false;
+      
     }
-
+    
+    return ret;
+    
   } else {
-   
-    not_critical ("dg_irs_get_allstr: Device type must be HT_IRS [%d]\n", HT_IRS);
+    
+    not_critical("dg_irs_get_allstr: Digital interface not initialised\n");
     return false;
-
+    
   }
-
-  return ret;
-
+  
 }
 
 extern bool dg_get_state (DGDVC * dvc, uint8_t * state){
 
-  if(dvc->type != OTHER){
+  if(status.dg) {
+  
+    if(dvc->type != DG_OTHER){
 
-    uint16_t taux[1];
-    cmdIdx cmdaux;
-    
-    if(dvc->type == LEGO_US)
-      cmdaux = US_STATE;
-    else
-      cmdaux = HT_STATE;
+      uint16_t taux[1];
+      cmdIdx cmdaux;
+      
+      if(dvc->type == LEGO_US)
+	cmdaux = US_STATE;
+      else
+	cmdaux = HT_STATE;
 
-    if(send_message(dvc, cmdaux, taux))
-      *state = (uint8_t)taux[0];
-    else {
-      char * str = dvc->type == LEGO_US ? "LEGO_US" : dvc->type == HT_COMPASS ? "HT_COMPASS" : dvc->type == HT_ACCEL ? "HT_ACCEL" : dvc->type == HT_COLOR ? "HT_COLOR" : dvc->type == HT_IRS ? "HT_IRS" : ""; 
-      not_critical("dg_get_state: State reading failed for %s.\n", str);
+      if(send_message(dvc, cmdaux, taux))
+	*state = (uint8_t)taux[0];
+      else {
+	char * str = dvc->type == LEGO_US ? "LEGO_US" : dvc->type == HT_COMPASS ? "HT_COMPASS" : dvc->type == HT_ACCEL ? "HT_ACCEL" : dvc->type == HT_COLOR ? "HT_COLOR" : dvc->type == HT_IRS ? "HT_IRS" : ""; 
+	not_critical("dg_get_state: State reading failed for %s.\n", str);
+	return false;
+      }
+
+    } else {
+      not_critical("dg_get_state: No unknown devices allowed.\n");
       return false;
     }
+    
+    return true;
 
   } else {
-    not_critical("dg_get_state: No unknown devices allowed.\n");
+    
+    not_critical("dg_get_state: Digital interface not initialised\n");
     return false;
+    
   }
 
-  return true;
 }
 
 extern bool dg_us_get_dist (DGDVC * dvc, uint8_t * dist, int num) {
 
-  if (dvc->type == LEGO_US) {
+  if(status.dg) {
+  
+    if (dvc->type == LEGO_US) {
     
-    uint16_t taux[1];
+      uint16_t taux[1];
 
-    if(num < 0 || num > MAX_US_DIST) {
-      not_critical("dg_us_get_dist: Distance number out of bounds.\n");
-      return false;
-    }
-
-    if(num != 0){
-      
-      if(!dg_send_cmd(dvc, US_SIN_SHOT)){
-	not_critical("dg_us_get_dist: Error setting single shot mode\n");
-        goto back_to_def; //vaya a ser que...
+      if(num < 0 || num > MAX_US_DIST) {
+	not_critical("dg_us_get_dist: Distance number out of bounds.\n");
+	return false;
       }
 
+      if(num != 0){
+	
+	if(!send_cmd(dvc, US_SIN_SHOT)){
+	  not_critical("dg_us_get_dist: Error setting single shot mode\n");
+	  goto back_to_def; //vaya a ser que...
+	}
+	
+      }
+      
+      if(send_message(dvc, US_DIST_0 + num, taux))
+	*dist = (uint8_t)taux[0];
+      else {
+	not_critical("dg_us_get_dist: Distance %d reading failed.\n", num);
+	if(num != 0)
+	  goto back_to_def;
+	return false;
+      }
+      
+      
+    } else {
+      
+      not_critical ("dg_us_get_dist: Device type must be LEGO_US [%d]\n", LEGO_US);
+      return false;
+      
     }
     
-    if(send_message(dvc, US_DIST_0 + num, taux))
-      *dist = (uint8_t)taux[0];
-    else {
-      not_critical("dg_us_get_dist: Distance %d reading failed.\n", num);
-      if(num != 0)
-	goto back_to_def;
-      return false;
+    if(!send_cmd(dvc, US_CONT_MES)){
+      not_critical("dg_us_get_dist: Error setting back continious measurement mode.\n");
+      goto back_to_def; //insisto...
     }
-
-
+    
+    return true;
+    
   } else {
-   
-    not_critical ("dg_us_get_dist: Device type must be LEGO_US [%d]\n", LEGO_US);
+    
+    not_critical("dg_us_get_dist: Digital interface not initialised\n");
     return false;
-
+    
   }
-
-  if(!dg_send_cmd(dvc, US_CONT_MES)){
-    not_critical("dg_us_get_dist: Error setting back continious measurement mode.\n");
-    goto back_to_def; //insisto...
-  }
-
-  return true;
 
  back_to_def:
-  if(!dg_send_cmd(dvc, US_CONT_MES))
+  if(!send_cmd(dvc, US_CONT_MES))
     not_critical("dg_us_get_dist: Error setting back continious measurement mode.\n");
   return false;
 
@@ -1034,43 +1189,53 @@ extern bool dg_us_get_dist (DGDVC * dvc, uint8_t * dist, int num) {
 
 extern bool dg_us_get_alldist (DGDVC * dvc, uint8_t tdist []) {
 
-  bool ret = true;
-
-  if (dvc->type == LEGO_US) {
+  if(status.dg) {
     
-    uint16_t taux[1];
-    int i;
-
-    if(!dg_send_cmd(dvc, US_SIN_SHOT)){
-      not_critical("dg_us_get_alldist: Error setting single shot mode\n");
-      goto back_to_def; //vaya a ser que...
-    }
+    bool ret = true;
     
-    for (i=0; i<=MAX_US_DIST; i++) {
-      if(send_message(dvc, US_DIST_0 + i, taux))
-	tdist[i] = (uint8_t)taux[0];
-      else {
-	not_critical("dg_us_get_alldist: Distance %d reading failed.\n", i);
-	ret = false;
+    if (dvc->type == LEGO_US) {
+      
+      uint16_t taux[1];
+      int i;
+      
+      if(!send_cmd(dvc, US_SIN_SHOT)){
+	not_critical("dg_us_get_alldist: Error setting single shot mode\n");
+	goto back_to_def; //vaya a ser que...
       }
+      
+      for (i=0; i<=MAX_US_DIST; i++) {
+	if(send_message(dvc, US_DIST_0 + i, taux))
+	  tdist[i] = (uint8_t)taux[0];
+	else {
+	  not_critical("dg_us_get_alldist: Distance %d reading failed.\n", i);
+	  ret = false;
+	}
+      }
+      
+    } else {
+      
+      not_critical ("dg_us_get_alldist: Device type must be LEGO_US [%d]\n", LEGO_US);
+      return false;
+      
     }
-
+    
+    if(!send_cmd(dvc, US_CONT_MES)){
+      not_critical("dg_us_get_alldist: Error setting back continious measurement mode.\n");
+      goto back_to_def; //insisto...
+    }
+    
+    return ret;
+    
   } else {
-   
-    not_critical ("dg_us_get_alldist: Device type must be LEGO_US [%d]\n", LEGO_US);
+    
+    not_critical("dg_us_get_alldist: Digital interface not initialised\n");
     return false;
-
+    
   }
 
-  if(!dg_send_cmd(dvc, US_CONT_MES)){
-    not_critical("dg_us_get_alldist: Error setting back continious measurement mode.\n");
-    goto back_to_def; //insisto...
-  }
-
-  return ret;
 
  back_to_def:
-  if(!dg_send_cmd(dvc, US_CONT_MES))
+  if(!send_cmd(dvc, US_CONT_MES))
     not_critical("dg_us_get_alldist: Error setting back continious measurement mode.\n");
   return false;
 
@@ -1078,104 +1243,122 @@ extern bool dg_us_get_alldist (DGDVC * dvc, uint8_t tdist []) {
 
 extern bool dg_com_get_head (DGDVC * dvc, uint16_t * h1, uint16_t * h2) {
 
-  bool ret = true;
+  if(status.dg) {
+  
+    bool ret = true;
 
-  if(dvc->type == HT_COMPASS) {
+    if(dvc->type == HT_COMPASS) {
 
-    uint16_t taux[2];
+      uint16_t taux[2];
     
-    if(send_message(dvc, HTCM_2_DEG, taux))
-      *h1 = (uint8_t)taux[0] * 2;
-    else {
-      not_critical("dg_com_get_head: Error reading two degree heading.\n");
-      ret = false;
-    }
+      if(send_message(dvc, HTCM_2_DEG, taux))
+	*h1 = (uint8_t)taux[0] * 2;
+      else {
+	not_critical("dg_com_get_head: Error reading two degree heading.\n");
+	ret = false;
+      }
+      
+      if(send_message(dvc, HTCM_1_ADD, taux))
+	*h1 += (uint8_t)taux[0];
+      else {
+	not_critical("dg_com_get_head: Error reading one degree adder.\n");
+	ret = false;
+      }
 
-    if(send_message(dvc, HTCM_1_ADD, taux))
-      *h1 += (uint8_t)taux[0];
-    else {
-      not_critical("dg_com_get_head: Error reading one degree adder.\n");
-      ret = false;
-    }
+      if(send_message(dvc, HTCM_HEAD, taux)) {
+	*h2 = (uint8_t)taux[0];
+	*h2 |= (uint8_t)taux[1] << BYTE_LEN;
+      } else {
+	not_critical("dg_com_get_head: Error reading word heading.\n");
+	ret = false;
+      }
 
-    if(send_message(dvc, HTCM_HEAD, taux)) {
-      *h2 = (uint8_t)taux[0];
-      *h2 |= (uint8_t)taux[1] << BYTE_LEN;
+      
     } else {
-      not_critical("dg_com_get_head: Error reading word heading.\n");
-      ret = false;
+      
+      not_critical ("dg_com_get_head: Device type must be HT_COMPASS [%d]\n", HT_COMPASS);
+      return false;
+      
     }
 
+    return ret;
 
   } else {
     
-    not_critical ("dg_com_get_head: Device type must be HT_COMPASS [%d]\n", HT_COMPASS);
+    not_critical("dg_com_get_head: Digital interface not initialised\n");
     return false;
-
+    
   }
-
-  return ret;
 
 }
 
 extern bool dg_acc_get_axis (DGDVC * dvc, int * x, int * y, int * z) {
 
-  bool ret = true;
+  if(status.dg) {
 
-  if(dvc->type == HT_ACCEL){
+    bool ret = true;
+
+    if(dvc->type == HT_ACCEL){
+      
+      uint16_t taux[1];
+      
+      if(send_message(dvc, HTAC_X_UP, taux))
+	*x = taux[0] & 0x80 ? (taux[0] - 256) << 2 : taux[0] << 2;
+      else {
+	not_critical("dg_acc_get_axis: Error reading \"X\" upper byte.\n");
+	ret = false;
+      }
+      
+      if(send_message(dvc, HTAC_X_LW, taux))
+	*x |= taux[0] & 0x03;
+      else {
+	not_critical("dg_acc_get_axis: Error reading \"X\" lower byte.\n");
+	ret = false;
+      }
+      
+      if(send_message(dvc, HTAC_Y_UP, taux))
+	*y = taux[0] & 0x80 ? (taux[0] - 256) << 2 : taux[0] << 2;
+      else {
+	not_critical("dg_acc_get_axis: Error reading \"Y\" upper byte.\n");
+	ret = false;
+      }
+      
+      if(send_message(dvc, HTAC_Y_LW, taux))
+	*y |= taux[0] & 0x03;
+      else {
+	not_critical("dg_acc_get_axis: Error reading \"Y\" lower byte.\n");
+	ret = false;
+      }
+      
+      if(send_message(dvc, HTAC_Z_UP, taux))
+	*z = taux[0] & 0x80 ? (taux[0] - 256) << 2 : taux[0] << 2;
+      else {
+	not_critical("dg_acc_get_axis: Error reading \"Z\" upper byte.\n");
+	ret = false;
+      }
     
-    uint16_t taux[1];
-    
-    if(send_message(dvc, HTAC_X_UP, taux))
-      *x = taux[0] & 0x80 ? (taux[0] - 256) << 2 : taux[0] << 2;
-    else {
-      not_critical("dg_acc_get_axis: Error reading \"X\" upper byte.\n");
-      ret = false;
-    }
-    
-    if(send_message(dvc, HTAC_X_LW, taux))
-      *x |= taux[0] & 0x03;
-    else {
-      not_critical("dg_acc_get_axis: Error reading \"X\" lower byte.\n");
-      ret = false;
-    }
+      if(send_message(dvc, HTAC_Z_LW, taux))
+	*z |= taux[0] & 0x03;
+      else {
+	not_critical("dg_acc_get_axis: Error reading \"Z\" lower byte.\n");
+	ret = false;
+      }
+      
+    } else {
+      
+      not_critical ("dg_acc_get_axis: Device type must be HT_ACCEL [%d]\n", HT_ACCEL);
+      return false;
 
-    if(send_message(dvc, HTAC_Y_UP, taux))
-      *y = taux[0] & 0x80 ? (taux[0] - 256) << 2 : taux[0] << 2;
-    else {
-      not_critical("dg_acc_get_axis: Error reading \"Y\" upper byte.\n");
-      ret = false;
     }
-    
-    if(send_message(dvc, HTAC_Y_LW, taux))
-      *y |= taux[0] & 0x03;
-    else {
-      not_critical("dg_acc_get_axis: Error reading \"Y\" lower byte.\n");
-      ret = false;
-    }
-
-    if(send_message(dvc, HTAC_Z_UP, taux))
-      *z = taux[0] & 0x80 ? (taux[0] - 256) << 2 : taux[0] << 2;
-    else {
-      not_critical("dg_acc_get_axis: Error reading \"Z\" upper byte.\n");
-      ret = false;
-    }
-    
-    if(send_message(dvc, HTAC_Z_LW, taux))
-      *z |= taux[0] & 0x03;
-    else {
-      not_critical("dg_acc_get_axis: Error reading \"Z\" lower byte.\n");
-      ret = false;
-    }
-
-  } else {
-
-    not_critical ("dg_acc_get_axis: Device type must be HT_ACCEL [%d]\n", HT_ACCEL);
-    return false;
-
-  }
   
-  return ret;
+    return ret;
+    
+  } else {
+    
+    not_critical("dg_acc_get_axis: Digital interface not initialised\n");
+    return false;
+    
+  }
 
 }
 
@@ -1192,16 +1375,18 @@ static void raw_data_to_str (uint16_t raw [], char out[], int len) {
 
 extern bool dg_get_info (DGDVC * dvc, char * info [], bool titled){
 
-  bool ret = true;
+  if(status.dg) {
+    
+    bool ret = true;
 
-  if(dvc->type != OTHER){
+    if(dvc->type != DG_OTHER){
 
-    uint16_t taux[IN_MAX_LEN];
-    int i;
-    char auxstr[IN_MAX_LEN];
-    msgIdx base = dvc->type == LEGO_US ? US_PR_VER : HT_VER_NUM;
-    int offset = dvc->type == LEGO_US ? US_INF_MAX_OFFS : HT_INF_MAX_OFFS;
-    char * type = dvc->type == LEGO_US ? "LEGO_US" : dvc->type == HT_COMPASS ? "HT_COMPASS" : dvc->type == HT_ACCEL ? "HT_ACCEL" : dvc->type == HT_COLOR ? "HT_COLOR" : dvc->type == HT_IRS ? "HT_IRS" : ""; 
+      uint16_t taux[IN_MAX_LEN];
+      int i;
+      char auxstr[IN_MAX_LEN];
+      msgIdx base = dvc->type == LEGO_US ? US_PR_VER : HT_VER_NUM;
+      int offset = dvc->type == LEGO_US ? US_INF_MAX_OFFS : HT_INF_MAX_OFFS;
+      char * type = dvc->type == LEGO_US ? "LEGO_US" : dvc->type == HT_COMPASS ? "HT_COMPASS" : dvc->type == HT_ACCEL ? "HT_ACCEL" : dvc->type == HT_COLOR ? "HT_COLOR" : dvc->type == HT_IRS ? "HT_IRS" : ""; 
     
       for (i = 0; i < offset; i++) {
 	
@@ -1226,27 +1411,35 @@ extern bool dg_get_info (DGDVC * dvc, char * info [], bool titled){
 	  
 	  not_critical("dg_get_info: Failed to get %s%s\n", dvc->type == LEGO_US ? us_titles[i] : ht_titles[i], type);
 	  ret = false;
-	
+	  
 	}
-
+	
       }
       
       for(; i<DG_INFO_TABLE_TAM; i++){
 	info[i] = malloc(sizeof(char));
 	strcpy(info[i], "");
       }
+      
+    } else {
+      
+      not_critical ("dg_get_info: No unknown devices allowed\n");
+      return false;
+      
+    }
+
+    return ret;
 
   } else {
     
-    not_critical ("dg_get_info: No unknown devices allowed\n");
+    not_critical("dg_get_info: Digital interface not initialised\n");
     return false;
-
+    
   }
 
-  return ret;
 }
 
-/*_____________________The following functions are the only ones meant to be used by unknown devices [type = OTHER]____________________*/
+/*_____________________The following functions are the only ones meant to be used by unknown devices [type = DG_OTHER]____________________*/
 
 
 extern bool dg_transfer (DGDVC * dev, uint8_t data_out [], int len_out, bool rs, uint16_t data_in [], int len_in, bool word_read, int cse) {
@@ -1259,9 +1452,19 @@ extern bool dg_transfer (DGDVC * dev, uint8_t data_out [], int len_out, bool rs,
     rs >> boolean indicating if we need a repeated start condition [STOP + START] between write and read transactions, if not a restart [START] will be generated
 
     word_read >> boolean indicating if the lenght of every element in data_in will be a byte [8 bits] (false in this case), or a word [16 bits] (true then) 
-   */
+   
+  */
 
-  return (i2c_transfer(dev->dvc, data_out, len_out, rs, data_in, len_in, word_read, cse));
+  if(status.dg)
+  
+    return (i2c_transfer(dev->dvc, data_out, len_out, rs, data_in, len_in, word_read, cse));
+  
+  else {
+    
+    not_critical("dg_transfer: Digital interface not initialised\n");
+    return false;
+    
+  }
 
 }
 
@@ -1274,7 +1477,16 @@ extern bool dg_write (DGDVC * dev, uint8_t data_out [], int len_out, int cse) {
 
    */
 
-  return (i2c_write(dev->dvc, data_out, len_out, cse));
+  if(status.dg) 
+    
+    return (i2c_write(dev->dvc, data_out, len_out, cse));
+  
+  else {
+    
+    not_critical("dg_write: Digital interface not initialised\n");
+    return false;
+    
+  }
 
 }
 
@@ -1287,9 +1499,20 @@ extern bool dg_read (DGDVC * dev, uint16_t data_in [], int len_in, bool word_rea
   START >> RD_ADDR << data_in[0] << data_out[1] << ... << data_out[len_out-1] >> STOP + DELAY (cse us)
    
   word_read >> boolean indicating if the lenght of every element in data_in will be a byte [8 bits] (false in this case), or a word [16 bits] (true then)  
+  
   */
 
-  return (i2c_read(dev->dvc, data_in, len_in, word_read, cse));
+  if(status.dg)
+    
+    return (i2c_read(dev->dvc, data_in, len_in, word_read, cse));
+  
+  else {
+    
+    not_critical("dg_read: Digital interface not initialised\n");
+    return false;
+    
+  }
+
 
 }
 

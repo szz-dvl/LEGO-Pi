@@ -52,7 +52,7 @@
 
 typedef enum {
   
-  OTHER,
+  DG_OTHER,
   LEGO_US,
   HT_COMPASS,
   HT_ACCEL,
