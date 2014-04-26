@@ -128,7 +128,9 @@ int main(int argc, char * argv[]) {
       
       int port = argc < 3 ? 1 : atoi(argv[2]);
       ANDVC gyro;
+
       ag_new(&gyro,port,HT_GYRO);
+
   
       ag_gyro_cal(&gyro);
       

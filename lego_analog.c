@@ -128,7 +128,7 @@ extern bool ag_new ( ANDVC* dvc, int port, agType type ) {
     }
     
     if(ret) {
-      if( type != LIGHT && type != PUSH && type != HT_GYRO && type != SOUND && type != AG_OTHER ) {
+      if( type > AG_OTHER ) {
 	not_critical("ag_new: Unrecognized device type\n");
 	ret = false;
       } else {
@@ -250,12 +250,9 @@ extern int ag_gyro_get_val (ANDVC * dvc) { //Positives values for clockwise rota
       
       int val;
       
-      if( (val = analog_read_int(dvc)) != FAIL) {
-	
+      if( (val = analog_read_int(dvc)) != FAIL)
 	last_gyro = val - act_gyro;
-	return( val - act_gyro );
 	
-      } else
 	return last_gyro;
 
     } else {

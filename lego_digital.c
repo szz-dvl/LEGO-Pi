@@ -157,7 +157,7 @@ extern bool dg_new (DGDVC * dev, dgType type, int port) {
     if (type == DG_OTHER) {
       not_critical("dg_new: To initialise unknown devices use dg_new_unknown.\n");
       return false;
-    } else if (type == LEGO_US || type == HT_COMPASS || type == HT_ACCEL || type == HT_COLOR || type == HT_IRS){
+    } else if (type > DG_OTHER && type <= HT_IRS){
       if(port < MIN_PORT_DG || port > MAX_PORT_DG){
 	not_critical("dg_new: Port must be between %d and %d.\n", MIN_PORT_DG, MAX_PORT_DG);
 	return false;
