@@ -43,7 +43,6 @@
 #define IS_HTIS_CMD(c)   (c >= HTIS_CMD_RMIN && c <= HTIS_CMD_RMAX)
 
 #define IS_HITECH(x)     (x>1)
-#define DELAY_US(t)      nanosleep((TSPEC*)&(TSPEC){0, t*1000}, NULL) 
 
 //Meant to be used by the developer
 #define US_DIST_TABLE_TAM 8

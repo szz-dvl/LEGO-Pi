@@ -123,6 +123,24 @@ int main(int argc, char * argv[]) {
 
     }
     break;;
+  case 4:
+    {
+      
+      int port = argc < 3 ? 1 : atoi(argv[2]);
+      ANDVC gyro;
+      ag_new(&gyro,port,HT_GYRO);
+  
+      ag_gyro_cal(&gyro);
+      
+      while (1) {
+	
+	printf("GYRO says: %d, read_volt = %f\n", ag_gyro_get_val(&gyro), ag_read_volt(&gyro));
+	sleep(1);
+	
+      }
+
+    }
+    break;;
   default:
     break;;
   }

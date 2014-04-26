@@ -8,8 +8,10 @@ static int an_fd = 0;
 
 static uint8_t port_busy = 0;
 
-bool lpin_state [] = {false, false, false, false};
-int  ypin_port  [] = {L_PORT0, L_PORT1, L_PORT2, L_PORT3};
+static bool lpin_state [] = {false, false, false, false};
+static int  ypin_port  [] = {L_PORT0, L_PORT1, L_PORT2, L_PORT3};
+
+static int act_gyro = HT_GYRO_DEF;
 
 static int SPIreceive (int, uint8_t [], int);
 static double analog_read_voltage (ANDVC * dvc);
@@ -208,7 +210,7 @@ extern bool ag_psh_is_pushed (ANDVC * dvc, double * volt) {
 
 }
 
-extern int ag_snd_get_db (ANDVC * dvc) {
+extern int ag_snd_get_db (ANDVC * dvc) { 
 
   if(status.ag) {
     
@@ -233,6 +235,78 @@ extern int ag_snd_get_db (ANDVC * dvc) {
   } else {
     
     not_critical("ag_new: Analog interface not initialised.\n");
+    return false;
+    
+  }
+
+}
+
+extern int ag_gyro_get_val (ANDVC * dvc) { //Positives values for clockwise rotation, negatives for anticlockwise, the higher the value returned is the faster we turn. 
+
+  if(status.ag) {
+    
+    if(dvc->type == HT_GYRO) {
+      
+      int val;
+      
+      if( (val = analog_read_int(dvc)) != FAIL) {
+	
+	return( val - act_gyro );
+	
+      } else
+	return FAIL;
+
+    } else {
+
+      not_critical("ag_gyro_get_val: Device type must be %d (HT_GYRO)\n", HT_GYRO);
+      return false;
+
+    }  
+
+  } else {
+    
+    not_critical("ag_gyro_get_val: Analog interface not initialised.\n");
+    return false;
+    
+  }
+
+}
+
+extern bool ag_gyro_cal (ANDVC * dvc) { //Make sure the robot is stationary before call this one!
+
+  if(status.ag) {
+    
+    if(dvc->type == HT_GYRO) {
+      
+      int acum = 0, val;
+      int i = 5;
+      
+      while (i > 0) {
+	
+	if( (val = analog_read_int(dvc)) != FAIL){
+	  acum += val;
+	  i--;
+	  val = 0;
+	} else
+	  val = 0;
+	
+	DELAY_US(50);
+      }
+      
+      act_gyro = (acum / 5);
+
+      return true;
+
+    } else {
+
+      not_critical("ag_gyro_get_val: Device type must be %d (HT_GYRO)\n", HT_GYRO);
+      return false;
+
+    }  
+
+  } else {
+    
+    not_critical("ag_gyro_get_val: Analog interface not initialised.\n");
     return false;
     
   }
@@ -274,170 +348,3 @@ extern void ag_shutdown () {
 
 
 
-/*
-int main (int argc, char *argv []) {
-  
-  //	int retval = OK, fd, ioctl ;
-  //int len = ;
-
-  int fd ;
-  uint16_t rint ;
-  double rfloat ;
-  
-  //	uint8_t data [LEN] = { 0x00, 0x00, 0x00 } ;
-  
-  int canal = argc > 1 ? atoi(argv[1]) : 0 ;
-  //uint8_t change = argc > 2 ? atoi(argv[2]) : 0 ;
-  
-  	wiringPiSetupGpio() ;
-	pinMode(8, OUTPUT) ;
-	digitalWrite(8, HIGH);
-	digitalWrite(8, HIGH);
-  //	to_binary(TO_READ, data);
-  
-  fd = analog_setup() ;
-  
-  rint = analog_read_int(canal, fd) ;
-  sleep(1);
-  rfloat = analog_read_float(canal, fd) ;
-  printf("Received: rint: %u, rfloat: %.2f\n", rint, rfloat) ;
-  
-  //	transfer(fd);
-  
-  	if (!(ioctl = wiringPiSPIDataRW(CHANN, data, LEN))) {
-	
-	printf("ERROR %d: Comunicating to SPI device\n", ioctl);
-	retval = FAIL;
-	
-	} else {
-	
-	data[LEN] = '\0';
-	printf("Received from A/D: %c, returned = %d\n", print_data(data), ioctl);
-	
-	}
-	
-	flush_data(data);
-	
-	if (!(ioctl = read(fd, data, LEN))) {
-	
-	printf("ERROR %d: Comunicating to SPI device\n", ioctl);
-	retval = FAIL;
-	
-	} else {
-	
-	data[LEN] = '\0';
-	printf("Received from A/D: %c, returned = %d\n", print_data(data), ioctl);
-	
-	}
-	
-	to_binary(TO_READ, data);
-  //flush_data(data, LEN);
-  
-  	if (retval && !(ioctl = SPIreceive(fd, data, canal))) {
-	
-	printf("ERROR %d: Comunicating to SPI device\n", ioctl) ;
-	retval = FAIL ;
-	
-	} else {
-	
-	//data[LEN] = '\0';
-	printf("Received from A/D: ( %d ):\n", ioctl) ;
-	print_data(data, LEN) ;
-	
-	}
-	
-	if(retval)
-	join_bytes(data[1], data[2]) ; 
-  
-  return OK;
-}
-_______________________________OLD____________________________-
-
-
-static void flush_data (uint8_t data[], int len) {
-
-  int i;
-  
-  for ( i = 0; i < len; i++)
-    data[i] = 0;
-  
-}
-
-static char print_data (uint8_t data[], int len) {
-  
-  int i;
-  
-  for ( i = 0; i < len; i++)
-    printf("%u, ", data[i]);
-  
-  printf("\n");
-  
-  return '\0';
- 
-}
-
-static void to_binary (uint16_t byte, unsigned char * buffer, int len) {
-  
-  int i;
-  
-  for( i = 0; i < len; i++ ) {
-    //printf("bit #%1d: %1u\n",i,(byte & (1 << i)));
-    if((byte & (1 << i)) != 0)
-      buffer[(len-1)-i] = '1';
-    else
-      buffer[(len-1)-i] = '0';
-  }
-  
-  buffer[len] = '\0';
-}
-
-static uint16_t join_bytes (uint8_t msb, uint8_t lsb) {
-  
-  //uint16_t aux;
-  uint16_t res ;
-  //int i ;
-  res = lsb ;
-  
-//   DEBUG: binaries to print 
-  unsigned char lsb_bin[9] ;
-  unsigned char msb_bin[9] ;
-  unsigned char bin[13] ;
-  
-  to_binary(lsb, lsb_bin, 8) ;
-  to_binary(msb, msb_bin, 8) ;
-  
-  	for (i = 0; i < 4; i++)
-	res |= ((msb & (1 << i)) << (8 + i)) ; 
-  
-  Parece ser que, creo que por INL, la resolucion es de solo 10 bits 
-  
-  res |= (msb << 8);
-  
-  to_binary(res, bin, 12) ;
-
-  printf("Valor llegit d'A/D: %u, BINARY: %s  MSB_bin: %s, LSB_bin: %s\n", res, bin, msb_bin, lsb_bin) ;
-  
-  return res ;
-
-}
-
-___________________________________________TEST________________________-
-
-
-static void to_binary (uint16_t byte, unsigned char * buffer, int len) {
-  
-  int i;
-  
-  for( i = 0; i < len; i++ ) {
-    //printf("bit #%1d: %1u\n",i,(byte & (1 << i)));
-    if((byte & (1 << i)) != 0)
-      buffer[(len-1)-i] = '1';
-    else
-      buffer[(len-1)-i] = '0';
-  }
-  
-  buffer[len] = '\0';
-}
-
-
-*/
