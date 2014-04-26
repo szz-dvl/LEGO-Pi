@@ -41,34 +41,33 @@ int main(int argc, char * argv[]) {
       //set_verbose(LOG_LVL_ADV);
       char straux[] = {'\0'};
 
-      
-
-      ag_new(&push, 2, PUSH);
+      get_in("sa pagao?\n", 1);
+      ag_new(&push, 3, PUSH);
       ag_new(&l1,0, LIGHT);
       ag_new(&l2,1, LIGHT);
-      ag_new(&l3,3, LIGHT);
+      ag_new(&l3,2, LIGHT);
       
       for(i=0; i<times; i++){
 	while(!ag_psh_is_pushed(&push, &psh_val));
 	
 	sprintf(straux, "Setting ligh %s on port %d\n", ag_lgt_get_ledstate(&l1) ? "OFF" : "ON", l1.port);
-	//get_in(straux, 1);
+	get_in(straux, 1);
 	if (ag_lgt_get_ledstate(&l1))
 	  ag_lgt_set_led(&l1, false);
 	else  
 	  ag_lgt_set_led(&l1, true);
 	
-	strcpy(straux, "");
+	//strcpy(straux, "");
 	sprintf(straux, "Setting ligh %s on port %d\n", ag_lgt_get_ledstate(&l2) ? "OFF" : "ON", l2.port);
-	//get_in(straux, 1);
+	get_in(straux, 1);
 	if (ag_lgt_get_ledstate(&l2))
 	  ag_lgt_set_led(&l2, false);
 	else  
 	  ag_lgt_set_led(&l2, true);
 	
-	strcpy(straux, "");
+	//strcpy(straux, "");
 	sprintf(straux, "Setting ligh %s on port %d\n", ag_lgt_get_ledstate(&l3) ? "OFF" : "ON", l3.port);
-	//get_in(straux, 1);
+	get_in(straux, 1);
 	if (ag_lgt_get_ledstate(&l3))
 	  ag_lgt_set_led(&l3, false);
 	else  
@@ -103,6 +102,22 @@ int main(int argc, char * argv[]) {
 	  ag_lgt_set_led(&light, false);
 	else  
 	  ag_lgt_set_led(&light, true);
+	
+      }
+
+    }
+    break;;
+  case 3:
+    {
+      
+      int port = argc < 3 ? 2 : atoi(argv[2]);
+      ANDVC snd;
+      ag_new(&snd,port, SOUND);
+      
+      while (1) {
+	
+	printf("SOUND says: %d dB, read_int = %d, read_volt = %f\n", ag_snd_get_db(&snd), ag_read_int(&snd), ag_read_volt(&snd));
+	sleep(1);
 	
       }
 

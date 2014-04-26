@@ -12,6 +12,8 @@ bool lpin_state [] = {false, false, false, false};
 int  ypin_port  [] = {L_PORT0, L_PORT1, L_PORT2, L_PORT3};
 
 static int SPIreceive (int, uint8_t [], int);
+static double analog_read_voltage (ANDVC * dvc);
+static int analog_read_int (ANDVC * dvc);
 
 static int SPIreceive (int fd, uint8_t resp[], int chann) {
 
@@ -88,9 +90,14 @@ static int analog_read_int (ANDVC * dvc) { /* READ analog value (integer), max a
 
 extern bool ag_init() {
 
+  int i;
+
   if(!status.wpi)
     status.wpi = wiringPiSetupGpio() == 0;
-    
+  
+  for (i = 0; i <= MAX_PORT; i++)
+    pinMode(ypin_port[i], OUTPUT);    //set all the pins wired to yellow wire to OUTPUT
+
   if (!(an_fd = wiringPiSPISetup(CS, SPI_CLK))) {
     not_critical("analog_setup: Error setting up SPI interface, ERRNO: %d\n", errno);
     status.ag = false;
@@ -123,7 +130,6 @@ extern bool ag_new ( ANDVC* dvc, int port, agType type ) {
 	ret = false;
       } else {
 	dvc->type = type;
-	pinMode(ypin_port[dvc->port], OUTPUT);
 	if (type == LIGHT) 
 	  digitalWrite(ypin_port[dvc->port],LOW);
 	else if(type  == SOUND)
@@ -158,7 +164,7 @@ extern bool ag_lgt_set_led (ANDVC* dvc, bool on){
     }
     return true;
   } else {
-    not_critical("ag_new: Analog interface not initialised.\n");
+    not_critical("ag_lgt_light_on: Analog interface not initialised.\n");
     return false;
   }
 
@@ -173,7 +179,7 @@ extern bool ag_lgt_get_ledstate (ANDVC* dvc){
     } else
       return lpin_state[dvc->port];
   } else {
-    not_critical("ag_new: Analog interface not initialised.\n");
+    not_critical("ag_lgt_get_ledstate: Analog interface not initialised.\n");
     return false;
   }
 
@@ -196,8 +202,39 @@ extern bool ag_psh_is_pushed (ANDVC * dvc, double * volt) {
 	return false;
     }
   } else {
+    not_critical("ag_psh_is_pushed: Analog interface not initialised.\n");
+    return false;
+  }
+
+}
+
+extern int ag_snd_get_db (ANDVC * dvc) {
+
+  if(status.ag) {
+    
+    if(dvc->type == SOUND) {
+      
+      int val;
+      
+      if( (val = analog_read_int(dvc)) != FAIL) {
+	
+	return( ((double)(MAX_VAL-val)/MAX_VAL) * MAX_DB );
+	
+      } else
+	return FAIL;
+
+    } else {
+
+      not_critical("ag_snd_get_db: Device type must be %d (SOUND)\n", SOUND);
+      return false;
+
+    }  
+
+  } else {
+    
     not_critical("ag_new: Analog interface not initialised.\n");
     return false;
+    
   }
 
 }
