@@ -12,6 +12,7 @@ static bool lpin_state [] = {false, false, false, false};
 static int  ypin_port  [] = {L_PORT0, L_PORT1, L_PORT2, L_PORT3};
 
 static int act_gyro = HT_GYRO_DEF;
+static int last_gyro = 0;
 
 static int SPIreceive (int, uint8_t [], int);
 static double analog_read_voltage (ANDVC * dvc);
@@ -251,10 +252,11 @@ extern int ag_gyro_get_val (ANDVC * dvc) { //Positives values for clockwise rota
       
       if( (val = analog_read_int(dvc)) != FAIL) {
 	
+	last_gyro = val - act_gyro;
 	return( val - act_gyro );
 	
       } else
-	return FAIL;
+	return last_gyro;
 
     } else {
 
