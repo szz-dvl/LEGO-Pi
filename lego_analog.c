@@ -123,14 +123,16 @@ extern bool ag_new ( ANDVC* dvc, int port, agType type ) {
 	ret = false;
       } else {
 	dvc->type = type;
+	pinMode(ypin_port[dvc->port], OUTPUT);
 	if (type == LIGHT) 
-	  pinMode(ypin_port[dvc->port], OUTPUT);
+	  digitalWrite(ypin_port[dvc->port],LOW);
 	else if(type  == SOUND)
-	  pinMode(ypin_port[dvc->port], INPUT); //won't change, for SOUND sensor we need 3.3V in the yellow wire (to get dB), dBA not accessible due to the lack of pins
+	  digitalWrite(ypin_port[dvc->port], HIGH); //REVISAR!won't change, for SOUND sensor we need 3.3V in the yellow wire (to get dB), dBA not accessible due to the lack of pins
       }
     }
     
     return ret;
+
   } else {
     not_critical("ag_new: Analog interface not initialised.\n");
     return false;
@@ -145,12 +147,12 @@ extern bool ag_lgt_set_led (ANDVC* dvc, bool on){
       return false;
     } else if (on) { 
       if (!lpin_state[dvc->port]) {
-	pinMode(ypin_port[dvc->port], INPUT); //little hack
+	digitalWrite(ypin_port[dvc->port], HIGH); 
 	lpin_state[dvc->port] =  true;
       }
     } else {
       if (lpin_state[dvc->port]) {
-	pinMode(ypin_port[dvc->port], OUTPUT); //little hack
+	digitalWrite(ypin_port[dvc->port], LOW); 
 	lpin_state[dvc->port] =  false;
       }
     }

@@ -23,7 +23,7 @@ typedef enum {
 } agType;
 
 
-enum lports { L_PORT0 = 3, L_PORT1 = 30, L_PORT2 = 2, L_PORT3 = 31 }; //al final 30 -> 28 / 31 -> 29
+enum lports { L_PORT0 = 3, L_PORT1 = 28, L_PORT2 = 2, L_PORT3 = 29 }; //al final 30 -> 28 / 31 -> 29
 
 struct analog_device {
    
