@@ -1,10 +1,11 @@
-#include <lego/lego_digital.h>
+//#include <lego/lego_digital.h>
+#include <lego.h>
 
-
+int def_port = 0;
 int main (int argc, char * argv[]) {
 
   int tst = argc < 2 ? 1 : atoi(argv[1]);
-  //set_verbose(LOG_LVL_ADV);
+  set_verbose(LOG_LVL_DBG);
   dg_init(3);
   switch (tst) {
   case 1:
@@ -106,7 +107,7 @@ int main (int argc, char * argv[]) {
       int i;
       char * info [DG_INFO_TABLE_TAM];
       
-      if((ret = dg_new(&us, LEGO_US, 0)))
+      if((ret = dg_new(&us, LEGO_US, 1)))
 	printf("New device succefully created: type >> %d, version >> %d, port >> %d\n", us.type, us.vers, us.port);
       else
 	printf("Error creating device\n");

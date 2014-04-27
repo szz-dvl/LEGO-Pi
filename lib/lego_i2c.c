@@ -112,7 +112,7 @@ extern bool i2c_new_device ( I2C_DVC * dvc, uint8_t addr, int freq, int sda, int
   }
 
   dvc->addr = addr;
-  dvc->thold = (1000000/freq)/4;
+  dvc->thold = (1000000/freq)/4; //micro seconds
   dvc->sda = sda;
   dvc->scl = scl;
 
@@ -207,12 +207,13 @@ static bool byte_in (uint8_t len, int sda, int scl, int thold, uint16_t * resp) 
     if(STATE(sda))
       inbyte |= 0x01;
     LOWP(scl);
+    //HOLD(thold);
     i < len-1 ? HOLD(thold) : HOLD(thold*2); //this last clock is enlarged to allow the slave to release the SDA line acknowledging the sended message.
   }
    
   /*ACK management*/
   HIGHP(scl);
-  nack = !STATE(sda); 
+  nack = !STATE(sda);  
   INP(sda);
   OUTP(sda);
   LOWP(sda);

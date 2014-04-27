@@ -13,9 +13,10 @@
 #define MIN_PORT_DG      0
 
 #define RAW_LEN          2
-#define US_DWAIT         5000
+#define US_DWAIT         4000
 #define US_IWAIT         3000
-#define US_CWAIT         19000
+#define US_CWAIT         19000 //avanti
+#define HT_DLY           0
 #define DEF_DELAY        5000
 
 #define IN_MAX_LEN       8

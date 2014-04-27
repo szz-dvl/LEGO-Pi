@@ -49,64 +49,64 @@ CMD cmds [] = {
 //Messages 
 MSG regs [] = {
   //Hitechnic generic
-  {0x01, 7, 0, 1},        //Hitechnic version number 
-  {0x08, 8, 0, 1},        //Hitechnic manufacturer 
-  {0x10, 8, 0, 1},        //Hitechnic sensor type
-  {0x41, 1, 0, 1},        //Hitechnic "Generic" command state.
+  {0x01, 7, HT_DLY, 1},        //Hitechnic version number 
+  {0x08, 8, HT_DLY, 1},        //Hitechnic manufacturer 
+  {0x10, 8, HT_DLY, 1},        //Hitechnic sensor type
+  {0x41, 1, HT_DLY, 1},        //Hitechnic "Generic" command state.
 
   //Hitechnic Color 
-  {0x42, 1, 0, 1},        //Hitechnic Color col. number 
-  {0x43, 1, 0, 1},        //Hitechnic Color red reading 
-  {0x44, 1, 0, 1},        //Hitechnic Color green reading 
-  {0x45, 1, 0, 1},        //Hitechnic Color blue reading 
+  {0x42, 1, HT_DLY, 1},        //Hitechnic Color col. number 
+  {0x43, 1, HT_DLY, 1},        //Hitechnic Color red reading 
+  {0x44, 1, HT_DLY, 1},        //Hitechnic Color green reading 
+  {0x45, 1, HT_DLY, 1},        //Hitechnic Color blue reading 
 
   //Hitechnic Color V1 only
-  {0x46, RAW_LEN, 0, 1},  //Hitechnic Color Raw red reading (v1)   [10 bits] 
-  {0x48, RAW_LEN, 0, 1},  //Hitechnic Color Raw green reading (v1) [10 bits]
-  {0x4a, RAW_LEN, 0, 1},  //Hitechnic Color Raw blue reading (v1)  [10 bits]
-  {0x4c, 1, 0, 1},        //Hitechnic Color col. index (v1)
-  {0x4d, 1, 0, 1},        //Hitechnic Color Normalised red reading (v1)
-  {0x4e, 1, 0, 1},        //Hitechnic Color Normalised green reading (v1)
-  {0x4f, 1, 0, 1},        //Hitechnic Color Normalised blue reading (v1) 
+  {0x46, RAW_LEN, HT_DLY, 1},  //Hitechnic Color Raw red reading (v1)   [10 bits] 
+  {0x48, RAW_LEN, HT_DLY, 1},  //Hitechnic Color Raw green reading (v1) [10 bits]
+  {0x4a, RAW_LEN, HT_DLY, 1},  //Hitechnic Color Raw blue reading (v1)  [10 bits]
+  {0x4c, 1, HT_DLY, 1},        //Hitechnic Color col. index (v1)
+  {0x4d, 1, HT_DLY, 1},        //Hitechnic Color Normalised red reading (v1)
+  {0x4e, 1, HT_DLY, 1},        //Hitechnic Color Normalised green reading (v1)
+  {0x4f, 1, HT_DLY, 1},        //Hitechnic Color Normalised blue reading (v1) 
 
   //Hitechnic Color V2 only [just guessing here...]
-  {0x46, 1, 0, 2},        //Hitechnic Color white reading (v2)
-  {0x47, 1, 0, 2},        //Hitechnic Color col. index (v2)
-  {0x48, 1, 0, 2},        //Hitechnic Color Normalised red reading (v2)
-  {0x49, 1, 0, 2},        //Hitechnic Color Normalised green reading (v2)
-  {0x4a, 1, 0, 2},        //Hitechnic Color Normalised blue reading (v2)
-  {0x42, RAW_LEN, 0, 2},  //Hitechnic Color Raw red reading (v2)   [16 bits] 
-  {0x44, RAW_LEN, 0, 2},  //Hitechnic Color Raw green reading (v2) [16 bits] 
-  {0x46, RAW_LEN, 0, 2},  //Hitechnic Color Raw blue reading (v2)  [16 bits] 
-  {0x48, RAW_LEN, 0, 2},  //Hitechnic Color Raw white reading (v2) [16 bits]
+  {0x46, 1, HT_DLY, 2},        //Hitechnic Color white reading (v2)
+  {0x47, 1, HT_DLY, 2},        //Hitechnic Color col. index (v2)
+  {0x48, 1, HT_DLY, 2},        //Hitechnic Color Normalised red reading (v2)
+  {0x49, 1, HT_DLY, 2},        //Hitechnic Color Normalised green reading (v2)
+  {0x4a, 1, HT_DLY, 2},        //Hitechnic Color Normalised blue reading (v2)
+  {0x42, RAW_LEN, HT_DLY, 2},  //Hitechnic Color Raw red reading (v2)   [16 bits] 
+  {0x44, RAW_LEN, HT_DLY, 2},  //Hitechnic Color Raw green reading (v2) [16 bits] 
+  {0x46, RAW_LEN, HT_DLY, 2},  //Hitechnic Color Raw blue reading (v2)  [16 bits] 
+  {0x48, RAW_LEN, HT_DLY, 2},  //Hitechnic Color Raw white reading (v2) [16 bits]
 
   //Hitechnic IRSeeker
-  {0x42, 1, 0, 1},        //Hitechnic IRSeeker DC signal direction 
-  {0x43, 1, 0, 1},        //Hitechnic IRSeeker DC signal strength 1 / Direction 1   
-  {0x44, 1, 0, 1},        //Hitechnic IRSeeker DC signal strength 2 / Direction 3
-  {0x45, 1, 0, 1},        //Hitechnic IRSeeker DC signal strength 3 / Direction 5
-  {0x46, 1, 0, 1},        //Hitechnic IRSeeker DC signal strength 4 / Direction 7
-  {0x47, 1, 0, 1},        //Hitechnic IRSeeker DC signal strength 5 / Direction 9
-  {0x48, 1, 0, 2},        //Hitechnic IRSeeker DC signal strength average (v2)
-  {0x49, 1, 0, 2},        //Hitechnic IRSeeker AC signal direction (v2)
-  {0x4a, 1, 0, 2},        //Hitechnic IRSeeker AC signal strength 1 / Direction 1 (v2)
-  {0x4b, 1, 0, 2},        //Hitechnic IRSeeker AC signal strength 2 / Direction 3 (v2)
-  {0x4c, 1, 0, 2},        //Hitechnic IRSeeker AC signal strength 3 / Direction 5 (v2)
-  {0x4d, 1, 0, 2},        //Hitechnic IRSeeker AC signal strength 4 / Direction 7 (v2)
-  {0x4e, 1, 0, 2},        //Hitechnic IRSeeker AC signal strength 5 / Direction 9 (v2)
+  {0x42, 1, HT_DLY, 1},        //Hitechnic IRSeeker DC signal direction 
+  {0x43, 1, HT_DLY, 1},        //Hitechnic IRSeeker DC signal strength 1 / Direction 1   
+  {0x44, 1, HT_DLY, 1},        //Hitechnic IRSeeker DC signal strength 2 / Direction 3
+  {0x45, 1, HT_DLY, 1},        //Hitechnic IRSeeker DC signal strength 3 / Direction 5
+  {0x46, 1, HT_DLY, 1},        //Hitechnic IRSeeker DC signal strength 4 / Direction 7
+  {0x47, 1, HT_DLY, 1},        //Hitechnic IRSeeker DC signal strength 5 / Direction 9
+  {0x48, 1, HT_DLY, 2},        //Hitechnic IRSeeker DC signal strength average (v2)
+  {0x49, 1, HT_DLY, 2},        //Hitechnic IRSeeker AC signal direction (v2)
+  {0x4a, 1, HT_DLY, 2},        //Hitechnic IRSeeker AC signal strength 1 / Direction 1 (v2)
+  {0x4b, 1, HT_DLY, 2},        //Hitechnic IRSeeker AC signal strength 2 / Direction 3 (v2)
+  {0x4c, 1, HT_DLY, 2},        //Hitechnic IRSeeker AC signal strength 3 / Direction 5 (v2)
+  {0x4d, 1, HT_DLY, 2},        //Hitechnic IRSeeker AC signal strength 4 / Direction 7 (v2)
+  {0x4e, 1, HT_DLY, 2},        //Hitechnic IRSeeker AC signal strength 5 / Direction 9 (v2)
 
   //Hitechnic Accel.
-  {0x42, 1, 0, 1},        //Hitechnic Accelerometer "X" upper byte [signed]
-  {0x43, 1, 0, 1},        //Hitechnic Accelerometer "Y" upper byte [signed]
-  {0x44, 1, 0, 1},        //Hitechnic Accelerometer "Z" upper byte [signed]
-  {0x45, 1, 0, 1},        //Hitechnic Accelerometer "X" lower byte [2 bits]
-  {0x46, 1, 0, 1},        //Hitechnic Accelerometer "Y" lower byte [2 bits]
-  {0x47, 1, 0, 1},        //Hitechnic Accelerometer "Z" lower byte [2 bits]
+  {0x42, 1, HT_DLY, 1},        //Hitechnic Accelerometer "X" upper byte [signed]
+  {0x43, 1, HT_DLY, 1},        //Hitechnic Accelerometer "Y" upper byte [signed]
+  {0x44, 1, HT_DLY, 1},        //Hitechnic Accelerometer "Z" upper byte [signed]
+  {0x45, 1, HT_DLY, 1},        //Hitechnic Accelerometer "X" lower byte [2 bits]
+  {0x46, 1, HT_DLY, 1},        //Hitechnic Accelerometer "Y" lower byte [2 bits]
+  {0x47, 1, HT_DLY, 1},        //Hitechnic Accelerometer "Z" lower byte [2 bits]
   
   //Hitechnic Compass
-  {0x42, 1, 0, 1},        //Hitechnic Compass two degree heading
-  {0x43, 1, 0, 1},        //Hitechnic Compass one degree adder
-  {0x44, 2, 0, 1},        //Hitechnic Compass heading [16 bits]
+  {0x42, 1, HT_DLY, 1},        //Hitechnic Compass two degree heading
+  {0x43, 1, HT_DLY, 1},        //Hitechnic Compass one degree adder
+  {0x44, 2, HT_DLY, 1},        //Hitechnic Compass heading [16 bits]
 
   //LEGO Ultrasonic
   {0x00, 5, US_IWAIT, 1}, //LEGO Ultrasonic product version 
