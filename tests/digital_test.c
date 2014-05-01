@@ -107,7 +107,7 @@ int main (int argc, char * argv[]) {
       int i;
       char * info [DG_INFO_TABLE_TAM];
       
-      if((ret = dg_new(&us, LEGO_US, 1)))
+      if((ret = dg_new(&us, LEGO_US, 0)))
 	printf("New device succefully created: type >> %d, version >> %d, port >> %d\n", us.type, us.vers, us.port);
       else
 	printf("Error creating device\n");

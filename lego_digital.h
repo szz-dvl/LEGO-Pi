@@ -3,8 +3,8 @@
 
 #define LEGO_ADDR        0x02 
 #define LEGO_FREQ        9600 //baudios/Hz
-#define SDA_0            27
-#define SCL_0            17
+#define SDA_0            30
+#define SCL_0            31
 #define SDA_1            14
 #define SCL_1            15
 
