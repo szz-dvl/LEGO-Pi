@@ -6,10 +6,10 @@ static TSPEC t11, t12, t21, t22;
 
 MOTOR motor1, motor2;
 
-static MOTOR * m1 = &motor1;
-static MOTOR * m2 = &motor2;
+MOTOR * m1 = &motor1;
+MOTOR * m2 = &motor2;
 
-static ENC * e11, * e12, * e21, * e22;
+ENC * e11, * e12, * e21, * e22;
 
 static double *acum1, *acum2, *acum3, *acum4;
 
@@ -185,6 +185,7 @@ static void isr_cal_11(void){
     pthread_mutex_unlock(&e11->mtx);
     clock_gettime(CLK_ID, &e11->tmp);
   }
+  pthread_exit(NULL);
 }
 
 static void isr_cal_12(void){
@@ -196,6 +197,7 @@ static void isr_cal_12(void){
     pthread_mutex_unlock(&e12->mtx);
     clock_gettime(CLK_ID, &e12->tmp);
   }
+  pthread_exit(NULL);
 }
 
 static void isr_cal_21(void){
@@ -207,6 +209,7 @@ static void isr_cal_21(void){
     pthread_mutex_unlock(&e21->mtx);
     clock_gettime(CLK_ID, &e21->tmp);
   }
+  pthread_exit(NULL);
 }
 
 static void isr_cal_22(void){
@@ -218,10 +221,13 @@ static void isr_cal_22(void){
     pthread_mutex_unlock(&e22->mtx);
     clock_gettime(CLK_ID, &e22->tmp);
   }
+  pthread_exit(NULL);
 }
 
 static void isr_def_11(void){
   if(m1->moving){
+    if(e11->tics % 300 == 0)
+      printf("Motor 0, enc_1 working [pin = %d].\n", e11->pin);
     pthread_mutex_lock(&e11->mtx);
     e11->tics++;
     pthread_mutex_unlock(&e11->mtx);
@@ -231,10 +237,13 @@ static void isr_def_11(void){
 
 static void isr_def_12(void){
   if(m1->moving){
+    if(e12->tics % 300 == 0)
+      printf("Motor 0, enc_2 working [pin = %d].\n", e12->pin);
     pthread_mutex_lock(&e12->mtx);
     e12->tics++;
     pthread_mutex_unlock(&e12->mtx);
   }
+  pthread_exit(NULL);
 }
 
 static void isr_def_21(void){
@@ -243,6 +252,7 @@ static void isr_def_21(void){
     e21->tics++;
     pthread_mutex_unlock(&e21->mtx);
   }
+  pthread_exit(NULL);
 }
 
 static void isr_def_22(void){
@@ -251,6 +261,7 @@ static void isr_def_22(void){
     e22->tics++;
     pthread_mutex_unlock(&e22->mtx);
   }
+  pthread_exit(NULL);
 }
 
 //____________________________________________Internally used externs_____________________________________________________//
@@ -308,6 +319,7 @@ extern bool mt_move_t (MOTOR * m, int ticks, dir dir, int vel, double posCtrl){
     not_critical("mt_move_t: At least one encoder needed\n");
     return false;
   } else
+    printf("mt_move_t: PID is %s\n", m->pid->active ? "ACTIVE" : "UNACTIVE");
     return(move_t(m, ticks, dir, vel, posCtrl));
 }
 
@@ -553,28 +565,28 @@ static bool mbusy(int id) {
 
 }
 
-extern bool mt_new ( MOTOR * m, ENC * e1, ENC * e2, int port ){
+extern MOTOR * mt_new ( ENC * e1, ENC * e2, int port ){
   
   if (!status.mt){
     not_critical("mt_new: Motor interface not initialised.\n");
-    return false;
+    return NULL;
   }
-  if (port < MIN_PORT_MT && port > MAX_PORT_MT) {
+  if (port < MIN_PORT_MT || port > MAX_PORT_MT) {
     not_critical("mt_new: id \"%d\" out of range, must be between \"%d\" and \"%d\".\n", port, MIN_PORT_MT, MAX_PORT_MT);
-    return false;
-  } 
+    return NULL;
+  }
   if(mbusy(port+1)) {
     not_critical("mt_new: Motor port %d busy\n", port);
-    return false;
+    return NULL;
   } 
 
   MOTOR * maux;
-  maux = port == 0 ? m1 : m2;
+  maux = port == 0 ? &motor1 : &motor2;
   maux->id = port + 1;
   maux->enc1 = (ENC *)malloc(sizeof(ENC));
   maux->enc2 = (ENC *)malloc(sizeof(ENC));
   maux->pid  = (PID *)malloc(sizeof(PID));
-  
+
   if (port == 0) {
     //m1 = m;
     e11 = maux->enc1;
@@ -588,14 +600,15 @@ extern bool mt_new ( MOTOR * m, ENC * e1, ENC * e2, int port ){
   if (!conf_motor(maux,e1,e2)){
     not_critical("mt_new: Error configuring motor %d\n", port);
     //maux->id = 0;
-    return false;
+    return NULL;
     
   } 
   
-  motor_busy |= 1 << m->id;
-  m = maux;
   
-  return true;
+  motor_busy |= 1 << maux->id;
+  //m = maux;
+  printf("returning from mt_new with ID: %d\n", maux->id);
+  return maux;
   
 }
 
@@ -630,12 +643,12 @@ static bool conf_motor(MOTOR * mot, ENC * enc1, ENC * enc2){
   pid_on(mot->pid);
   
   if(!ret)
-    not_critical("conf_motor: Error configuring PID on motor %d\n", mot->id);
+    not_critical("conf_motor: Error configuring PID on motor %d\n", mot->id-1);
   
   res_pwm_init = spwm_init_channel(mot->chann, ST_US) == 0 ? true : false;
   
   if(!res_pwm_init)
-    not_critical("conf_motor: Error initializing PWM on motor %d\n", mot->id);
+    not_critical("conf_motor: Error initializing PWM on motor %d\n", mot->id-1);
   
   if(enc1!= NULL){
     cenc += (c_enc(mot, enc1, 1) && (mot->enc1->pin != ENULL)) ? 1 : 0;
@@ -659,7 +672,7 @@ static bool conf_motor(MOTOR * mot, ENC * enc1, ENC * enc2){
   mot->ticsxturn = (cenc == 2) ? 720 : (cenc == 1) ? 360 : 0;
   
   if (mot->ticsxturn == 0)
-    not_critical("conf_motor: Configuration let motor %d without encoders", mot->id);
+    not_critical("conf_motor: Configuration let motor %d without encoders.\n", mot->id-1);
   
   return (ret && res_pwm_init);
 }
@@ -786,6 +799,7 @@ static int mode (int pin){
 
 static bool set_pulse (int vel, int gpio, int chann){
   
+  //printf("entro en set pulse con vel = %d, gpio = %d, chann = %d.\n", vel, gpio, chann);
   if (vel < 0 || vel > MAX_VEL){
     not_critical("set_pulse: Velocity must be an integer between 0 - %d\n", MAX_VEL);
     return false;
@@ -793,9 +807,10 @@ static bool set_pulse (int vel, int gpio, int chann){
   
   if (vel == MAX_VEL)
     digitalWrite(gpio, HIGH);
-  else if(vel != 0)
+  else if(vel != 0){
+    //printf("Setting pulse: %d\n", V2PW(vel));
     return((spwm_add_channel_pulse(chann, gpio, 0, V2PW(vel) ==  MAX_PW ? MAX_PW -1 : V2PW(vel)) == 0) ? true : false);
-  else {
+  } else {
     digitalWrite(gpio, LOW);
     not_critical("set_pulse: Motor configured as \"in motion\", but velocity is 0 \n");
   }
@@ -813,10 +828,10 @@ static int mot_stop(MOTOR * mot, bool reset){
   int ticks;
 
   if(spwm_clear_channel_gpio(mot->chann,mot->pinf) != 0)
-    not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d", mot->chann, mot->id);
+    not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d\n", mot->chann, mot->id-1);
 
   if(spwm_clear_channel_gpio(mot->chann,mot->pinr) != 0)
-    not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d", mot->chann, mot->id);
+    not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d\n", mot->chann, mot->id-1);
   
   /*if (spwm_clear_channel(mot->chann) != 0)
     not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d", mot->chann, mot->id);*/
@@ -845,6 +860,7 @@ static bool mot_fwd(MOTOR * mot, int vel){
 
   //PID auxpid; //save pid state.
   bool altered = false;
+  printf("entering mot_fwd: pinf: %d, pinr: %d, chann: %d, vel: %d\n", mot->pinf, mot->pinr, mot->chann, vel);
 
   if(vel < MIN_VEL && !pid_is_null(mot->pid)) {
     not_critical("mot_fwd: Setting PID null, the minimun velocity allowed with P.I.D control is %d\n", MIN_VEL);
@@ -862,12 +878,13 @@ static bool mot_fwd(MOTOR * mot, int vel){
     clock_gettime(CLK_ID, &mot->enc2->tmp);
   }
   
+  printf("aqui llego?\n");
   digitalWrite(mot->pinr, LOW);
   if(!set_pulse(vel,mot->pinf,mot->chann)) {
-    not_critical("mot_fwd: Failed to configure PWM on motor: %d, GPIO: %d", mot->id, mot->pinf);
+    not_critical("mot_fwd: Failed to configure PWM on motor: %d, GPIO: %d\n", mot->id-1, mot->pinf);
     return false;
   }
-  
+    
   mot->moving = true;
 
   if (!pid_is_null(mot->pid))
@@ -876,6 +893,7 @@ static bool mot_fwd(MOTOR * mot, int vel){
   if(altered)
     pid_on(mot->pid);
 
+  printf("y aqui llego?\n");
   return true;
 }
 
@@ -910,7 +928,7 @@ static void pid_set_gains (PID * pid, double kp, double ki, double kd){
 static bool mot_rev (MOTOR * mot, int vel){
   
   //PID auxpid; //save pid state.
-  bool altered;
+  bool altered = false;
 
   if(vel < MIN_VEL && !pid_is_null(mot->pid)) {
     not_critical("mot_rev: Setting PID null, the minimun velocity allowed with P.I.D control is %d\n", MIN_VEL);
@@ -931,7 +949,7 @@ static bool mot_rev (MOTOR * mot, int vel){
   
   digitalWrite(mot->pinf, LOW);
   if(!set_pulse(vel,mot->pinr,mot->chann)) {
-    not_critical("mot_rev: Failed to configure PWM on motor: %d, GPIO: %d", mot->id, mot->pinr); 
+    not_critical("mot_rev: Failed to configure PWM on motor: %d, GPIO: %d.\n", mot->id-1, mot->pinr); 
     return false;
   }
 
@@ -943,7 +961,7 @@ static bool mot_rev (MOTOR * mot, int vel){
   if(altered)
     pid_on(mot->pid);
 
-  return false;
+  return true;
 }
 
 static bool move (MOTOR * m, dir dir, int vel){
@@ -1012,6 +1030,7 @@ static void * mv_thread (void * arg){
 static int move_till_ticks_b (MOTOR * mot, int ticks, dir dir, int vel, bool reset, double posCtrl) {
 
   bool initial_pid = mot->pid->active;//save pid state.
+  printf("MOTOR %d: initialy pid is: %s\n",mot->id, mot->pid->active ? "ACTIVE" : "UNACTIVE" );
   bool restored = false;
 
   pid_off(mot->pid); //force pid null since we will launch it later on.
@@ -1042,6 +1061,7 @@ static int move_till_ticks_b (MOTOR * mot, int ticks, dir dir, int vel, bool res
   if(pid_is_null(mot->pid)) {
     while(get_ticks(mot) < ticks);
   } else {
+    printf("entro aki?\n");
     pid_launch(mot, vel, ticks, dir, posCtrl, msinc->acting);
   }
   if (!restored && initial_pid)
@@ -1052,6 +1072,21 @@ static int move_till_ticks_b (MOTOR * mot, int ticks, dir dir, int vel, bool res
 
 extern void mt_shutdown () { //aki "free" d'accelerador de interpolacions 
   
+  if(mbusy(m1->id)){
+    mot_stop(m1, true);
+    gsl_interp_accel_free(m1->pid->accelM);
+    gsl_interp_accel_free(m1->pid->accelD);
+    motor_busy &= ~(1 << m1->id) ;
+  }
+  
+  if(mbusy(m2->id)){
+    mot_stop(m2, true);
+    gsl_interp_accel_free(m2->pid->accelM);
+    gsl_interp_accel_free(m2->pid->accelD);
+    motor_busy &= ~(1 << m2->id);
+  }
+
+
   spwm_shutdown();
     
   if(!destroy_mutex())
@@ -1059,19 +1094,7 @@ extern void mt_shutdown () { //aki "free" d'accelerador de interpolacions
   
   if(!status.ag)
     unexportall();
-  
-  if(mbusy(m1->id)){
-    gsl_interp_accel_free(m1->pid->accelM);
-    gsl_interp_accel_free(m1->pid->accelD);
-    motor_busy &= ~(1 << m1->id) ;
-  }
-  
-  if(mbusy(m2->id)){
-    gsl_interp_accel_free(m2->pid->accelM);
-    gsl_interp_accel_free(m2->pid->accelD);
-    motor_busy &= ~(1 << m2->id);
-  }
-  
+    
   status.mt = false;
 }
 
@@ -1109,23 +1132,25 @@ static bool move_t (MOTOR * mot, int ticks, dir dir, int vel, double posCtrl){
   bool ret = true;
   
   if (!mot->moving){
-    
+
+    printf("move_t PID is %s\n", mot->pid->active ? "ACTIVE" : "UNACTIVE");
+    mot->moving = true;
     arg->mot = mot;
     arg->ticks = ticks;
     arg->dir = dir;
     arg->vel = vel;
     arg->pctr = posCtrl;
-    mot->moving = true;
+    //mot->moving = true;
     /* Abstraer en función para hacer threads*/
     pthread_attr_init(&tattr);
     pthread_attr_setdetachstate(&tattr,PTHREAD_CREATE_DETACHED);
-    //pthread_attr_setscope(&tattr, PTHREAD_SCOPE_SYSTEM);
+    pthread_attr_setscope(&tattr, PTHREAD_SCOPE_SYSTEM);
     ret = pthread_create(&worker, &tattr, &mtt_thread, arg) == 0 ? true : false;
     pthread_attr_destroy(&tattr);
 
   } else {
 
-    not_critical("move_t: Motor %d already moving, stop it first\n", mot->id);
+    not_critical("move_t: Motor %d already moving, stop it first\n", mot->id-1);
     return false;
     
   }
@@ -1138,6 +1163,7 @@ static void * mtt_thread (void * arg){
 
   THARG_MTT * args = (THARG_MTT *) arg;
   
+  printf("inside thread PID is %s\n", args->mot->pid->active ? "ACTIVE" : "UNACTIVE");
   move_till_ticks_b(args->mot, args->ticks, args->dir, args->vel, false, args->pctr); //force reset = false
   //return ((void *) res);
   pthread_exit(NULL);
@@ -1628,6 +1654,8 @@ int usTicks, unused, vel;
 
 static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, bool sinc){
 
+  printf("entering PID\n");
+  
   //limit: en cas de voler arribar fins a uns ticks determinats > 0, 0 altrament.
   
   //#FROM: http://en.wikipedia.org/wiki/PID_controller#Pseudocode

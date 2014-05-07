@@ -48,7 +48,7 @@ static int SPIreceive (int fd, uint8_t resp[], int chann) {
 static double analog_read_voltage (ANDVC * dvc) { /* READ analog value (float), VOLTATGE */
 
   uint8_t data [LEN] = { 0x00, 0x00, 0x00 } ;
-  int ioctl, retval = OK, res;
+  int ioctl, retval = true, res;
   
   if (!(ioctl = SPIreceive(an_fd, data, dvc->port))) {
     
@@ -57,7 +57,7 @@ static double analog_read_voltage (ANDVC * dvc) { /* READ analog value (float), 
    
   }
   
-  if(retval) {
+  if(retval != FAIL) {
     //printf("entro aki? 0x%02x, 0x%02x, 0x%02x", data[0], data[1], data[2]);
     res = data[2];
     res |= ((data[1] & 0x07) << 8);
@@ -72,7 +72,7 @@ static double analog_read_voltage (ANDVC * dvc) { /* READ analog value (float), 
 static int analog_read_int (ANDVC * dvc) { /* READ analog value (integer), max avalue = 1023 */
 
   uint8_t data [LEN] = { 0x00, 0x00, 0x00 } ;
-  int ioctl, retval = OK, res;
+  int ioctl, retval = true, res;
     
   if (!(ioctl = SPIreceive(an_fd, data, dvc->port))) {
     
@@ -80,7 +80,7 @@ static int analog_read_int (ANDVC * dvc) { /* READ analog value (integer), max a
     retval = FAIL ;   
   }
   
-  if(retval) {
+  if(retval != FAIL) {
     res = data[2];
     res |= ((data[1] & 0x07) << 8);
     return res;

@@ -17,9 +17,9 @@
 #include <stdarg.h>
 #include <stdint.h>
 
-#define OK		 1
+//#define OK		 1
 #define FAIL		-1
-#define WEIRD		-2
+//#define WEIRD		-2
 #define DELAY_US(t)      nanosleep((TSPEC*)&(TSPEC){0, t*1000}, NULL) 
 
 #ifndef SHAREFILE_INCLUDED

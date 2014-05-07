@@ -73,7 +73,7 @@ struct motor {
   ENC * enc2;         /* struct encoder 2 */
   PID * pid;          /* struct pid */ 
 };
-typedef struct motor MOTOR;
+typedef volatile struct motor MOTOR;
 
 enum mot1 {M1_PINF = 4, M1_PINR = 17, M1_ENC1 = 27, M1_ENC2 = 22, M1_CHANN = 0}; 
 enum mot2 {M2_PINF = 25, M2_PINR = 18, M2_ENC1 = 24, M2_ENC2 = 23, M2_CHANN = 1};
@@ -87,33 +87,33 @@ enum mot2 {M2_PINF = 25, M2_PINR = 18, M2_ENC1 = 24, M2_ENC2 = 23, M2_CHANN = 1}
 //extern MOTOR  motor1; //mirara como hay que hacer para evitar externos i poder configurar la interrupcción
 //extern MOTOR  motor2;
 
-extern bool    mt_init();
-extern bool    mt_new(MOTOR * m , ENC * e1, ENC * e2, int port);
-extern bool    mt_reconf(MOTOR * m, ENC * e1, ENC * e2);
-extern int     mt_stop(MOTOR * m, bool reset);
-extern int     mt_enc_is_null (MOTOR * m, int eid);
-extern bool    mt_pid_conf(MOTOR * m , double micras [], double desv []);
-extern int     mt_pid_is_null(MOTOR * m);
-extern bool    mt_pid_off (MOTOR * m);
-extern bool    mt_pid_on (MOTOR * m);
-extern bool    mt_pid_set_gains (MOTOR * m, double Kp, double Ki, double Kd);
-extern bool    mt_move (MOTOR * m, dir dir, int vel);
-extern bool    mt_wait (MOTOR * m);
-extern bool    mt_wait_all ();
-extern bool    mt_move_t (MOTOR * m, int ticks, dir dir, int vel, double posCtrl);
-extern bool    mt_wait_for_stop(MOTOR * m, double delay);
-extern bool    mt_reset_enc(MOTOR * m);
-extern int     mt_get_ticks(MOTOR * m);
-extern TSPEC * mt_get_time (MOTOR * m, int eid);
-extern int     mt_tticks (MOTOR * m, int turns);
-extern int     mt_enc_count (MOTOR * m);
-extern bool    mt_calibrate(int samples, double wait_between_samples);
-extern bool    mt_get_params(MOTOR * m, int, int *, int *);
-extern bool    mt_lock(MOTOR * m);
-extern bool    mt_unlock(MOTOR * m);
-extern bool    mt_move_sinc(dir dir, int);
-extern bool    mt_move_sinc_t (dir dir, int, int, double);
-extern void    mt_shutdown(void);
+extern bool       mt_init();
+extern MOTOR *    mt_new(ENC * e1, ENC * e2, int port);
+extern bool       mt_reconf(MOTOR * m, ENC * e1, ENC * e2);
+extern int        mt_stop(MOTOR * m, bool reset);
+extern int        mt_enc_is_null (MOTOR * m, int eid);
+extern bool       mt_pid_conf(MOTOR * m , double micras [], double desv []);
+extern int        mt_pid_is_null(MOTOR * m);
+extern bool       mt_pid_off (MOTOR * m);
+extern bool       mt_pid_on (MOTOR * m);
+extern bool       mt_pid_set_gains (MOTOR * m, double Kp, double Ki, double Kd);
+extern bool       mt_move (MOTOR * m, dir dir, int vel);
+extern bool       mt_wait (MOTOR * m);
+extern bool       mt_wait_all ();
+extern bool       mt_move_t (MOTOR * m, int ticks, dir dir, int vel, double posCtrl);
+extern bool       mt_wait_for_stop(MOTOR * m, double delay);
+extern bool       mt_reset_enc(MOTOR * m);
+extern int        mt_get_ticks(MOTOR * m);
+extern TSPEC *    mt_get_time (MOTOR * m, int eid);
+extern int        mt_tticks (MOTOR * m, int turns);
+extern int        mt_enc_count (MOTOR * m);
+extern bool       mt_calibrate(int samples, double wait_between_samples);
+extern bool       mt_get_params(MOTOR * m, int, int *, int *);
+extern bool       mt_lock(MOTOR * m);
+extern bool       mt_unlock(MOTOR * m);
+extern bool       mt_move_sinc(dir dir, int);
+extern bool       mt_move_sinc_t (dir dir, int, int, double);
+extern void       mt_shutdown(void);
 
 
 
