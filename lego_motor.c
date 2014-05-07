@@ -243,25 +243,29 @@ static void isr_def_12(void){
     e12->tics++;
     pthread_mutex_unlock(&e12->mtx);
   }
-  pthread_exit(NULL);
+  //pthread_exit(NULL);
 }
 
 static void isr_def_21(void){
   if(m2->moving){
+    if(e21->tics % 300 == 0)
+      printf("Motor 0, enc_1 working [pin = %d].\n", e21->pin);
     pthread_mutex_lock(&e21->mtx);
     e21->tics++;
     pthread_mutex_unlock(&e21->mtx);
   }
-  pthread_exit(NULL);
+  //pthread_exit(NULL);
 }
 
 static void isr_def_22(void){
   if(m2->moving){
+    if(e22->tics % 300 == 0)
+      printf("Motor 0, enc_1 working [pin = %d].\n", e22->pin);
     pthread_mutex_lock(&e22->mtx);
     e22->tics++;
     pthread_mutex_unlock(&e22->mtx);
   }
-  pthread_exit(NULL);
+  //pthread_exit(NULL);
 }
 
 //____________________________________________Internally used externs_____________________________________________________//
@@ -319,7 +323,7 @@ extern bool mt_move_t (MOTOR * m, int ticks, dir dir, int vel, double posCtrl){
     not_critical("mt_move_t: At least one encoder needed\n");
     return false;
   } else
-    printf("mt_move_t: PID is %s\n", m->pid->active ? "ACTIVE" : "UNACTIVE");
+    //printf("mt_move_t: PID is %s\n", m->pid->active ? "ACTIVE" : "UNACTIVE");
     return(move_t(m, ticks, dir, vel, posCtrl));
 }
 
@@ -377,7 +381,7 @@ extern bool mt_reconf(MOTOR * m, ENC * e1, ENC * e2) {
   } else if (!mbusy(m->id)) {
     not_critical("mt_reconf: Motor %d not initialised properly.\n", m->id-1);
     return false;
-  } else
+  } else 
     return(mot_reconf(m, e1, e2));
 }
 
@@ -607,7 +611,7 @@ extern MOTOR * mt_new ( ENC * e1, ENC * e2, int port ){
   
   motor_busy |= 1 << maux->id;
   //m = maux;
-  printf("returning from mt_new with ID: %d\n", maux->id);
+  //printf("returning from mt_new with ID: %d\n", maux->id);
   return maux;
   
 }
@@ -679,7 +683,7 @@ static bool conf_motor(MOTOR * mot, ENC * enc1, ENC * enc2){
 
 static bool mot_reconf(MOTOR * m, ENC * e1, ENC * e2){
   
-  bool ret;
+  bool ret = false;
 
   if (e1 != NULL && e2 != NULL){
     /* load args */
@@ -692,11 +696,12 @@ static bool mot_reconf(MOTOR * m, ENC * e1, ENC * e2){
     ret = c_enc(m,e1,1);
   } else { /* 2 nuls */
     /* reload defaults */
-    m->enc1->pin = m->id == 1 ? M1_ENC1 : M2_ENC1;
-    m->enc2->pin = m->id == 1 ? M1_ENC2 : M2_ENC2;
-    m->enc1->isr = m->id == 1 ? &isr_def_11 : &isr_def_21;
-    m->enc2->isr = m->id == 1 ? &isr_def_12 : &isr_def_22;
-    ret = ( (c_enc(m, m->enc1,1) && c_enc(m,m->enc2,2)) );
+    ENC e2aux, e1aux;
+    e1aux.pin = m->id == 1 ? M1_ENC1 : M2_ENC1;
+    e2aux.pin = m->id == 1 ? M1_ENC2 : M2_ENC2;
+    e1aux.isr = m->id == 1 ? &isr_def_11 : &isr_def_21;
+    e2aux.isr = m->id == 1 ? &isr_def_12 : &isr_def_22;
+    ret = ( (c_enc(m, &e1aux ,1) && c_enc(m, &e2aux, 2)) );
   }
 
   if(ret){
@@ -758,7 +763,7 @@ static bool c_enc(MOTOR * m, ENC * e, int id){
   ENC * ex_en = id == 1 ? m->enc1 : m->enc2;
   int ex_pin = m->id == 1 ? id == 1 ? M1_ENC1 : M1_ENC2 : id == 1 ? M2_ENC1 : M2_ENC2;
   int md = mode(e->pin);
-  
+  //printf("reconfig on pin: %d\n", ex_pin);
   if(e->pin == ex_pin){ /* Configure a licit interrupt */
     ex_en->pin = ex_pin;
     ex_en->isr = e->isr;
@@ -824,22 +829,24 @@ static bool is_null (ENC * enc) {
 
 static int mot_stop(MOTOR * mot, bool reset){
   
-  //mot->moving = false;
+  mot->moving = false;
   int ticks;
 
+  
+  /*
   if(spwm_clear_channel_gpio(mot->chann,mot->pinf) != 0)
     not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d\n", mot->chann, mot->id-1);
 
   if(spwm_clear_channel_gpio(mot->chann,mot->pinr) != 0)
     not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d\n", mot->chann, mot->id-1);
-  
-  /*if (spwm_clear_channel(mot->chann) != 0)
-    not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d", mot->chann, mot->id);*/
+  */
+  if (spwm_clear_channel(mot->chann) != 0)
+    not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d", mot->chann, mot->id);
 
   digitalWrite(mot->pinf, LOW);
   digitalWrite(mot->pinr, LOW);
   ticks = get_ticks(mot);
-  mot->moving = false;  //Oju aki!
+  //mot->moving = false;  //Oju aki!
   
   if(reset)
     reset_encs(mot);
@@ -878,7 +885,7 @@ static bool mot_fwd(MOTOR * mot, int vel){
     clock_gettime(CLK_ID, &mot->enc2->tmp);
   }
   
-  printf("aqui llego?\n");
+  //printf("aqui llego?\n");
   digitalWrite(mot->pinr, LOW);
   if(!set_pulse(vel,mot->pinf,mot->chann)) {
     not_critical("mot_fwd: Failed to configure PWM on motor: %d, GPIO: %d\n", mot->id-1, mot->pinf);
@@ -893,7 +900,7 @@ static bool mot_fwd(MOTOR * mot, int vel){
   if(altered)
     pid_on(mot->pid);
 
-  printf("y aqui llego?\n");
+  //printf("y aqui llego?\n");
   return true;
 }
 
@@ -1061,7 +1068,7 @@ static int move_till_ticks_b (MOTOR * mot, int ticks, dir dir, int vel, bool res
   if(pid_is_null(mot->pid)) {
     while(get_ticks(mot) < ticks);
   } else {
-    printf("entro aki?\n");
+    //printf("entro aki?\n");
     pid_launch(mot, vel, ticks, dir, posCtrl, msinc->acting);
   }
   if (!restored && initial_pid)
@@ -1133,7 +1140,7 @@ static bool move_t (MOTOR * mot, int ticks, dir dir, int vel, double posCtrl){
   
   if (!mot->moving){
 
-    printf("move_t PID is %s\n", mot->pid->active ? "ACTIVE" : "UNACTIVE");
+    //printf("move_t PID is %s\n", mot->pid->active ? "ACTIVE" : "UNACTIVE");
     mot->moving = true;
     arg->mot = mot;
     arg->ticks = ticks;
@@ -1163,7 +1170,7 @@ static void * mtt_thread (void * arg){
 
   THARG_MTT * args = (THARG_MTT *) arg;
   
-  printf("inside thread PID is %s\n", args->mot->pid->active ? "ACTIVE" : "UNACTIVE");
+  // printf("inside thread PID is %s\n", args->mot->pid->active ? "ACTIVE" : "UNACTIVE");
   move_till_ticks_b(args->mot, args->ticks, args->dir, args->vel, false, args->pctr); //force reset = false
   //return ((void *) res);
   pthread_exit(NULL);
@@ -1451,7 +1458,7 @@ static bool get_params (MOTOR * m, int vel, int * ex_micras, int * ex_desv){
     
     gsl_interp_free(interp);
  
-
+    //printf("OUT of get params with: micras = %d, desv = %d\n", *ex_micras , *ex_desv);
   return true;
 }
 
@@ -1654,7 +1661,7 @@ int usTicks, unused, vel;
 
 static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, bool sinc){
 
-  printf("entering PID\n");
+  //printf("entering PID\n");
   
   //limit: en cas de voler arribar fins a uns ticks determinats > 0, 0 altrament.
   
@@ -1754,20 +1761,23 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
   if(limit == 0){
     while (m->moving){
       clock_gettime(CLK_ID, &ini);
-      
+      //printf("ITER_INI!, maxus = %d, minus = %d, tdtrange = %f, \n", maxus, minus, tdtrange);
       ticks_dt_min = act_pw == basepw ? (int)((double)(dt/usSP)/tdtrange) : act_pw == maxpw ? (int)((double)(dt/maxus)/tdtrange) : (int)((double)(dt/minus)/tdtrange);
       ticks_dt_max = act_pw == basepw ? (int)((double)(dt/usSP)*tdtrange) : act_pw == maxpw ? (int)((double)(dt/maxus)*tdtrange) : (int)((double)(dt/minus)*tdtrange);
       ticks_dt_base = act_pw == basepw ? (int)(dt/usSP) : act_pw == maxpw ? (int)(dt/maxus) : (int)(dt/minus);
 
+      //printf("ENTERING getMVac!, tdtmin = %d, tdtbase = %d, tdtmax = %d, \n", ticks_dt_min, ticks_dt_base, ticks_dt_max);
       MvAux = get_MVac(m, &LstAc, &ticks_dt, ticks_dt_min, ticks_dt_base, ticks_dt_max, errCont);
-      
+      //printf("AFTER get_MVac\n");
       Mv = MvAux <= USXT_MIN ? usSP : MvAux;
       Err = (((usSP > Mv) && (act_pw == maxpw)) || ((usSP < Mv) && (act_pw == minpw))) ? (usSP - Mv) > (int)(range*PhysErr) ? ((usSP - Mv) - (int)(range*PhysErr)) : (usSP - Mv) < -(int)(range*PhysErr) ? (usSP - Mv) + (range*PhysErr) : 0 : (abs((usSP - Mv)) > PhysErr) ? (usSP - Mv) < 0 ? (usSP - Mv) + PhysErr : (usSP - Mv) - PhysErr : 0; //compensacion error fisico
+      debug("PID_MOTOR_%d: Set point: %d, Mesured value: %d, Physical error: %d, ticks_dt: %d, act_pw : %d, Last: %lld, scont: %d\n", m->id-1, usSP, Mv, PhysErr, ticks_dt, act_pw, LstAc, scont);
+      
       Int = Int + (Err * ticks_dt);
       Der = (Err - prevErr)/ticks_dt;
       Out = (Kp * Err) + (Ki * Int) + (Kd * Der);
 
-      debug("PID_MOTOR_%d: Set point: %d, Mesured value: %d, Physical error: %d, ticks_dt: %d, act_pw : %d, Last: %lld, scont: %d\n", m->id-1, usSP, Mv, PhysErr, ticks_dt, act_pw, LstAc, scont);
+      
       debug("PID_MOTOR_%d: Output value: %lld\n", m->id-1, Out );
       act_pw = reset_pulse(m, Out, act_pw, gpio, maxpw, minpw, basepw, PhysErr);
       
@@ -1809,8 +1819,11 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
       prevErr = Err;
       errCont ++;
       clock_gettime(CLK_ID, &fi);
+      //int i =0;
       while ( (difft(&ini, &fi) < dt) && (m->moving) )
 	clock_gettime(CLK_ID, &fi);
+     
+      //printf("ITER!!\n");
     }
   } else {
     
@@ -2078,28 +2091,33 @@ static long long get_MVac(MOTOR * m, long long *last, int *tdt, int tdtmin, int 
   TSPEC taux;
   int t1, t2, t, d1, d2, d, dt, newdt;
 
+  //printf("ENTERING MVac: last = %lld, tdt = %d\n", *last, *tdt);
+
   mot_lock(m);
   t1 = m->enc1->tics;
   t2 = m->enc2->tics;
   mot_unlock(m);
+  //printf("get_MvAc: tics1: %d, tics2: %d\n", t1, t2);
   
   clock_gettime(CLK_ID, &taux);
   
   d1 = difft(&m->enc1->tmp, &taux);
   d2 = difft(&m->enc2->tmp, &taux);
   
-  t = t1 == 0 || t2 == 0 ? 1 :(int)((t1 + t2)/2);
-  d = (int)((d1 + d2)/2);
+  t = t1 == 0 || t2 == 0 ? t1 == 0 ? t2 : t1 : (int)((t1 + t2)/2);
+  d = (int)((d1 + d2)/2);//Podriem pillar la més gran??
   
   dt = t - *last;
+  //printf("get_MVac: t = %d, last = %lld\n", t, *last);
   *last = t;
-  *tdt = newdt =(dt < tdtmin || dt > tdtmax) && errCont >=5 ? (abs(dt-tdtbase) <= abs(dt-tdtmin) && abs(dt-tdtbase) <= abs(dt-tdtmax)) ? tdtbase : (abs(dt-tdtbase) > abs(dt-tdtmin) && abs(dt-tdtmin) < abs(dt-tdtmax)) ? tdtmin : (abs(dt-tdtbase) > abs(dt-tdtmax) && abs(dt-tdtmin) > abs(dt-tdtmax)) ? tdtmax : dt : dt;
+  *tdt = newdt = (dt < tdtmin || dt > tdtmax) && errCont >=5 ? (abs(dt-tdtbase) <= abs(dt-tdtmin) && abs(dt-tdtbase) <= abs(dt-tdtmax)) ? tdtbase : (abs(dt-tdtbase) > abs(dt-tdtmin) && abs(dt-tdtmin) < abs(dt-tdtmax)) ? tdtmin : (abs(dt-tdtbase) > abs(dt-tdtmax) && abs(dt-tdtmin) > abs(dt-tdtmax)) ? tdtmax : dt : dt;
 
   if(*tdt != dt)
     debug ("\n\nTICS_%d: TICS RESTABILIZE!! ticks_dt : %d, tdtaux : %d, tmin: % d, tmax: %d \n\n", m->id-1, *tdt, dt, tdtmin, tdtmax);
   
   clock_gettime(CLK_ID, &m->enc1->tmp);
   clock_gettime(CLK_ID, &m->enc2->tmp);
+  //printf("OUT get_MVac: newdt = %d, dt = %d\n", newdt, dt);
   return (d/newdt);
   
 }

@@ -20,6 +20,7 @@
 static void LEGO_shutdown (void);
 static void handl_alrm(void);
 static void terminate(void);
+static void all_as_output(void);
 
 void fatal (char *fmt, ...) {
 
@@ -92,6 +93,16 @@ void unexportall(){
   
 }
 
+static void all_as_output() {
+
+  int i;
+  printf("paso\n");
+
+  for (i = 0; i < 28; i++)
+    pinMode(i, OUTPUT);
+
+}
+
 void udelay (int us) {
   
   TSPEC tini, tfi;
@@ -150,6 +161,7 @@ static void terminate(void) {
 void lego_init () {
   
   status.wpi = wiringPiSetupGpio() == 0;
+  all_as_output();
   status.mt = mt_init();
   status.ag = ag_init();
   status.dg = dg_init(3);

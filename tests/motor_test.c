@@ -197,6 +197,8 @@ int main (int argc, char * argv[]) {
 
   bool ret = false;
 
+  ENC enull;
+  enull.pin = ENULL;
   en11.pin = M1_ENC1;
   en11.isr = &isr_print_1;
   en12.pin = M1_ENC2;
@@ -236,32 +238,42 @@ time.tv_sec = 5;
 time.tv_nsec = 0;
 
 
- if (ret){
-   int ticks, thread_rtn;
+ if (ret){   int ticks, thread_rtn;
    //set_verbose(1);
    switch (tst){
    case 1: //  Test per init_motors() i per les funcions de moviment basiques:
      {
-       MOTOR * maux = argc < 3 ? mt1 : atoi(argv[2]) == 0 ? mt1 : mt2;
-       int vel = argc < 4 ? 60 : atoi(argv[3]);
-       int turns = argc < 5 ? 7 : atoi(argv[4]);
-       double gains = argc < 6 ? 0 : atof(argv[5]);
-       bool calib = argc < 7 ? false : atoi(argv[6]) != 0 ? true : false;
-       bool back = false;
+       //set_verbose(LOG_LVL_DBG);
+       MOTOR * maux = argc < 3 ? mt1 : atoi(argv[2]) == 1 ? mt1 : mt2;
+       int disable = argc < 4 ? 0 : atoi(argv[3]);
+       int vel = argc < 5 ? 60 : atoi(argv[4]);
+       int turns = argc < 6 ? 7 : atoi(argv[5]);
+       double gains = argc < 7 ? 1 : atof(argv[6]);
+       bool calib = argc < 8 ? false : atoi(argv[7]) != 0 ? true : false;
+       bool back = true;
 
        printf("al inici de test: Motor %d: PID is %s\n", maux->id-1, mt_pid_is_null(maux) ? "UNACTIVE" : "ACTIVE");
        
               //set_verbose(2);
        //back = mt_reconf(mt1, NULL, NULL); //back to defaults
 
-       mt_pid_off(maux);
+       //mt_pid_off(maux);
        //mt_pid_off(mt2);
-       //back = back ? mt_reconf(mt2, NULL, NULL) ? true : false : false; //back to defaults
-       //back = back ? mt_pid_set_gains(mt1, gains ,gains ,gains) ? true : false : false;
+       if (disable == 3)
+	 back = back ? mt_reconf(maux, NULL, NULL) ? true : false : false; //back to defaults
+       else if (disable == 1)
+	 back = back ? mt_reconf(maux, &enull, maux->id == 1 ? &en12 : &en22) ? true : false : false; //disable enc 1
+       else if (disable == 2)
+	 back = back ? mt_reconf(maux, maux->id == 1 ? &en11 : &en21, &enull) ? true : false : false; //disable enc 2
+       else if(disable == 4){
+	 back = back ? mt_reconf(maux, NULL, NULL) ? true : false : false; //back to defaults
+	 mt_pid_off(maux);
+       }
+       back = back ? mt_pid_set_gains(maux, gains ,gains ,gains) ? true : false : false;
        //back = back ? mt_pid_set_gains(mt2, gains ,gains ,gains) ? true : false : false;
        
-       //if (! back)
-       //printf("algo petó\n");
+       if (!back)
+	 printf("algo petó\n");
 
        printf("kp: %f, kd: %f, ki: %f, calib: %d\n", gains, gains , gains, calib);
        int mostres = MAX_COEF-1;

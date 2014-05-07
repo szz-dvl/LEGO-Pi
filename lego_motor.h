@@ -73,10 +73,10 @@ struct motor {
   ENC * enc2;         /* struct encoder 2 */
   PID * pid;          /* struct pid */ 
 };
-typedef volatile struct motor MOTOR;
+typedef struct motor MOTOR;
 
 enum mot1 {M1_PINF = 4, M1_PINR = 17, M1_ENC1 = 27, M1_ENC2 = 22, M1_CHANN = 0}; 
-enum mot2 {M2_PINF = 25, M2_PINR = 18, M2_ENC1 = 24, M2_ENC2 = 23, M2_CHANN = 1};
+enum mot2 {M2_PINF = 25, M2_PINR = 18, M2_ENC1 = 24, M2_ENC2 = 23, M2_CHANN = 7};
 
 	/* Cosillas del debug */
 
