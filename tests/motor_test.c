@@ -74,18 +74,35 @@ void tr_enc(double * [], int);
 void prfive(RFIVE *, int);
 double difft (TSPEC *, TSPEC *);
 
-extern void isr_print_1(void){
+extern void isr_print_11(void){
   if(mt1->moving){
     mt1->enc1->tics++;
     if ((mt1->enc1->tics%300) == 0)
-      printf("Hi, I'm the ISR 1\n");
+      printf("Hi, I'm the ISR 11\n");
   }
 }
-extern void isr_print_2(void){
+
+extern void isr_print_12(void){
+  if(mt1->moving){
+    mt1->enc2->tics++;
+    if ((mt1->enc2->tics%300) == 0)
+      printf("Hi, I'm the ISR 12\n");
+  }
+}
+
+extern void isr_print_21(void){
   if(mt2->moving){
     mt2->enc1->tics++;
     if ((mt2->enc1->tics%300) == 0)
-      printf("Hi, I'm the ISR 2\n");
+      printf("Hi, I'm the ISR 21\n");
+  }
+}
+
+extern void isr_print_22(void){
+  if(mt2->moving){
+    mt2->enc2->tics++;
+    if ((mt2->enc2->tics%300) == 0)
+      printf("Hi, I'm the ISR 22\n");
   }
 }
 
@@ -200,13 +217,13 @@ int main (int argc, char * argv[]) {
   ENC enull;
   enull.pin = ENULL;
   en11.pin = M1_ENC1;
-  en11.isr = &isr_print_1;
+  en11.isr = &isr_print_11;
   en12.pin = M1_ENC2;
-  en12.isr = &isr_print_1;
+  en12.isr = &isr_print_12;
   en21.pin = M2_ENC1;
-  en21.isr = &isr_print_2;
+  en21.isr = &isr_print_21;
   en22.pin = M2_ENC2;
-  en22.isr = &isr_print_2;
+  en22.isr = &isr_print_22;
 
   lego_init();
   mt1 = mt_new(&en11, &en12, 0);
@@ -243,12 +260,12 @@ time.tv_nsec = 0;
    switch (tst){
    case 1: //  Test per init_motors() i per les funcions de moviment basiques:
      {
-       //set_verbose(LOG_LVL_DBG);
+       
        MOTOR * maux = argc < 3 ? mt1 : atoi(argv[2]) == 1 ? mt1 : mt2;
        int disable = argc < 4 ? 0 : atoi(argv[3]);
        int vel = argc < 5 ? 60 : atoi(argv[4]);
        int turns = argc < 6 ? 7 : atoi(argv[5]);
-       double gains = argc < 7 ? 1 : atof(argv[6]);
+       double gains = argc < 7 ? 0 : atof(argv[6]);
        bool calib = argc < 8 ? false : atoi(argv[7]) != 0 ? true : false;
        bool back = true;
 
@@ -259,6 +276,10 @@ time.tv_nsec = 0;
 
        //mt_pid_off(maux);
        //mt_pid_off(mt2);
+       set_verbose(LOG_LVL_DBG);
+
+       mt_pid_on(maux);
+
        if (disable == 3)
 	 back = back ? mt_reconf(maux, NULL, NULL) ? true : false : false; //back to defaults
        else if (disable == 1)
@@ -327,21 +348,25 @@ time.tv_nsec = 0;
        
        MOTOR * m = argc < 3 ? mt1 : atoi(argv[2]) == 1 ? mt1 : m2;
        int vel = argc < 4 ? 60 : atoi(argv[3]);
-       int turns = argc < 5 ? 7 : atoi(argv[4]);
-       double gains = argc < 6 ? 0 : atof(argv[5]);
-       double pctr = argc < 7 ? 0 : atof(argv[6]);
+       bool pid_on = argc < 5 ? false : atoi(argv[4]) != 0 ? true : false;
+       int turns = argc < 6 ? 7 : atoi(argv[5]);
+       double gains = argc < 7 ? 0 : atof(argv[6]);
+       double pctr = argc < 8 ? 0 : atof(argv[7]);
        
        printf("pid status :  %d\n", m->pid->svel);
        
        mt_reconf(m, NULL, NULL); //back to defaults
-       mt_pid_set_gains(m, gains ,gains ,gains);
-       /*m->pid->kp = gains;
-	 m->pid->ki = gains;
-	 m->pid->kd = gains;*/
+      
+       if(pid_on){
+	 //set_verbose(LOG_LVL_DBG);
+	 mt_pid_set_gains(m, gains ,gains ,gains);
+	 mt_pid_on(m);
+       }
+       
        printf("MOTOR: %d,%d,%d,%d\n", (int)m->pinf, (int)m->pinr, mt_enc_is_null(m,1) ? ENULL : (int)m->enc1->pin, mt_enc_is_null(m,2) ? ENULL : (int)m->enc2->pin);
        
        init_acums(turns, m);
-       thread_rtn = mt_move_t(m, mt_tticks(m, turns), FWD, vel, pctr);
+       thread_rtn = mt_move_t(m, mt_tticks(m, turns), BWD, vel, pctr);
        while (m->moving == true){
 	 printf("moving %d\n", mt_get_ticks(m));
 	 sleep(1);
@@ -562,7 +587,7 @@ time.tv_nsec = 0;
        printf("reactivant encoder 1 ...\n");
        e1aux.pin = pin1;
        //e1aux.isr = m == mt1 ? &dbg_isr_11 : &dbg_isr_21;
-       e1aux.isr = m->id == 1 ? &isr_print_1 : &isr_print_2;
+       e1aux.isr = m->id == 1 ? &isr_print_11 : &isr_print_21;
        //m->ticsxturn = 360;
        mt_reconf(m, &e1aux, NULL); // e2 untouched
        printf("tot activat, m_e1: %d, m_e2: %d,\n", e1->pin, e2->pin);

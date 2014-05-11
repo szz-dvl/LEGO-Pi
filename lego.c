@@ -19,7 +19,7 @@
 
 static void LEGO_shutdown (void);
 static void handl_alrm(void);
-static void terminate(void);
+static void terminate(int);
 static void all_as_output(void);
 
 void fatal (char *fmt, ...) {
@@ -96,7 +96,6 @@ void unexportall(){
 static void all_as_output() {
 
   int i;
-  printf("paso\n");
 
   for (i = 0; i < 28; i++)
     pinMode(i, OUTPUT);
@@ -144,9 +143,9 @@ static void handl_alrm(void) {
 }
 
 
-static void terminate(void) {
+static void terminate(int signum) {
   
-  printf("Entering terminate.\n");
+  printf("Entering terminate, received signal = %d\n", signum);
   if(status.mt)
     mt_shutdown();
   if(status.ag)
@@ -161,7 +160,7 @@ static void terminate(void) {
 void lego_init () {
   
   status.wpi = wiringPiSetupGpio() == 0;
-  all_as_output();
+  //all_as_output();
   status.mt = mt_init();
   status.ag = ag_init();
   status.dg = dg_init(3);

@@ -185,7 +185,7 @@ static void isr_cal_11(void){
     pthread_mutex_unlock(&e11->mtx);
     clock_gettime(CLK_ID, &e11->tmp);
   }
-  pthread_exit(NULL);
+  
 }
 
 static void isr_cal_12(void){
@@ -197,7 +197,6 @@ static void isr_cal_12(void){
     pthread_mutex_unlock(&e12->mtx);
     clock_gettime(CLK_ID, &e12->tmp);
   }
-  pthread_exit(NULL);
 }
 
 static void isr_cal_21(void){
@@ -209,7 +208,7 @@ static void isr_cal_21(void){
     pthread_mutex_unlock(&e21->mtx);
     clock_gettime(CLK_ID, &e21->tmp);
   }
-  pthread_exit(NULL);
+ 
 }
 
 static void isr_cal_22(void){
@@ -221,13 +220,13 @@ static void isr_cal_22(void){
     pthread_mutex_unlock(&e22->mtx);
     clock_gettime(CLK_ID, &e22->tmp);
   }
-  pthread_exit(NULL);
+  
 }
 
 static void isr_def_11(void){
   if(m1->moving){
-    if(e11->tics % 300 == 0)
-      printf("Motor 0, enc_1 working [pin = %d].\n", e11->pin);
+    //if(e11->tics % 300 == 0)
+    //printf("Motor 0, enc_1 working [pin = %d].\n", e11->pin);
     pthread_mutex_lock(&e11->mtx);
     e11->tics++;
     pthread_mutex_unlock(&e11->mtx);
@@ -237,8 +236,8 @@ static void isr_def_11(void){
 
 static void isr_def_12(void){
   if(m1->moving){
-    if(e12->tics % 300 == 0)
-      printf("Motor 0, enc_2 working [pin = %d].\n", e12->pin);
+    //if(e12->tics % 300 == 0)
+    //  printf("Motor 0, enc_2 working [pin = %d].\n", e12->pin);
     pthread_mutex_lock(&e12->mtx);
     e12->tics++;
     pthread_mutex_unlock(&e12->mtx);
@@ -248,8 +247,8 @@ static void isr_def_12(void){
 
 static void isr_def_21(void){
   if(m2->moving){
-    if(e21->tics % 300 == 0)
-      printf("Motor 0, enc_1 working [pin = %d].\n", e21->pin);
+    //if(e21->tics % 300 == 0)
+    //printf("Motor 0, enc_1 working [pin = %d].\n", e21->pin);
     pthread_mutex_lock(&e21->mtx);
     e21->tics++;
     pthread_mutex_unlock(&e21->mtx);
@@ -259,8 +258,8 @@ static void isr_def_21(void){
 
 static void isr_def_22(void){
   if(m2->moving){
-    if(e22->tics % 300 == 0)
-      printf("Motor 0, enc_1 working [pin = %d].\n", e22->pin);
+    //if(e22->tics % 300 == 0)
+    //printf("Motor 0, enc_1 working [pin = %d].\n", e22->pin);
     pthread_mutex_lock(&e22->mtx);
     e22->tics++;
     pthread_mutex_unlock(&e22->mtx);
@@ -644,7 +643,7 @@ static bool conf_motor(MOTOR * mot, ENC * enc1, ENC * enc2){
   mot->pid->accelM = gsl_interp_accel_alloc();
   mot->pid->accelD = gsl_interp_accel_alloc();
   ret = pid_conf(mot, pcoef_def, dcoef_def);
-  pid_on(mot->pid);
+  pid_off(mot->pid); //EXPERIMEN i TAL...
   
   if(!ret)
     not_critical("conf_motor: Error configuring PID on motor %d\n", mot->id-1);
@@ -725,16 +724,16 @@ static bool pid_conf(MOTOR * m, double * pcoef, double * dcoef){
   if (((pcoef == NULL) && (dcoef == NULL)) || ((sizep == sized) == 0))
     pid_off(m->pid);
   else if((pcoef != NULL) && (dcoef != NULL)){
-   if(sized == sizep)
-     m->pid->svel = (int)(MAX_VEL/sized);
-   else {
-     not_critical("pid_conf: Incoherent table sizes specified\n");
-     return false;
-   }
-   
-   mpid_load_coef(m->pid, pcoef, dcoef, sizep);
-   pid_set_gains(m->pid, PIDDEF, PIDDEF, PIDDEF);
-   m->pid->ttc = TTCDEF;
+    if(sized == sizep)
+      m->pid->svel = (int)(MAX_VEL/sized);
+    else {
+      not_critical("pid_conf: Incoherent table sizes specified\n");
+      return false;
+    }
+    
+    mpid_load_coef(m->pid, pcoef, dcoef, sizep);
+    pid_set_gains(m->pid, PIDDEF, PIDDEF, PIDDEF);
+    m->pid->ttc = TTCDEF;
   }
   else {
     not_critical("pid_conf: Bad coeficients specified.\n");
@@ -810,10 +809,11 @@ static bool set_pulse (int vel, int gpio, int chann){
     return false;
   }
   
+  //printf("Demanded velocity: %d\n", vel);
   if (vel == MAX_VEL)
     digitalWrite(gpio, HIGH);
   else if(vel != 0){
-    //printf("Setting pulse: %d\n", V2PW(vel));
+    //printf("Setting pulse: %d HT, %d LT, %d ST\n", V2PW(vel) ==  MAX_PW ? MAX_PW-1 * PWIG_DEF : V2PW(vel) * PWIG_DEF, (MAX_PW * PWIG_DEF) - (V2PW(vel) ==  MAX_PW ? MAX_PW-1 * PWIG_DEF : V2PW(vel) * PWIG_DEF), MAX_PW * PWIG_DEF);
     return((spwm_add_channel_pulse(chann, gpio, 0, V2PW(vel) ==  MAX_PW ? MAX_PW -1 : V2PW(vel)) == 0) ? true : false);
   } else {
     digitalWrite(gpio, LOW);
@@ -832,7 +832,6 @@ static int mot_stop(MOTOR * mot, bool reset){
   mot->moving = false;
   int ticks;
 
-  
   /*
   if(spwm_clear_channel_gpio(mot->chann,mot->pinf) != 0)
     not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d\n", mot->chann, mot->id-1);
@@ -840,6 +839,7 @@ static int mot_stop(MOTOR * mot, bool reset){
   if(spwm_clear_channel_gpio(mot->chann,mot->pinr) != 0)
     not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d\n", mot->chann, mot->id-1);
   */
+
   if (spwm_clear_channel(mot->chann) != 0)
     not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d", mot->chann, mot->id);
 
@@ -867,7 +867,7 @@ static bool mot_fwd(MOTOR * mot, int vel){
 
   //PID auxpid; //save pid state.
   bool altered = false;
-  printf("entering mot_fwd: pinf: %d, pinr: %d, chann: %d, vel: %d\n", mot->pinf, mot->pinr, mot->chann, vel);
+  //printf("entering mot_fwd: pinf: %d, pinr: %d, chann: %d, vel: %d\n", mot->pinf, mot->pinr, mot->chann, vel);
 
   if(vel < MIN_VEL && !pid_is_null(mot->pid)) {
     not_critical("mot_fwd: Setting PID null, the minimun velocity allowed with P.I.D control is %d\n", MIN_VEL);
@@ -1037,7 +1037,7 @@ static void * mv_thread (void * arg){
 static int move_till_ticks_b (MOTOR * mot, int ticks, dir dir, int vel, bool reset, double posCtrl) {
 
   bool initial_pid = mot->pid->active;//save pid state.
-  printf("MOTOR %d: initialy pid is: %s\n",mot->id, mot->pid->active ? "ACTIVE" : "UNACTIVE" );
+  //printf("MOTOR %d: initialy pid is: %s\n",mot->id, mot->pid->active ? "ACTIVE" : "UNACTIVE" );
   bool restored = false;
 
   pid_off(mot->pid); //force pid null since we will launch it later on.
@@ -1243,14 +1243,17 @@ static int get_ticks (MOTOR * mot) {
   int ticks = 0;
 
   if (is_null(mot->enc1)){
+    //printf("entro en encoder 1 null!\n");
     pthread_mutex_lock(&mot->enc2->mtx);
     ticks = mot->enc2->tics;
     pthread_mutex_unlock(&mot->enc2->mtx);
   } else if (is_null(mot->enc2)){
+    //printf("entro en encoder 2 null!\n");
     pthread_mutex_lock(&mot->enc1->mtx);
     ticks = mot->enc1->tics;
     pthread_mutex_unlock(&mot->enc1->mtx);
   } else {
+    //printf("entro en NO encoder null!\n");
     mot_lock(mot);
     ticks = (mot->enc1->tics + mot->enc2->tics);
     mot_unlock(mot);
@@ -1435,7 +1438,7 @@ static bool get_params (MOTOR * m, int vel, int * ex_micras, int * ex_desv){
     int size, i;
     for (size = 0; m->pid->cp[size] != 0; size++);
     double x[size];
-    int v = vel < MIN_VEL ? MIN_VEL : vel; //si al final la dejo externa vigilar VMAX tambien
+    int v = vel < MIN_VEL ? MIN_VEL : vel > MAX_VEL ? MAX_VEL : vel;
     int *res;
     gsl_interp *interp;
     
@@ -1669,6 +1672,7 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
   TSPEC ini, fi;
   int usSP, absd, Mv, MvAux, prevErr = 0, Err, now_tk;  //abs es pot entendre com el error fisic del motor, axi doncs compensem l'error llegit amb aquest
   get_params(m, vel, &usSP, &absd);      //get PID objective
+  //printf("primer get params ola k ase?\n");
   int PhysErr = absd;
   int act_pw = (int)V2PW(vel);
   double ttc = m->pid->ttc; 		       //ttc => ticks_to_calibr., es a dir pel desfas de temps utilitzo el temps de ticks esperat com a base i multiplico per akesta var.
@@ -1696,7 +1700,9 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
 
   int basepw = basebkup = act_pw;
   //int basephErr = vel <= 170 ? PhysErr : (int)(( ((double)((MAX_VEL - vel)/100.0)*2)+0.05) * PhysErr);
-
+  
+  
+  
   get_params(m, PW2V((basepw + (int)(basepw*diff))), &velAux, &dErrmax);
   dErrmax = abs(V2PW( us_to_vel(velAux + dErrmax, m) ) - ( basepw + (int)(basepw*diff) ));
   
@@ -1759,7 +1765,9 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
   while (get_ticks(m) == 0); //wait hasta tener datos
   
   if(limit == 0){
+    //printf("entering no limit!\n");
     while (m->moving){
+      //printf("entering no limit and moving!\n");
       clock_gettime(CLK_ID, &ini);
       //printf("ITER_INI!, maxus = %d, minus = %d, tdtrange = %f, \n", maxus, minus, tdtrange);
       ticks_dt_min = act_pw == basepw ? (int)((double)(dt/usSP)/tdtrange) : act_pw == maxpw ? (int)((double)(dt/maxus)/tdtrange) : (int)((double)(dt/minus)/tdtrange);
@@ -1826,9 +1834,9 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
       //printf("ITER!!\n");
     }
   } else {
-    
+    //printf("Entro en till ticks\n");
     while (!stop) {
-      
+      //printf("Entro en till ticks con stop\n");
       now_tk = get_ticks(m);
       //printf("now_tk: %d\n ", now_tk);
       

@@ -7,7 +7,8 @@
 
 
 #define HW_PWM			DELAY_VIA_PWM
-#define PWIG_DEF 		PULSE_WIDTH_INCREMENT_GRANULARITY_US_DEFAULT
+#define ST_US		        20000 //20000 microseconds
+#define PWIG_DEF 	        PULSE_WIDTH_INCREMENT_GRANULARITY_US_DEFAULT//20
 #define MAX_PW			ST_US / PWIG_DEF
 #define BASE			370
 #define MAX_THREADS		2
@@ -24,7 +25,6 @@
 #define PIDDEF		        0
 #define TTCDEF		        55
 #define MIN_VEL		        10
-#define ST_US		        20000
 #define USXT_MIN                700
 #define USXT_MAX                7000
 
