@@ -73,7 +73,7 @@ bool conditions_compliant () {
   dg_us_get_dist(&us, &dist, 0);
   pushed = ag_psh_is_pushed(&push, &pval);
 
-  return ((dist < 20) && (pval != -1) && !pushed);
+  return ((dist > 20) && (pval != -1) && !pushed);
 
 }
 
