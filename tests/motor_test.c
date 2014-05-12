@@ -792,16 +792,16 @@ time.tv_nsec = 0;
        
        int vel = argc < 3 ? 70 : atoi(argv[2]);
        double ttc = argc < 4 ? TTCDEF : atof(argv[3]);
-       double kp = argc < 5 ? 1 : atof(argv[4]);
-       double ki = argc < 6 ? 1 : atof(argv[5]);
-       double kd = argc < 7 ? 1 : atof(argv[6]);
+       double kp = argc < 5 ? 0 : atof(argv[4]);
+       double ki = argc < 6 ? 0 : atof(argv[5]);
+       double kd = argc < 7 ? 0 : atof(argv[6]);
        bool calib = argc < 8 ? false : atoi(argv[7]) != 0 ? true : false;
        
        //            bool hard = argc < 9 ? false : atoi(argv[8]) != 0 ? true : false;
        
        //int turns = argc < 9 ? 10 : atoi(argv[8]);
        
-       set_verbose(LOG_LVL_DBG);
+       //set_verbose(LOG_LVL_DBG);
        printf ("vel: %d, ttc: %f, kp: %f, ki: %f, kd: %f, calib: \"%s\"\n", vel, ttc, kp, ki, kd, calib ? "true" : "false");
        
        mt_reconf(m1, NULL, NULL); //back to defaults

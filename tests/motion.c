@@ -85,7 +85,7 @@ bool no_path_found () {
 
   dg_us_get_dist(&us, &dist, 0);
   //pushed = ag_push_is_pushed(&push, &pval);
-
+  printf("looking for path, dist = %u\n", dist);
   return (dist < 20);
 
 }
@@ -114,7 +114,8 @@ void turn_robot (int vel, bool left) {
 
 void move_but_think_stupid_robot (int vel) {
   
-  mt_move_sinc(BWD, vel);
+  printf("entering move.\n");
+  mt_move_sinc(MY_FWD, vel);
   
   while (conditions_compliant());
 
@@ -125,7 +126,8 @@ void move_but_think_stupid_robot (int vel) {
 void look_for_another_path_nasty_machine (bool rotate, int vel) {
 
   int flight, blight;
-
+  
+  printf("entering path finding.\n");
   flight = ag_read_int(&lfront);
   blight = ag_read_int(&lback);
 
@@ -152,7 +154,7 @@ int main (int argc, char * argv[]) {
 
     int pcount = 0;
     int vel = argc < 2 ? 70 : atoi(argv[1]);
-    int limit = argc < 3 ? 5 : atoi(argv[2]);
+    int limit = argc < 3 ? 50 : atoi(argv[2]);
     bool rotate = argc < 4 ? true : atoi(argv[3]) != 0 ? true : false;
 
     while (pcount < limit) {

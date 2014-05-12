@@ -978,7 +978,7 @@ static bool move (MOTOR * m, dir dir, int vel){
   pthread_attr_t tattr;
   
   if(!m->moving) {
-    if(!pid_is_null(m->pid)) {
+    if(!pid_is_null(m->pid) || msinc->acting) {
       
       args->mot = m;
       args->vel = vel;
