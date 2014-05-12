@@ -164,7 +164,7 @@ void lego_init () {
   status.mt = mt_init();
   status.ag = ag_init();
   //printf("ag_init: %s\n", ag_init ? "TRUE" : "FALSE");
-  status.dg = dg_init(3);
+  status.dg = dg_init(5);
 
 }
 

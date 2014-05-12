@@ -76,7 +76,7 @@ bool conditions_compliant () {
   dg_us_get_dist(&us, &dist, 0);
   pushed = ag_psh_is_pushed(&push, &pval);
 
-  printf("check conditions says: dist = %u, pushed = %s, pval = %f, return => %s.\n", dist, pushed ? "\"TRUE\"" : "\"FALSE\"", pval, (dist > SAFE_DST) && !pushed ? "\"TRUE\"" : "\"FALSE\"");
+  //printf("check conditions says: dist = %u, pushed = %s, pval = %f, return => %s.\n", dist, pushed ? "\"TRUE\"" : "\"FALSE\"", pval, (dist > SAFE_DST) && !pushed ? "\"TRUE\"" : "\"FALSE\"");
   return ((dist > SAFE_DST) && !pushed);
 
 }
@@ -89,7 +89,7 @@ bool no_path_found () {
 
   dg_us_get_dist(&us, &dist, 0);
   //pushed = ag_push_is_pushed(&push, &pval);
-  printf("looking for path, dist = %u\n", dist);
+  //printf("looking for path, dist = %u\n", dist);
   return (dist < SAFE_DST);
 
 }
@@ -118,13 +118,9 @@ void turn_robot (int vel, bool left) {
 
 void move_but_think_stupid_robot (int vel) {
   
-  printf("entering move.\n");
   mt_move_sinc(MY_FWD, vel);
   
-  while (conditions_compliant()){
-    printf("esperando distancia corta.\n");
-    sleep(1);
-  }
+  while (conditions_compliant());
 
   stop_all();
 
@@ -134,20 +130,15 @@ void look_for_another_path_nasty_machine (bool rotate, int vel) {
 
   int flight, blight;
   
-  printf("entering path finding.\n");
   flight = ag_read_int(&lfront);
   blight = ag_read_int(&lback);
-
-  printf("front light reading: %d, back light reading: %d\n", flight, blight);
 
   if(rotate)
     rotate_robot(vel, flight > blight);
   else 
     turn_robot(vel, flight > blight);
 
-  while (no_path_found()){
-    UDELAY(500);
-  }
+  while (no_path_found());
 
   stop_all();
 
