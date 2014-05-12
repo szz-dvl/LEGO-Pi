@@ -1166,9 +1166,11 @@ extern bool dg_us_get_dist (DGDVC * dvc, uint8_t * dist, int num) {
       
     }
     
-    if(!send_cmd(dvc, US_CONT_MES)){
-      not_critical("dg_us_get_dist: Error setting back continious measurement mode.\n");
-      goto back_to_def; //insisto...
+    if(num !=0 ){
+      if(!send_cmd(dvc, US_CONT_MES)){
+	not_critical("dg_us_get_dist: Error setting back continious measurement mode.\n");
+	goto back_to_def; //insisto...
+      }
     }
     
     return true;

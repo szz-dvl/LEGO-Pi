@@ -10,6 +10,7 @@
 #define LMT_PORT 0
 #define MY_FWD   BWD
 #define MY_BWD   FWD 
+#define UDELAY(t) nanosleep((TSPEC *) &(TSPEC) {0,t}, NULL)
 
 MOTOR * mtr, * mtl;
 ANDVC lfront, lback, snd, push;
@@ -73,7 +74,7 @@ bool conditions_compliant () {
   dg_us_get_dist(&us, &dist, 0);
   pushed = ag_psh_is_pushed(&push, &pval);
 
-  return ((dist > 20) && (pval != -1) && !pushed);
+  return ((dist > 20) && !pushed);
 
 }
 
@@ -117,7 +118,9 @@ void move_but_think_stupid_robot (int vel) {
   printf("entering move.\n");
   mt_move_sinc(MY_FWD, vel);
   
-  while (conditions_compliant());
+  while (conditions_compliant()){
+    UDELAY(500);
+  }
 
   stop_all();
 
@@ -136,7 +139,9 @@ void look_for_another_path_nasty_machine (bool rotate, int vel) {
   else 
     turn_robot(vel, flight > blight);
 
-  while (no_path_found());
+  while (no_path_found()){
+    UDELAY(500);
+  }
 
   stop_all();
 
@@ -158,12 +163,14 @@ int main (int argc, char * argv[]) {
     bool rotate = argc < 4 ? true : atoi(argv[3]) != 0 ? true : false;
 
     while (pcount < limit) {
+      printf("turns done: %d\n", pcount);
       move_but_think_stupid_robot(vel);
       look_for_another_path_nasty_machine(rotate, vel/2);
       pcount ++;
     
     }
 
+    stop_all();
     exit(EXIT_SUCCESS);
   }
 
