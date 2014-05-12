@@ -10,6 +10,7 @@
 #define LMT_PORT 0
 #define MY_FWD   BWD
 #define MY_BWD   FWD 
+#define SAFE_DST 15
 #define UDELAY(t) nanosleep((TSPEC *) &(TSPEC) {0,t}, NULL)
 
 MOTOR * mtr, * mtl;
@@ -71,10 +72,12 @@ bool conditions_compliant () {
   double pval;
   bool pushed;
 
+ 
   dg_us_get_dist(&us, &dist, 0);
   pushed = ag_psh_is_pushed(&push, &pval);
 
-  return ((dist > 20) && !pushed);
+  printf("check conditions says: dist = %u, pushed = %s, pval = %f, return => %s.\n", dist, pushed ? "\"TRUE\"" : "\"FALSE\"", pval, (dist > SAFE_DST) && !pushed ? "\"TRUE\"" : "\"FALSE\"");
+  return ((dist > SAFE_DST) && !pushed);
 
 }
 
@@ -87,7 +90,7 @@ bool no_path_found () {
   dg_us_get_dist(&us, &dist, 0);
   //pushed = ag_push_is_pushed(&push, &pval);
   printf("looking for path, dist = %u\n", dist);
-  return (dist < 20);
+  return (dist < SAFE_DST);
 
 }
 
@@ -119,7 +122,8 @@ void move_but_think_stupid_robot (int vel) {
   mt_move_sinc(MY_FWD, vel);
   
   while (conditions_compliant()){
-    UDELAY(500);
+    printf("esperando distancia corta.\n");
+    sleep(1);
   }
 
   stop_all();
@@ -133,6 +137,8 @@ void look_for_another_path_nasty_machine (bool rotate, int vel) {
   printf("entering path finding.\n");
   flight = ag_read_int(&lfront);
   blight = ag_read_int(&lback);
+
+  printf("front light reading: %d, back light reading: %d\n", flight, blight);
 
   if(rotate)
     rotate_robot(vel, flight > blight);

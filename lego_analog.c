@@ -42,6 +42,7 @@ static int SPIreceive (int fd, uint8_t resp[], int chann) {
 
   retval = ioctl (fd, SPI_IOC_MESSAGE(1), &spi) ;
 
+  //printf("resp[0] = %u, resp[1] = %u, resp[2] = %u\n", resp[0], resp[1], resp[2]);
   return retval ;
 }
 
@@ -83,6 +84,7 @@ static int analog_read_int (ANDVC * dvc) { /* READ analog value (integer), max a
   if(retval != FAIL) {
     res = data[2];
     res |= ((data[1] & 0x07) << 8);
+    //printf("data readed: data[2] = %u, data[1] = %u, data[0] = %u,  retval = %d\n", data[2], data[1], data[0], retval);
     return res;
     
   } else
