@@ -13,7 +13,7 @@ KRED = "\e[31m
 # Should not alter anything below this line
 ###############################################################################
 
-EXE = interpol dg_test ag_test mt_test
+EXE = interpol dg_test ag_test mt_test motion
 
 all: $(EXE)
 
@@ -34,6 +34,10 @@ dg_test:
 	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
 	@$(CC) $(CFLAGS) digital_test.c $(LIBS) -o $@
 
+motion:
+	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
+	@$(CC) $(CFLAGS) motion.c $(LIBS) -o $@
+
 .PHONEY: clean
 clean:
 	@/bin/echo -e $(KRED)[Cleaning Tests]$(KNRM)
@@ -46,5 +50,5 @@ uninstall:
 	@rm -f $(DESTDIR)/interpol
 	@rm -f $(DESTDIR)/dg_test
 	@rm -f $(DESTDIR)/ag_test
-
+	@rm -f $(DESTDIR)/motion
 

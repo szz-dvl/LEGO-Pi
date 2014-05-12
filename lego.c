@@ -160,7 +160,7 @@ static void terminate(int signum) {
 void lego_init () {
   
   status.wpi = wiringPiSetupGpio() == 0;
-  //all_as_output();
+  all_as_output();
   status.mt = mt_init();
   status.ag = ag_init();
   status.dg = dg_init(3);
