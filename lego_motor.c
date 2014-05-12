@@ -894,7 +894,7 @@ static bool mot_fwd(MOTOR * mot, int vel){
     
   mot->moving = true;
 
-  if (!pid_is_null(mot->pid))
+  if (!pid_is_null(mot->pid) || msinc->acting)
     pid_launch(mot, vel, 0, FWD, 0, msinc->acting);
   
   if(altered)
@@ -962,7 +962,7 @@ static bool mot_rev (MOTOR * mot, int vel){
 
   mot->moving = true;
 
-  if (!pid_is_null(mot->pid))
+  if (!pid_is_null(mot->pid) || msinc->acting)
     pid_launch(mot, vel, 0, BWD, 0, msinc->acting);
 
   if(altered)
@@ -1037,10 +1037,13 @@ static void * mv_thread (void * arg){
 static int move_till_ticks_b (MOTOR * mot, int ticks, dir dir, int vel, bool reset, double posCtrl) {
 
   bool initial_pid = mot->pid->active;//save pid state.
+  bool initial_sinc = msinc->acting;
   //printf("MOTOR %d: initialy pid is: %s\n",mot->id, mot->pid->active ? "ACTIVE" : "UNACTIVE" );
   bool restored = false;
 
-  pid_off(mot->pid); //force pid null since we will launch it later on.
+  //force pid null && sincro null, to avoid low level funcs to lauch it.
+  pid_off(mot->pid); 
+  msinc->acting = false;
   
   
   if (dir == FWD){
@@ -1065,12 +1068,14 @@ static int move_till_ticks_b (MOTOR * mot, int ticks, dir dir, int vel, bool res
     restored = true;
   }
   
-  if(pid_is_null(mot->pid)) {
-    while(get_ticks(mot) < ticks);
-  } else {
-    //printf("entro aki?\n");
+  if(initial_sinc)
+    msinc->acting = true;
+    
+  if(!pid_is_null(mot->pid) || msinc->acting)
     pid_launch(mot, vel, ticks, dir, posCtrl, msinc->acting);
-  }
+  else 
+    while(get_ticks(mot) < ticks);
+    
   if (!restored && initial_pid)
     pid_on(mot->pid);
       
@@ -1671,7 +1676,7 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
   
   //#FROM: http://en.wikipedia.org/wiki/PID_controller#Pseudocode
   TSPEC ini, fi;
-  int usSP, absd, Mv, MvAux, prevErr = 0, Err, now_tk;  //abs es pot entendre com el error fisic del motor, axi doncs compensem l'error llegit amb aquest
+  int usSP, absd, Mv, MvAux, prevErr = 0, Err, now_tk = 0;  //abs es pot entendre com el error fisic del motor, axi doncs compensem l'error llegit amb aquest
   get_params(m, vel, &usSP, &absd);      //get PID objective
   //printf("primer get params ola k ase?\n");
   int PhysErr = absd;
@@ -1764,7 +1769,7 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
   bool stop = false;
   
   while (get_ticks(m) == 0); //wait hasta tener datos
-  
+
   if(limit == 0){
     //printf("entering no limit!\n");
     while (m->moving){
@@ -1840,7 +1845,6 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
       //printf("Entro en till ticks con stop\n");
       now_tk = get_ticks(m);
       //printf("now_tk: %d\n ", now_tk);
-      
       if (now_tk < limit){
 	
 	clock_gettime(CLK_ID, &ini);
@@ -1872,7 +1876,7 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
 	    if(mpsinc->first == 0 || mpsinc->first == m->id){  //dejamos que mande el primero que llege al punto de frenada
 	      *myarr = true; //este *myarr ara referencia al motor que haya llegado primero
 	      mpsinc->first = m->id;
-	      debug ("SINCRO_%d_POS: first: %d,  posCtrl: %f, spend: %f, cont: %d, actpw: %s, arrived1: %s, arrived2: %s, ticks_rec : %d\n", m->id-1, mpsinc->first, posCtrl, (double)now_tk/(double)limit, cont, act_pw == basepw ? "\" base \"" : act_pw == minpw ? "\" min \"" : "\" max \"", (*myarr) ? "\" true \"" : "\" false \"", (*nearr) ? "\" true \"" : "\" false \"", now_tk);
+	      debug ("SINCRO_%d_POS: first: %d,  posCtrl: %f, spend: %f, cont: %d, actpw: %s, arrived1: %s, arrived2: %s, ticks_rec : %d\n", m->id-1, mpsinc->first-1, posCtrl, (double)now_tk/(double)limit, cont, act_pw == basepw ? "\" base \"" : act_pw == minpw ? "\" min \"" : "\" max \"", (*myarr) ? "\" true \"" : "\" false \"", (*nearr) ? "\" true \"" : "\" false \"", now_tk);
 	      if (cont == times){
 		if ( ( act_pw == basepw || act_pw == minpw ) && (*nearr)){
 		  pctrlact = true;
@@ -1925,7 +1929,7 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
 	      if(!(*flag)){
 		*flag = true;
 		msinc->first = msinc->first == 0 ? m->id : msinc->first;
-		debug("SINCRO: FLAG%d = TRUE, first -> %d \n", m->id-1, msinc->first);
+		debug("SINCRO: FLAG%d = TRUE, first -> %d \n", m->id-1, msinc->first-1);
 	      } else {
 		if((*flagn)){
 		  if(msinc->first == m->id){

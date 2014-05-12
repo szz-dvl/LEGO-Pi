@@ -837,9 +837,9 @@ time.tv_nsec = 0;
        set_verbose(LOG_LVL_DBG);
        int vel = argc < 3 ? 70 : atoi(argv[2]);
        double ttc = argc < 4 ? TTCDEF : atof(argv[3]);
-       double kp = argc < 5 ? 1 : atof(argv[4]);
-       double ki = argc < 6 ? 1 : atof(argv[5]);
-       double kd = argc < 7 ? 1 : atof(argv[6]);
+       double kp = argc < 5 ? 0 : atof(argv[4]);
+       double ki = argc < 6 ? 0 : atof(argv[5]);
+       double kd = argc < 7 ? 0 : atof(argv[6]);
        bool calib = argc < 8 ? false : atoi(argv[7]) != 0 ? true : false;
        //          bool hard = argc < 9 ? false : atoi(argv[8]) != 0 ? true : false;
        double pctr = argc < 9 ? 0.3 : atof(argv[8]);
@@ -873,7 +873,8 @@ time.tv_nsec = 0;
        } else
 	 printf("\n");
        
-       int res = mt_move_sinc_t(FWD, vel, (turns*720), pctr);mt_wait_all();
+       printf("SINCRO: Set point = %d ticks\n", (turns*720));
+       int res = mt_move_sinc_t(BWD, vel, (turns*720), pctr);mt_wait_all();//
        printf("move_sinc-says: \"%s\"\n", res ? "OK" : "FAIL");
        //while(get_in("stop?", 1) != 1);
        mt_stop(m1,true);
