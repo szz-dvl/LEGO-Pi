@@ -101,19 +101,19 @@ extern bool       mt_move (MOTOR * m, dir dir, int vel);
 extern bool       mt_wait (MOTOR * m);
 extern bool       mt_wait_all ();
 extern bool       mt_move_t (MOTOR * m, int ticks, dir dir, int vel, double posCtrl);
-extern bool       mt_wait_for_stop(MOTOR * m, double delay);
-extern bool       mt_reset_enc(MOTOR * m);
-extern int        mt_get_ticks(MOTOR * m);
-extern TSPEC *    mt_get_time (MOTOR * m, int eid);
+extern bool       mt_wait_for_stop (MOTOR * m, double delay);
+extern bool       mt_reset_enc (MOTOR * m);
+extern int        mt_get_ticks (MOTOR * m);
+extern TSPEC *    mt_get_time  (MOTOR * m, int eid);
 extern int        mt_tticks (MOTOR * m, int turns);
 extern int        mt_enc_count (MOTOR * m);
-extern bool       mt_calibrate(int samples, double wait_between_samples);
-extern bool       mt_get_params(MOTOR * m, int, int *, int *);
-extern bool       mt_lock(MOTOR * m);
-extern bool       mt_unlock(MOTOR * m);
-extern bool       mt_move_sinc(dir dir, int);
+extern bool       mt_calibrate (int samples, double wait_between_samples);
+extern bool       mt_get_params (MOTOR * m, int, int *, int *);
+extern bool       mt_lock (MOTOR * m);
+extern bool       mt_unlock (MOTOR * m);
+extern bool       mt_move_sinc (dir dir, int);
 extern bool       mt_move_sinc_t (dir dir, int, int, double);
-extern void       mt_shutdown(void);
+extern void       mt_shutdown (void);
 
 
 

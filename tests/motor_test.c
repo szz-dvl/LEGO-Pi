@@ -217,13 +217,13 @@ int main (int argc, char * argv[]) {
   ENC enull;
   enull.pin = ENULL;
   en11.pin = M1_ENC1;
-  en11.isr = &isr_print_11;
+  en11.isr = &dbg_isr_11;
   en12.pin = M1_ENC2;
-  en12.isr = &isr_print_12;
+  en12.isr = &dbg_isr_12;
   en21.pin = M2_ENC1;
-  en21.isr = &isr_print_21;
+  en21.isr = &dbg_isr_21;
   en22.pin = M2_ENC2;
-  en22.isr = &isr_print_22;
+  en22.isr = &dbg_isr_22;
 
   lego_init();
   mt1 = mt_new(&en11, &en12, 0);
@@ -542,14 +542,14 @@ time.tv_nsec = 0;
        ENC * e2 = m->enc2;
        int pin1 = m == mt1 ? M1_ENC1 : M2_ENC1;
        int pin2 = m == mt1 ? M1_ENC2 : M2_ENC2;
-       int e2pin, e1pin, vel = 60, turns = 7, ticks;
+       int e2pin, e1pin, vel = 60, turns = 7;
        ENC e2aux, e1aux;
        
        init_acums(5000, m);
        reset_acums(5000, m);
        printf("tot activat, m_e1: %d, m_e2: %d,\n", e1->pin, e2->pin);
-       ticks = mt_move_t(m, mt_tticks(m, turns), FWD, vel, 0); mt_wait(m);
-       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, mt_tticks(m, turns), e1->tics, e2->tics);
+       mt_move_t(m, mt_tticks(m, turns), FWD, vel, 0); mt_wait(m);
+       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", mt_get_ticks(m), mt_tticks(m, turns), e1->tics, e2->tics);
        printf("desactivant encoder 2 ... \n");
        mt_wait_for_stop(m,2);
        e2->pin = ENULL;
@@ -558,10 +558,9 @@ time.tv_nsec = 0;
        printf("m_e2 desactivat , m_e1: %d, m_e2: %d,\n", e1->pin, e2pin);
        //get_in("Mira com esta el pin 22 cap d'escombra!", 1);
        
-       mt_wait_for_stop(m, 3);
        mt_reset_enc(m);
-       ticks = mt_move_t(m, mt_tticks(m, turns), FWD, vel, 0); mt_wait(m);
-       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, mt_tticks(m, turns), e1->tics, mt_enc_is_null(m,2) ? 0 : e2->tics);
+       mt_move_t(m, mt_tticks(m, turns), FWD, vel, 0); mt_wait(m);
+       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n",  mt_get_ticks(m), mt_tticks(m, turns), e1->tics, mt_enc_is_null(m,2) ? 0 : e2->tics);
        printf("reactivant encoder 2 ...\n");
        e2aux.pin = pin2;
        e2aux.isr = m == mt1 ? &dbg_isr_12 : &dbg_isr_22;
@@ -571,8 +570,8 @@ time.tv_nsec = 0;
        mt_wait_for_stop(m, 3);
        
        mt_reset_enc(m);
-       ticks = mt_move_t(m, mt_tticks(m, turns), FWD, vel, 0);mt_wait(m);
-       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, mt_tticks(m, turns), e1->tics, mt_enc_is_null(m,2) ? 0 : e2->tics);
+       mt_move_t(m, mt_tticks(m, turns), FWD, vel, 0);mt_wait(m);
+       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n",  mt_get_ticks(m), mt_tticks(m, turns), e1->tics, mt_enc_is_null(m,2) ? 0 : e2->tics);
        printf("desactivant encoder 1 ... \n");
        e1->pin = ENULL;
        mt_reconf(m, e1, NULL); //e2 untouched.
@@ -582,8 +581,8 @@ time.tv_nsec = 0;
        //get_in("Mira com esta el pin 27 cap d'escombra!", 1);
        
        mt_reset_enc(m);
-       ticks = mt_move_t(m, mt_tticks(m, turns), FWD, vel, 0);mt_wait(m);
-       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, mt_tticks(m, turns), mt_enc_is_null(m,1) ? 0 : e1->tics, e2->tics);
+       mt_move_t(m, mt_tticks(m, turns), FWD, vel, 0);mt_wait(m);
+       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n",  mt_get_ticks(m), mt_tticks(m, turns), mt_enc_is_null(m,1) ? 0 : e1->tics, e2->tics);
        printf("reactivant encoder 1 ...\n");
        e1aux.pin = pin1;
        //e1aux.isr = m == mt1 ? &dbg_isr_11 : &dbg_isr_21;
@@ -595,16 +594,16 @@ time.tv_nsec = 0;
        mt_wait_for_stop(m, 3);
        
        mt_reset_enc(m);
-       ticks = mt_move_t(m, mt_tticks(m, turns), FWD, vel, 0);mt_wait(m);
-       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, mt_tticks(m, turns), e1->tics, e2->tics);
+       mt_move_t(m, mt_tticks(m, turns), FWD, vel, 0);mt_wait(m);
+       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n",  mt_get_ticks(m), mt_tticks(m, turns), e1->tics, e2->tics);
        printf("tornant a defaults ...\n");
        mt_reconf(m, NULL, NULL);
        printf("tot activat, m_e1: %d, m_e2: %d,\n", e1->pin, e2->pin);
        mt_wait_for_stop(m, 3);
-
+       
        mt_reset_enc(m);
-       ticks = mt_move_t(m, mt_tticks(m, turns), FWD, vel, 0);mt_wait(m);
-       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", ticks, mt_tticks(m, turns), mt_enc_is_null(m,1) ? 0 : e1->tics, e2->tics);
+       mt_move_t(m, mt_tticks(m, turns), FWD, vel, 0);mt_wait(m);
+       printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n",  mt_get_ticks(m), mt_tticks(m, turns), mt_enc_is_null(m,1) ? 0 : e1->tics, e2->tics);
        printf("intentant desactivar els 2 a l'hora ...\n");
        e1->pin = ENULL;
        e2->pin = ENULL;

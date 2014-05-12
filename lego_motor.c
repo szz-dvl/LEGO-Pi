@@ -1189,8 +1189,8 @@ static bool wait_for_stop(MOTOR * m, double diff){   //pensar con difft
   int esec1, esec2;
   double el1, el2;
 
-  if (!m->moving)
-    m->moving = true;
+  /*if (!m->moving)
+    m->moving = true;*/
 
   if ((!is_null(m->enc1)) && (!is_null(m->enc2))){
     do {
@@ -1201,6 +1201,7 @@ static bool wait_for_stop(MOTOR * m, double diff){   //pensar con difft
       enano2 = (taux.tv_nsec - tini2->tv_nsec);
       esec2 = (int)(taux.tv_sec - tini2->tv_sec);
       el2 = esec2+(enano2*0.000000001);
+      //printf("Elapsed_1: %f, Elapsed_2: %f, enano1: %lld, enano2: %lld, esec1: %d, esec2: %d\n", el1, el2, (long long int)enano1, (long long int)enano2, esec1, esec2);
     } while ( (el1 < diff) || (el2 < diff) );
     
   } else if (is_null(m->enc1) && !is_null(m->enc2)) {
@@ -1224,7 +1225,7 @@ static bool wait_for_stop(MOTOR * m, double diff){   //pensar con difft
   }
   
   //assume we stoped, so the delay you pass here (diff) must be >> pcoef[0]
-  m->moving = false;
+  //m->moving = false;
   return true;
   
 }
