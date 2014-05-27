@@ -269,7 +269,7 @@ time.tv_nsec = 0;
        bool calib = argc < 8 ? false : atoi(argv[7]) != 0 ? true : false;
        bool back = true;
 
-       printf("al inici de test: Motor %d: PID is %s\n", maux->id-1, mt_pid_is_null(maux) ? "UNACTIVE" : "ACTIVE");
+       printf("al inici de test: Motor %d: PID is %s, disable = %d\n", maux->id-1, mt_pid_is_null(maux) ? "UNACTIVE" : "ACTIVE", disable);
        
               //set_verbose(2);
        //back = mt_reconf(mt1, NULL, NULL); //back to defaults
@@ -552,8 +552,8 @@ time.tv_nsec = 0;
        printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n", mt_get_ticks(m), mt_tticks(m, turns), e1->tics, e2->tics);
        printf("desactivant encoder 2 ... \n");
        mt_wait_for_stop(m,2);
-       e2->pin = ENULL;
-       mt_reconf(m, NULL, e2); //e1 untouched.
+       //e2->pin = ENULL;
+       mt_reconf(m, NULL, ECNULL); //e1 untouched.
        e2pin = mt_enc_is_null(m,2) ? ENULL : e2->pin;
        printf("m_e2 desactivat , m_e1: %d, m_e2: %d,\n", e1->pin, e2pin);
        //get_in("Mira com esta el pin 22 cap d'escombra!", 1);
@@ -573,8 +573,8 @@ time.tv_nsec = 0;
        mt_move_t(m, mt_tticks(m, turns), FWD, vel, 0);mt_wait(m);
        printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n",  mt_get_ticks(m), mt_tticks(m, turns), e1->tics, mt_enc_is_null(m,2) ? 0 : e2->tics);
        printf("desactivant encoder 1 ... \n");
-       e1->pin = ENULL;
-       mt_reconf(m, e1, NULL); //e2 untouched.
+       //e1->pin = ENULL;
+       mt_reconf(m, ECNULL, NULL); //e2 untouched.
        e1pin = mt_enc_is_null(m,1) ? ENULL : e1->pin;
        printf("m_e1 desactivat , m_e1: %d, m_e2: %d,\n", e1pin, e2->pin);
        mt_wait_for_stop(m, 3);
@@ -605,9 +605,9 @@ time.tv_nsec = 0;
        mt_move_t(m, mt_tticks(m, turns), FWD, vel, 0);mt_wait(m);
        printf("tics totals: %d, esperats: %d, tics e1: %d, tics e2: %d\n",  mt_get_ticks(m), mt_tticks(m, turns), mt_enc_is_null(m,1) ? 0 : e1->tics, e2->tics);
        printf("intentant desactivar els 2 a l'hora ...\n");
-       e1->pin = ENULL;
-       e2->pin = ENULL;
-       mt_reconf(m, e1, e2);
+       //e1->pin = ENULL;
+       //e2->pin = ENULL;
+       mt_reconf(m, ECNULL, ECNULL);
        /* mot_reconf(m,NULL,NULL) es tambien válido, pero lo que hace es un reload de las structs globales, que son con las que hacemos pruebas asi pues nada... */
      }
      break;;

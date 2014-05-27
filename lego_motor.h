@@ -18,7 +18,7 @@
 #define MAX_VEL		        200                    /*si 9V y VEL = 160 es comportara com amb bateries de LEGO */
 #define ENULL		        -1	               /* Encoder desactivat */
 #define SETUP		        INT_EDGE_SETUP
-#define RISING		        INT_EDGE_RISING
+#define RISING		        INT_EDGE_BOTH
 #define MAX_COEF	        21
 #define MIN_COEF	        5                      /* AKIMA spline conditions */
 //#define PIDNULL		        0
@@ -30,6 +30,7 @@
 
 #define MIN_PORT_MT             0
 #define MAX_PORT_MT             1
+
 
 typedef enum {
   FWD,
@@ -86,6 +87,11 @@ enum mot2 {M2_PINF = 25, M2_PINR = 18, M2_ENC1 = 24, M2_ENC2 = 23, M2_CHANN = 7}
 
 //extern MOTOR  motor1; //mirara como hay que hacer para evitar externos i poder configurar la interrupcción
 //extern MOTOR  motor2;
+
+ENC edisable;
+//edisable.pin = ENULL;
+#define ECNULL                  &edisable
+
 
 extern bool       mt_init();
 extern MOTOR *    mt_new(ENC * e1, ENC * e2, int port);

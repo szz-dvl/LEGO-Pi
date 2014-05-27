@@ -10,12 +10,13 @@
 #define LMT_PORT 0
 #define MY_FWD   BWD
 #define MY_BWD   FWD 
-#define SAFE_DST 15
+#define SAFE_DST 45
 #define UDELAY(t) nanosleep((TSPEC *) &(TSPEC) {0,t}, NULL)
 
 MOTOR * mtr, * mtl;
 ANDVC lfront, lback, snd, push;
 DGDVC us;
+bool dir_lft = true;
 
 bool doInit () {
   
@@ -68,7 +69,7 @@ void stop_all () {
 
 bool conditions_compliant () {
 
-  uint8_t dist;
+  uint8_t dist = SAFE_DST;
   double pval;
   bool pushed;
 
@@ -76,20 +77,20 @@ bool conditions_compliant () {
   dg_us_get_dist(&us, &dist, 0);
   pushed = ag_psh_is_pushed(&push, &pval);
 
-  //printf("check conditions says: dist = %u, pushed = %s, pval = %f, return => %s.\n", dist, pushed ? "\"TRUE\"" : "\"FALSE\"", pval, (dist > SAFE_DST) && !pushed ? "\"TRUE\"" : "\"FALSE\"");
-  return ((dist > SAFE_DST) && !pushed);
+  printf("check conditions says: dist = %u, pushed = %s, pval = %f, return => %s.\n", dist, pushed ? "\"TRUE\"" : "\"FALSE\"", pval, (dist > SAFE_DST) && !pushed ? "\"TRUE\"" : "\"FALSE\"");
+  return ((dist >= SAFE_DST) && !pushed);
 
 }
 
 bool no_path_found () {
 
-  uint8_t dist;
+  uint8_t dist = SAFE_DST-1;
   //double pval;
   //bool pushed;
 
   dg_us_get_dist(&us, &dist, 0);
   //pushed = ag_push_is_pushed(&push, &pval);
-  //printf("looking for path, dist = %u\n", dist);
+  printf("looking for path, dist = %u\n", dist);
   return (dist < SAFE_DST);
 
 }
@@ -121,24 +122,32 @@ void move_but_think_stupid_robot (int vel) {
   mt_move_sinc(MY_FWD, vel);
   
   while (conditions_compliant());
+    //UDELAY(3000);
 
   stop_all();
+  sleep(1);
+  ag_lgt_set_led (&lfront, !ag_lgt_get_ledstate(&lfront));
 
 } 
 
 void look_for_another_path_nasty_machine (bool rotate, int vel) {
 
-  int flight, blight;
+  //  int flight, blight;
   
-  flight = ag_read_int(&lfront);
-  blight = ag_read_int(&lback);
+  //flight = ag_read_int(&lfront);
+  //blight = ag_read_int(&lback);
 
   if(rotate)
-    rotate_robot(vel, flight > blight);
+    rotate_robot(vel, dir_lft);
   else 
-    turn_robot(vel, flight > blight);
+    turn_robot(vel, dir_lft);
+
+  dir_lft = !dir_lft;
+  //UDELAY(750000);
+  sleep(1);
 
   while (no_path_found());
+    //UDELAY(3000);
 
   stop_all();
 
@@ -162,9 +171,11 @@ int main (int argc, char * argv[]) {
     while (pcount < limit) {
       printf("turns done: %d\n", pcount);
       move_but_think_stupid_robot(vel);
+      UDELAY(750000);
       look_for_another_path_nasty_machine(rotate, vel/2);
       pcount ++;
-    
+      ag_lgt_set_led (&lback, (pcount % 2 == 0));
+      UDELAY(750000);
     }
 
     stop_all();
