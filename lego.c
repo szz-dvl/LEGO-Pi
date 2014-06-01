@@ -162,7 +162,7 @@ void lego_init () {
   status.wpi = wiringPiSetupGpio() == 0;
   //all_as_output();
   status.mt = mt_init();
-  status.ag = ag_init();
+  status.ag = ag_init(10);
   //printf("ag_init: %s\n", ag_init ? "TRUE" : "FALSE");
   status.dg = dg_init(5);
 

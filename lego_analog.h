@@ -4,10 +4,10 @@
 #include <linux/spi/spidev.h>
 
 #define CS	 	0
-#define SPI_CLK		1500000
-#define TO_READ		0x08
-#define LEN		3
-#define MAX_VAL		1023  //10 bits de resolució (tot-hi que eren 12...sospito de INL...)
+#define SPI_CLK		1000000
+//#define TO_READ		0x08
+#define LEN		4
+#define MAX_VAL		4095  //10 bits de resolució (tot-hi que eren 12...sospito de INL...)
 #define VREF		5     //Voltatge de referencia
 #define MAX_PORT        3
 #define MIN_PORT        0
@@ -40,11 +40,11 @@ typedef struct analog_device ANDVC;
 extern bool   ag_init();
 extern bool   ag_new (ANDVC* dvc, int port, agType type);
 extern bool   ag_lgt_set_led (ANDVC* dvc, bool on);
-extern bool   ag_lgt_get_ledstate (ANDVC* dvc);
+extern int    ag_lgt_get_ledstate (ANDVC* dvc);
 extern bool   ag_psh_is_pushed (ANDVC * dvc, double * volt);
 extern int    ag_snd_get_db (ANDVC * dvc);
 extern bool   ag_gyro_cal (ANDVC * dvc);
-extern int    ag_gyro_get_val (ANDVC * dvc);
+extern int    ag_gyro_get_val (ANDVC * dvc, bool * error);
 extern double ag_read_volt (ANDVC * dvc);
 extern int    ag_read_int (ANDVC * dvc);
 extern void   ag_shutdown ();

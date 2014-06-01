@@ -2,99 +2,187 @@
 
 //#define NEVER_HAPPENS   4
 
-INIT status;
+INIT           status;
 
-static int an_fd = 0;
+static int     an_fd = 0;
 
 static uint8_t port_busy = 0;
 
-static bool lpin_state [] = {false, false, false, false};
-static int  ypin_port  [] = {L_PORT0, L_PORT1, L_PORT2, L_PORT3};
+static bool    lpin_state [] = {false, false, false, false};
+static int     ypin_port  [] = {L_PORT0, L_PORT1, L_PORT2, L_PORT3};
 
-static int act_gyro = HT_GYRO_DEF;
-static int last_gyro = 0;
+static int     act_gyro = HT_GYRO_DEF;
+static int     last_gyro = 0;
 
-static int SPIreceive (int, uint8_t [], int);
+static uint8_t spiMode = 3; //SPI_CPOL | SPI_CS_HIGH  | SPI_CPHA | SPI_NO_CS ; //MUST be 3 CPOL=1 CPHA=1 for 5V Vref, for 3.3 0 is fine too...
+static uint8_t spiBPW = 8 ;
+static uint8_t spiBPWOUT = 8 ;
+static char   *spiDev0 = "/dev/spidev0.0" ;
+static char   *spiDev1 = "/dev/spidev0.1" ;
+static int     spiAvg = 10 ;
+
+
+static int SPI_receive (int, uint8_t [], int);
 static double analog_read_voltage (ANDVC * dvc);
 static int analog_read_int (ANDVC * dvc);
+static uint16_t res_inv (uint8_t data[]);
 
-static int SPIreceive (int fd, uint8_t resp[], int chann) {
+static uint16_t res_inv (uint8_t data[]){
+
+  int i;
+  uint16_t res = 0;
+  uint8_t * pt = data;
+  uint8_t dt;
+  
+
+    dt = (pt[3] >> 2);
+
+    for(i=0; i<6; i++) {
+      res |= (dt & 0x01);
+      dt >>= 1;
+      res *= 2;
+    }
+    
+    dt = pt[2] & 0x3F;
+
+    for(i=0; i<5; i++) {
+      res |= (dt & 0x01);
+      dt >>= 1;
+      res *= 2;
+    }
+  
+    //res |= (dt & 0x01);
+    
+    return res |= (dt & 0x01) ;
+  }
+
+
+static int SPI_receive (int fd, uint8_t resp[], int chann) {
 
   struct spi_ioc_transfer spi;
-  int retval ;
+  int retval , i;
+  uint8_t send [] = {0x00};
+  uint16_t res, resinv;
+  uint8_t next;
 
+  send[0] |= (1 << 7) ;	                 // start bit		
+  send[0] |= (1 << 6) ;                  // !differential, single-ended		
+                                         // D2 is a don't care
+  send[0] |= ((chann >> 1) & 0x01) << 4 ; 
+  send[0] |= ((chann >> 0) & 0x01) << 3 ;
   
-  //FROM: http://code.google.com/p/webiopi/source/browse/trunk/python/webiopi/devices/analog/mcp3x0x.py
-  resp[0] |= 1 ;
-  resp[1] |= (1 << 7) ;	//! differential mode, single-ended...
-  resp[1] |= ((chann >> 2) & 0x01) << 6 ;
-  resp[1] |= ((chann >> 1) & 0x01) << 5 ;
-  resp[1] |= ((chann >> 0) & 0x01) << 4 ;
   
-  spi.tx_buf = (unsigned long)resp ;
+  //printf("SENDING %d: 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x \n", chann, resp[0], resp[1], resp[2], resp[3], resp[4], resp[5]);
+
+  spi.tx_buf = (unsigned long)send ;
   spi.rx_buf = (unsigned long)resp ;
   spi.len = (__u32) LEN ;
   spi.delay_usecs = 0 ;
   spi.speed_hz = (__u32) SPI_CLK ;
-  spi.bits_per_word = 8 ;
+  spi.bits_per_word = spiBPWOUT ;
   spi.cs_change = 0 ;
   spi.pad = 0 ;
 
   retval = ioctl (fd, SPI_IOC_MESSAGE(1), &spi) ;
+  
+  
+  //response treantemt
+  if(retval){
+    res = ((resp[0] & 0x01) << 11) | resp[1] << 3 | resp[2] >> 5;
+    resinv = res_inv(resp);
+    if(res != resinv){          //try to shift the result 1 bit to the right, experiments shows that it happens sometimes.
 
-  //printf("resp[0] = %u, resp[1] = %u, resp[2] = %u\n", resp[0], resp[1], resp[2]);
+      next = resp[0] & 0x01;
+      for (i=0; i<LEN-1; i++){
+	if(next){
+	  next = resp[i+1] & 0x01;
+	  resp[i+1] = (resp[i+1] >> 1) | 0x80;
+	} else {
+	  next = resp[i+1] & 0x01;
+	  resp[i+1] >>= 1;
+	}
+      }
+      resp[0]>>=1;
+      
+      res = ((resp[0] & 0x01) << 11) | resp[1] << 3 | resp[2] >> 5;
+      resinv = res_inv(resp);
+      
+      return res == resinv ? res : -2;
+    } else
+      return res;
+  }
+
   return retval ;
 }
 
 static double analog_read_voltage (ANDVC * dvc) { /* READ analog value (float), VOLTATGE */
 
-  uint8_t data [LEN] = { 0x00, 0x00, 0x00 } ;
-  int ioctl, retval = true, res;
+  uint8_t data [] = { 0x00, 0x00, 0x00, 0x00 } ;
+  int retval;
+  uint32_t avg = 0;
+  int i = 0;
   
-  if (!(ioctl = SPIreceive(an_fd, data, dvc->port))) {
+  while (i < spiAvg) {
     
-   not_critical("analog_read_voltage: Error comunicating to SPI device\n");
-   retval = FAIL;
-   
+    if ((retval = SPI_receive(an_fd, data, dvc->port)) < 0)
+      debug("analog_read_voltage: Error comunicating to SPI device, %s\n", retval == -1 ? "ioctl failed." : "incoherent response.");
+    else { 
+      avg += retval;
+      i++;
+    }
   }
   
-  if(retval != FAIL) {
-    //printf("entro aki? 0x%02x, 0x%02x, 0x%02x", data[0], data[1], data[2]);
-    res = data[2];
-    res |= ((data[1] & 0x07) << 8);
-    //printf (" res = %d\n", res);
-    return ((double) ((double)res/(double)MAX_VAL) * VREF);
-    
-  } else
-    return retval;
-  
-}
-
-static int analog_read_int (ANDVC * dvc) { /* READ analog value (integer), max avalue = 1023 */
-
-  uint8_t data [LEN] = { 0x00, 0x00, 0x00 } ;
-  int ioctl, retval = true, res;
-    
-  if (!(ioctl = SPIreceive(an_fd, data, dvc->port))) {
-    
-    not_critical("analog_read_int: Error comunicating to SPI device\n") ;
-    retval = FAIL ;   
-  }
-  
-  if(retval != FAIL) {
-    res = data[2];
-    res |= ((data[1] & 0x07) << 8);
-    //printf("data readed: data[2] = %u, data[1] = %u, data[0] = %u,  retval = %d\n", data[2], data[1], data[0], retval);
-    return res;
-    
-  } else
-    return retval;
-  
+  //printf("res = %f/%d\n", (((double)avg/spiAvg)/MAX_VAL) * VREF, (int)((double)avg/spiAvg));
+  return ((((double)avg/spiAvg)/MAX_VAL) * VREF);
 }
 
 
-extern bool ag_init() {
 
+
+static int analog_read_int (ANDVC * dvc) { /* READ analog value (integer), max avalue = 4095 */
+
+  uint8_t data [] = { 0x00, 0x00, 0x00, 0x00 } ;
+  int retval;
+  uint32_t avg = 0;
+  int i = 0;
+  
+  while (i < spiAvg) {
+    
+    if ((retval = SPI_receive(an_fd, data, dvc->port)) < 0)
+      debug("analog_read_voltage: Error comunicating to SPI device, %s\n", retval == -1 ? "ioctl failed." : "incoherent response.");
+    else { 
+      avg += retval;
+      i++;
+    }
+  }
+  
+  return ((double)avg/spiAvg);
+}
+
+
+static SPI_init (int cs, int speed){
+
+  int fd ;
+
+  if ((fd = open (cs == 0 ? spiDev0 : spiDev1, O_RDWR)) < 0)
+    return FAIL ;
+
+  if (ioctl (fd, SPI_IOC_WR_MODE, &spiMode) < 0) return FAIL ;
+  if (ioctl (fd, SPI_IOC_RD_MODE, &spiMode) < 0) return FAIL ;
+
+  if (ioctl (fd, SPI_IOC_WR_BITS_PER_WORD, &spiBPW) < 0) return FAIL ;
+  if (ioctl (fd, SPI_IOC_RD_BITS_PER_WORD, &spiBPWOUT) < 0) return FAIL ;
+
+  if (ioctl (fd, SPI_IOC_WR_MAX_SPEED_HZ, &speed) < 0) return FAIL ;
+  if (ioctl (fd, SPI_IOC_RD_MAX_SPEED_HZ, &speed) < 0) return FAIL ;
+
+  return fd ;
+}
+
+
+extern bool ag_init(int avgc) {
+
+  spiAvg = avgc; 
   int i;
 
   if(!status.wpi)
@@ -103,12 +191,13 @@ extern bool ag_init() {
   for (i = 0; i <= MAX_PORT; i++)
     pinMode(ypin_port[i], OUTPUT);    //set all the pins wired to yellow wire to OUTPUT
 
-  if (!(an_fd = wiringPiSPISetup(CS, SPI_CLK))) {
-    not_critical("analog_setup: Error setting up SPI interface, ERRNO: %d\n", errno);
+  if (!(an_fd = SPI_init(CS, SPI_CLK))) {
+    not_critical("analog_setup: Error setting up SPI interface");
+    perror("");
     status.ag = false;
-  } else 
+  } else
     status.ag = true;
-
+  
   return status.ag;
 }
 
@@ -135,13 +224,15 @@ extern bool ag_new ( ANDVC* dvc, int port, agType type ) {
 	ret = false;
       } else {
 	dvc->type = type;
-	if (type == LIGHT) 
+	if (type == LIGHT)
+	  //pinMode(ypin_port[dvc->port], OUTPUT);
 	  digitalWrite(ypin_port[dvc->port],LOW);
-	else if(type  == SOUND)
-	  digitalWrite(ypin_port[dvc->port], HIGH); //REVISAR!won't change, for SOUND sensor we need 3.3V in the yellow wire (to get dB), dBA not accessible due to the lack of pins
+       else if(type == SOUND)
+	  //pinMode(ypin_port[dvc->port], OUTPUT);
+	  digitalWrite(ypin_port[dvc->port], HIGH);
       }
     }
-    
+      
     return ret;
 
   } else {
@@ -175,17 +266,17 @@ extern bool ag_lgt_set_led (ANDVC* dvc, bool on){
 
 }
 
-extern bool ag_lgt_get_ledstate (ANDVC* dvc){
+extern int ag_lgt_get_ledstate (ANDVC* dvc){
   
   if(status.ag) {
     if (dvc->type != LIGHT) {
       not_critical("ag_lgt_get_ledstate: Device type must be %d (LIGHT)\n", LIGHT);
-      return false;
+      return FAIL;
     } else
       return lpin_state[dvc->port];
   } else {
     not_critical("ag_lgt_get_ledstate: Analog interface not initialised.\n");
-    return false;
+    return FAIL;
   }
 
 }
@@ -198,13 +289,9 @@ extern bool ag_psh_is_pushed (ANDVC * dvc, double * volt) {
       *volt = -1;
       return false;
     }
-    else {
+    else {  
       *volt = analog_read_voltage(dvc);
-      //printf("Voltage is: %f\n", *volt);
-      if(*volt < (double)(VREF/2))
-	return true;
-      else
-	return false;
+      return *volt < (double)(VREF/2) ? true : false;
     }
   } else {
     not_critical("ag_psh_is_pushed: Analog interface not initialised.\n");
@@ -231,21 +318,22 @@ extern int ag_snd_get_db (ANDVC * dvc) {
     } else {
 
       not_critical("ag_snd_get_db: Device type must be %d (SOUND)\n", SOUND);
-      return false;
+      return FAIL;
 
     }  
 
   } else {
     
     not_critical("ag_new: Analog interface not initialised.\n");
-    return false;
+    return FAIL;
     
   }
 
 }
 
-extern int ag_gyro_get_val (ANDVC * dvc) { //Positives values for clockwise rotation, negatives for anticlockwise, the higher the value returned is the faster we turn. 
+extern int ag_gyro_get_val (ANDVC * dvc, bool * error) { //Positives values for clockwise rotation, negatives for anticlockwise, the higher the value returned is the faster we turn. 
 
+  *error = false; 
   if(status.ag) {
     
     if(dvc->type == HT_GYRO) {
@@ -260,14 +348,16 @@ extern int ag_gyro_get_val (ANDVC * dvc) { //Positives values for clockwise rota
     } else {
 
       not_critical("ag_gyro_get_val: Device type must be %d (HT_GYRO)\n", HT_GYRO);
-      return false;
+      *error = true;
+      return FAIL;
 
     }  
 
   } else {
     
     not_critical("ag_gyro_get_val: Analog interface not initialised.\n");
-    return false;
+    *error = true;
+    return FAIL;
     
   }
 
@@ -319,7 +409,7 @@ extern int ag_read_int (ANDVC * dvc){
     return (analog_read_int(dvc));
   else {
     not_critical("ag_new: Analog interface not initialised.\n");
-    return false;
+    return FAIL;
   }
 }
 
@@ -328,7 +418,7 @@ extern double ag_read_volt (ANDVC * dvc){
     return (analog_read_voltage(dvc));
   else {
     not_critical("ag_new: Analog interface not initialised.\n");
-    return false;
+    return FAIL;
   }
 
 }
