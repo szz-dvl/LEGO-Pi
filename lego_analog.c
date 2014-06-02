@@ -160,7 +160,7 @@ static int analog_read_int (ANDVC * dvc) { /* READ analog value (integer), max a
 }
 
 
-static SPI_init (int cs, int speed){
+static int SPI_init (int cs, int speed){
 
   int fd ;
 

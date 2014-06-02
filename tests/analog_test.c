@@ -38,14 +38,11 @@ int main(int argc, char * argv[]) {
   case 1:
     {
       int times = argc < 3 ? 6 : atoi(argv[2]), i;
-      ANDVC push, l1, l2, l3;       
-      double lres1 = 0, lres2 = 0, lres3 = 0, psh_val = 0;
-      //set_verbose(LOG_LVL_ADV);
+      ANDVC push, l2, l3;       
+      double lres2 = 0, lres3 = 0, psh_val = 0;
       char straux[] = {'\0'};
 
-      //get_in("sa pagao?\n", 1);
       ag_new(&push, 0, PUSH);
-      //ag_new(&l1,0, LIGHT);
       ag_new(&l2,1, LIGHT);
       ag_new(&l3,3, LIGHT);
       
@@ -74,7 +71,7 @@ int main(int argc, char * argv[]) {
 	DELAY_US(200000);
 	lres3 = ag_read_volt(&l3);
 	lres2 = ag_read_volt(&l2);
-	printf("PUSH_VAL: %.2f, LIGHT_1 says: %.2f, LIGHT_2 says: %.2f, LIGHT_3 says: %.2f\n", psh_val, lres1, lres2, lres3);
+	printf("PUSH_VAL: %.2f, LIGHT_2 says: %.2f, LIGHT_3 says: %.2f, VDIFF = %.2f\n", psh_val, lres2, lres3, fabs(lres2-lres3));
 	
       }
     }
