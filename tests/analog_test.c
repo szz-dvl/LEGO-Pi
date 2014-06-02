@@ -47,12 +47,12 @@ int main(int argc, char * argv[]) {
       ag_new(&push, 0, PUSH);
       //ag_new(&l1,0, LIGHT);
       ag_new(&l2,1, LIGHT);
-      //ag_new(&l3,2, LIGHT);
+      ag_new(&l3,3, LIGHT);
       
       for(i=0; i<times; i++){
 	while(!ag_psh_is_pushed(&push, &psh_val));
 	
-	sprintf(straux, "\nSetting ligh %s on port %d\n\n", ag_lgt_get_ledstate(&l2) ? "OFF" : "ON", l2.port);
+	sprintf(straux, "Setting ligh %s on port %d\n", ag_lgt_get_ledstate(&l2) ? "OFF" : "ON", l2.port);
 	//get_in(straux, 1);
 	printf("%s",straux);
 	if (ag_lgt_get_ledstate(&l2))
@@ -60,31 +60,21 @@ int main(int argc, char * argv[]) {
 	else  
 	  ag_lgt_set_led(&l2, true);
 	
-	/*
-	//strcpy(straux, "");
-	sprintf(straux, "Setting ligh %s on port %d\n", ag_lgt_get_ledstate(&l2) ? "OFF" : "ON", l2.port);
-	get_in(straux, 1);
-	if (ag_lgt_get_ledstate(&l2))
-	  ag_lgt_set_led(&l2, false);
-	else  
-	  ag_lgt_set_led(&l2, true);
-	
 	//strcpy(straux, "");
 	sprintf(straux, "Setting ligh %s on port %d\n", ag_lgt_get_ledstate(&l3) ? "OFF" : "ON", l3.port);
-	get_in(straux, 1);
+	//get_in(straux, 1);
 	if (ag_lgt_get_ledstate(&l3))
 	  ag_lgt_set_led(&l3, false);
 	else  
 	  ag_lgt_set_led(&l3, true);
 	
-	
-	
-	lres1 = ag_read_volt(&l1);
+	//lres1 = ag_read_volt(&l1);
+      
+	//sleep(1);
+	DELAY_US(200000);
 	lres3 = ag_read_volt(&l3);
-      */
-	sleep(1);
 	lres2 = ag_read_volt(&l2);
-	printf("\nPUSH_VAL: %.2f, LIGHT_1 says: %.2f, LIGHT_2 says: %.2f, LIGHT_3 says: %.2f\n\n", psh_val, lres1, lres2, lres3);
+	printf("PUSH_VAL: %.2f, LIGHT_1 says: %.2f, LIGHT_2 says: %.2f, LIGHT_3 says: %.2f\n", psh_val, lres1, lres2, lres3);
 	
       }
     }
@@ -142,11 +132,36 @@ int main(int argc, char * argv[]) {
       
       while (1) {
 	
-	printf("GYRO says: %d, read_volt = %f\n", ag_gyro_get_val(&gyro, &error), ag_read_volt(&gyro));
+	printf("GYRO says: %d, read_volt = %f, read_int = %d\n", ag_gyro_get_val(&gyro, &error), ag_read_volt(&gyro), ag_read_int(&gyro));
 	sleep(1);
 	
       }
 
+    }
+    break;;
+  case 5: //try to get the value for stationary robot
+    {
+      
+      int port = argc < 3 ? 1 : atoi(argv[2]), i;
+      int times = argc < 4 ? 1 : atoi(argv[3]);
+      uint64_t acum = 0;
+      int partial;
+      ANDVC gyro;
+      //bool error;
+      
+      ag_new(&gyro,port,HT_GYRO);
+
+      ag_gyro_cal(&gyro);
+      
+      for(i=0; i<times; i++) {
+	
+	partial = ag_read_int(&gyro);
+	acum += (uint64_t) partial;
+	//printf("reading %d: %d\n", i, partial);
+	//printf("GYRO says: %d, read_volt = %f, read_int = %d\n", ag_gyro_get_val(&gyro, &error), ag_read_volt(&gyro), ag_read_int(&gyro));
+      }
+      
+      printf("average reading for %d samples: %d\n", times, (int)((double)acum/times));
     }
     break;;
   default:

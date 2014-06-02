@@ -12,7 +12,7 @@
 #define MAX_PORT        3
 #define MIN_PORT        0
 #define MAX_DB          100
-#define HT_GYRO_DEF     582
+#define HT_GYRO_DEF     2378
 
 typedef enum {
 
@@ -37,7 +37,7 @@ struct analog_device {
 typedef struct analog_device ANDVC;
 
 
-extern bool   ag_init();
+extern bool   ag_init(int times);
 extern bool   ag_new (ANDVC* dvc, int port, agType type);
 extern bool   ag_lgt_set_led (ANDVC* dvc, bool on);
 extern int    ag_lgt_get_ledstate (ANDVC* dvc);
