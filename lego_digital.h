@@ -184,6 +184,7 @@ typedef enum {
 //{0x52, 1, IWAIT, "Actual Scale Divisor: "},
 
 extern bool dg_init(int retry);
+extern bool dg_set_verbose(int lvl);
 extern bool dg_new (DGDVC * dev, dgType type, int port);
 extern bool dg_new_unknown (DGDVC * dev, uint8_t addr, int freq, int port);
 extern void dg_shutdown ();

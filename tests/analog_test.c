@@ -1,6 +1,7 @@
-//#include <lego/lego_analog.h>
-#include <lego.h>
+#include <lego/lego_analog.h>
+//#include <lego.h>
 #include <string.h>
+#include <math.h>
 
 //usefull for testing
 int get_in(char *to_print, int type){
@@ -29,7 +30,7 @@ int get_in(char *to_print, int type){
 
 int main(int argc, char * argv[]) {
 
-  lego_init();
+  ag_init(10);
   //set_bverbose(LOG_LVL_DBG);
 
   int tst = argc < 2 ? 5 : atoi(argv[1]);
@@ -64,15 +65,12 @@ int main(int argc, char * argv[]) {
 	  ag_lgt_set_led(&l3, false);
 	else  
 	  ag_lgt_set_led(&l3, true);
-	
-	//lres1 = ag_read_volt(&l1);
-      
-	//sleep(1);
+        
 	DELAY_US(200000);
 	lres3 = ag_read_volt(&l3);
 	lres2 = ag_read_volt(&l2);
 	printf("PUSH_VAL: %.2f, LIGHT_2 says: %.2f, LIGHT_3 says: %.2f, VDIFF = %.2f\n", psh_val, lres2, lres3, fabs(lres2-lres3));
-	
+	//while(ag_psh_is_pushed(&push, &psh_val));
       }
     }
     break;;
@@ -164,7 +162,7 @@ int main(int argc, char * argv[]) {
   default:
     break;;
   }
-  lego_shutdown();
+  ag_shutdown();
   return (EXIT_SUCCESS);
 }
 

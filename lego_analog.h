@@ -1,11 +1,9 @@
 #include "lego_shared.h"
-#include <wiringPiSPI.h>
 #include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
 
 #define CS	 	0
 #define SPI_CLK		1000000
-//#define TO_READ		0x08
 #define LEN		4
 #define MAX_VAL		4095  //10 bits de resolució (tot-hi que eren 12...sospito de INL...)
 #define VREF		5     //Voltatge de referencia
@@ -38,6 +36,7 @@ typedef struct analog_device ANDVC;
 
 
 extern bool   ag_init(int times);
+extern bool   ag_set_verbose(int lvl);
 extern bool   ag_new (ANDVC* dvc, int port, agType type);
 extern bool   ag_lgt_set_led (ANDVC* dvc, bool on);
 extern int    ag_lgt_get_ledstate (ANDVC* dvc);

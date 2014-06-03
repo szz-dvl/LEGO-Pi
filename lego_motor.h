@@ -94,6 +94,7 @@ ENC edisable;
 
 
 extern bool       mt_init();
+extern bool       mt_set_verbose(int lvl);
 extern MOTOR *    mt_new(ENC * e1, ENC * e2, int port);
 extern bool       mt_reconf(MOTOR * m, ENC * e1, ENC * e2);
 extern int        mt_stop(MOTOR * m, bool reset);

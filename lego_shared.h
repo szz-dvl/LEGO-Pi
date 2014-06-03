@@ -17,9 +17,11 @@
 #include <stdarg.h>
 #include <stdint.h>
 
-//#define OK		 1
 #define FAIL		-1
-//#define WEIRD		-2
+#define LOG_LVL_DBG      2
+#define LOG_LVL_ADV      1
+#define LOG_LVL_FATAL    0
+
 #define DELAY_US(t)      nanosleep((TSPEC*)&(TSPEC){0, t*1000}, NULL) 
 
 #ifndef SHAREFILE_INCLUDED
@@ -50,15 +52,11 @@ extern INIT status;
 #endif
 #endif
 
-
 typedef struct timespec TSPEC;
 
-extern void udelay(int);
 extern double difft (TSPEC *, TSPEC *);
-//extern void lego_shutdown (void);
 
 void unexportall();
-void fatal (char *fmt, ...);
 void not_critical (char *fmt, ...);
 void debug (char *fmt, ...);
 void setup_sighandlers(void);

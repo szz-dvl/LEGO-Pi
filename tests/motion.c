@@ -20,7 +20,7 @@ bool dir_lft = true;
 
 bool doInit () {
   
-  lego_init();
+  lego_init(5,10);
   
     if((mtl = mt_new(NULL, NULL, LMT_PORT)) == NULL) {
       printf("Error initializing left motor.\n");

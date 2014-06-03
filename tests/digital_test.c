@@ -1,12 +1,14 @@
-//#include <lego/lego_digital.h>
-#include <lego.h>
+#include <lego/lego_digital.h>
+//#include <lego.h>
 
 int def_port = 0;
 int main (int argc, char * argv[]) {
 
   int tst = argc < 2 ? 1 : atoi(argv[1]);
-  set_verbose(LOG_LVL_DBG);
+  
   dg_init(3);
+  dg_set_verbose(LOG_LVL_DBG);
+  
   switch (tst) {
   case 1:
     {

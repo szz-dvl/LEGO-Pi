@@ -18,8 +18,8 @@ static uint8_t motor_busy = 0;
 //ENC edisable;
 //edisable.pin = -1;
 
-#define ONEETT    720//360
-#define TWOETT    1440//720
+#define ONEETT    360
+#define TWOETT    720
 
 double pcoef_def[MAX_COEF] = { 5837.39694089577824342995882034301757812, 4437.29763943063881015405058860778808594, 3737.34827215639961650595068931579589844, 3282.11326188881457710522226989269256592, 2930.39274356875421290169470012187957764, 2626.36729752681549143744632601737976074, 2396.56913931981807763804681599140167236, 2170.58717529550403924076817929744720459, 1969.20963387265896926692221313714981079, 1822.45602936872319332906045019626617432, 1695.73273339300158113474026322364807129, 1569.82084063158617937006056308746337891, 1473.14643636506161783472634851932525635, 1383.18907963632477731152903288602828979, 1306.10837623716815869556739926338195801, 1222.95649083055104711093008518218994141, 1170.99432907457048713695257902145385742, 1094.90766701259735782514326274394989014, 1044.28679423828430117282550781965255737, 1013.68260002433055433357367292046546936, 0.0 };
 
@@ -275,6 +275,36 @@ static void isr_def_22(void){
 
 //____________________________________________Internally used externs_____________________________________________________//
 
+extern bool mt_set_verbose(int lvl) {
+
+  if(status.mt) {
+  
+    if (lvl == LOG_LVL_FATAL) {
+      status.pr_criticals = false;
+      status.pr_debug = false;
+      spwm_set_loglevel(LOG_LEVEL_ERRORS);
+      return true;
+    } else if (lvl == LOG_LVL_ADV) {
+      status.pr_criticals = true;
+      status.pr_debug = false;
+      spwm_set_loglevel(LOG_LEVEL_ERRORS);
+      return true;
+    } else if (lvl == LOG_LVL_DBG) {
+      status.pr_criticals = true;
+      status.pr_debug = true;
+      spwm_set_loglevel(LOG_LEVEL_DEBUG);
+      return true;
+    } else {
+      printf("mt_set_verbose: Log level \"%d\" out of bounds\n", lvl);
+      return false;
+    }
+  } else {
+    not_critical("mt_set_verbose: Motor interface not initialised.\n");
+    return false;
+  }
+
+}
+
 extern int mt_stop(MOTOR * m, bool reset){
   if(!status.mt){
     not_critical("mt_stop: Motor interface not initialised.\n");
@@ -451,7 +481,7 @@ extern bool mt_wait_all(){
     return (m_wait(m1));
   } else if (mbusy(1) && mbusy(2)) {
     while (m1->moving || m2->moving)
-      udelay (2500);
+      DELAY_US(2500);
     return true;
   } else {
     not_critical("mt_wait_all: Motors not initialised properly.\n");
@@ -1137,7 +1167,7 @@ static bool destroy_mutex (void) {
 static bool m_wait(MOTOR * m) {
   
   while (m->moving)
-    udelay(2500);
+    DELAY_US(2500);
   
   return true;
   

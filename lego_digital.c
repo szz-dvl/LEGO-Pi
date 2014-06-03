@@ -1,13 +1,13 @@
 //#include <lego/lego_i2c.h>
 #include "lego_digital.h"
 
-INIT status;
+INIT              status;
 
-static uint8_t port_busy = 0;
+static uint8_t    port_busy = 0;
 
-static I2C_DVC ** ptable; //to shutdown every device 
+static I2C_DVC    ** ptable; //to shutdown every device initialized 
 
-static int retries;
+static int        retries;
 
 char * us_titles [] = {
   "Product Version: ",
@@ -29,12 +29,12 @@ char * ht_titles [] = {
 //Commands                                                         
 CMD cmds [] = {
   {CMD_REG, 0x00, US_CWAIT, 1}, //LEGO US off cmd
-  {CMD_REG, 0x01, US_CWAIT, 1}, //LEGO US single shot
-  {CMD_REG, 0x02, US_CWAIT, 1}, //LEGO US continuous mes. (def)
-  {CMD_REG, 0x03, US_CWAIT, 1}, //LEGO US even capture cmd
-  {CMD_REG, 0x04, US_CWAIT, 1}, //LEGO US warm reset
+  {CMD_REG, 0x01, US_CWAIT, 1}, //LEGO US single shot mode
+  {CMD_REG, 0x02, US_CWAIT, 1}, //LEGO US continuous measurement mode (def)
+  {CMD_REG, 0x03, US_CWAIT, 1}, //LEGO US even capture mode
+  {CMD_REG, 0x04, US_CWAIT, 1}, //LEGO US warm reset cmd
   {CMD_REG, 0x43, 0, -1},       //Hitechnic Color calibrate white (v1)
-  {CMD_REG, 0x00, 200, 2},      //Hitechnic Color active mode (v2) [Use ambient light cancellation] (def.)
+  {CMD_REG, 0x00, 200, 2},      //Hitechnic Color active mode (v2) [Use ambient light cancellation] (def)
   {CMD_REG, 0x01, 200, 2},      //Hitechnic Color passive mode (v2) [Disable ambient light cancellation]
   {CMD_REG, 0x03, 200, 2},      //Hitechnic Color Raw mode (v2)
   {CMD_REG, 0x35, 0, 2},        //Hitechnic Color 50Hz cancellation mode (v2)
@@ -109,23 +109,23 @@ MSG regs [] = {
   {0x44, 2, HT_DLY, 1},        //Hitechnic Compass heading [16 bits]
 
   //LEGO Ultrasonic
-  {0x00, 5, US_IWAIT, 1}, //LEGO Ultrasonic product version 
-  {0x08, 5, US_IWAIT, 1}, //LEGO Ultrasonic product ID
-  {0x10, 6, US_IWAIT, 1}, //LEGO Ultrasonic sensor type
-  {0x11, 1, US_IWAIT, 1}, //LEGO Ultrasonic factory zero
-  {0x12, 1, US_IWAIT, 1}, //LEGO Ultrasonic factory scale factor
-  {0x13, 1, US_IWAIT, 1}, //LEGO Ultrasonic factory scale divisor
-  {0x14, 7, US_IWAIT, 1}, //LEGO Ultrasonic measurement units
-  {0x40, 1, US_IWAIT, 1}, //LEGO Ultrasonic measurement interval
-  {0x41, 1, US_IWAIT, 1}, //LEGO Ultrasonic command state
-  {0x42, 1, US_DWAIT, 1}, //LEGO Ultrasonic distance 0
-  {0x43, 1, US_DWAIT, 1}, //LEGO Ultrasonic distance 1
-  {0x44, 1, US_DWAIT, 1}, //LEGO Ultrasonic distance 2
-  {0x45, 1, US_DWAIT, 1}, //LEGO Ultrasonic distance 3
-  {0x46, 1, US_DWAIT, 1}, //LEGO Ultrasonic distance 4
-  {0x47, 1, US_DWAIT, 1}, //LEGO Ultrasonic distance 5
-  {0x48, 1, US_DWAIT, 1}, //LEGO Ultrasonic distance 6
-  {0x49, 1, US_DWAIT, 1}  //LEGO Ultrasonic distance 7
+  {0x00, 5, US_IWAIT, 1},      //LEGO Ultrasonic product version 
+  {0x08, 5, US_IWAIT, 1},      //LEGO Ultrasonic product ID
+  {0x10, 6, US_IWAIT, 1},      //LEGO Ultrasonic sensor type
+  {0x11, 1, US_IWAIT, 1},      //LEGO Ultrasonic factory zero
+  {0x12, 1, US_IWAIT, 1},      //LEGO Ultrasonic factory scale factor
+  {0x13, 1, US_IWAIT, 1},      //LEGO Ultrasonic factory scale divisor
+  {0x14, 7, US_IWAIT, 1},      //LEGO Ultrasonic measurement units
+  {0x40, 1, US_IWAIT, 1},      //LEGO Ultrasonic measurement interval
+  {0x41, 1, US_IWAIT, 1},      //LEGO Ultrasonic command state
+  {0x42, 1, US_DWAIT, 1},      //LEGO Ultrasonic distance 0
+  {0x43, 1, US_DWAIT, 1},      //LEGO Ultrasonic distance 1
+  {0x44, 1, US_DWAIT, 1},      //LEGO Ultrasonic distance 2
+  {0x45, 1, US_DWAIT, 1},      //LEGO Ultrasonic distance 3
+  {0x46, 1, US_DWAIT, 1},      //LEGO Ultrasonic distance 4
+  {0x47, 1, US_DWAIT, 1},      //LEGO Ultrasonic distance 5
+  {0x48, 1, US_DWAIT, 1},      //LEGO Ultrasonic distance 6
+  {0x49, 1, US_DWAIT, 1}       //LEGO Ultrasonic distance 7
 };
 
 
@@ -136,6 +136,34 @@ static bool match_cmd_ver (int vers, cmdIdx cmd);
 static bool send_message (DGDVC * dev, msgIdx msg, uint16_t * reply);
 static void raw_data_to_str (uint16_t raw [], char out[], int len);
 static bool send_cmd (DGDVC * dev, cmdIdx cmd);
+
+extern bool dg_set_verbose(int lvl) {
+
+  if(status.dg){
+    if (lvl == LOG_LVL_FATAL) {
+      status.pr_criticals = false;
+      status.pr_debug = false;
+      i2c_set_loglvl(LOG_QUIET);
+      return true;
+    } else if (lvl == LOG_LVL_ADV) {
+      status.pr_criticals = true;
+      status.pr_debug = false;
+      i2c_set_loglvl(LOG_QUIET);
+      return true;
+    } else if (lvl == LOG_LVL_DBG) {
+      status.pr_criticals = true;
+      status.pr_debug = true;
+      i2c_set_loglvl(LOG_PRINT);
+      return true;
+    } else {
+      not_critical("dg_set_verbose: Log level \"%d\" out of bounds\n", lvl);
+      return false;
+    }
+  } else {
+    not_critical("dg_set_verbose: Digital interface not initialised\n");
+    return false;
+  }
+}
 
 extern bool dg_init(int retry){
   if (retry < 0) {

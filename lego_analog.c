@@ -1,30 +1,29 @@
 #include "lego_analog.h"
 
-//#define NEVER_HAPPENS   4
+INIT            status;
 
-INIT           status;
+static int      an_fd = 0;
 
-static int     an_fd = 0;
+static uint8_t  port_busy = 0;
 
-static uint8_t port_busy = 0;
+static bool     lpin_state [] = {false, false, false, false};
+static int      ypin_port  [] = {L_PORT0, L_PORT1, L_PORT2, L_PORT3};
 
-static bool    lpin_state [] = {false, false, false, false};
-static int     ypin_port  [] = {L_PORT0, L_PORT1, L_PORT2, L_PORT3};
+static int      act_gyro = HT_GYRO_DEF;
+static int      last_gyro = 0;
 
-static int     act_gyro = HT_GYRO_DEF;
-static int     last_gyro = 0;
+static uint8_t  spiMode = 3; 
+static uint8_t  spiBPW = 8 ;
+static char    *spiDev0 = "/dev/spidev0.0" ;
+static char    *spiDev1 = "/dev/spidev0.1" ;
+static int      spiAvg = 10 ;
 
-static uint8_t spiMode = 3; //SPI_CPOL | SPI_CS_HIGH  | SPI_CPHA | SPI_NO_CS ; //MUST be 3 CPOL=1 CPHA=1 for 5V Vref, for 3.3 0 is fine too...
-static uint8_t spiBPW = 8 ;
-static uint8_t spiBPWOUT = 8 ;
-static char   *spiDev0 = "/dev/spidev0.0" ;
-static char   *spiDev1 = "/dev/spidev0.1" ;
-static int     spiAvg = 10 ;
+//static uint8_t spiBPWOUT = 8 ;
 
 
-static int SPI_receive (int, uint8_t [], int);
-static double analog_read_voltage (ANDVC * dvc);
-static int analog_read_int (ANDVC * dvc);
+static int      SPI_receive (int, uint8_t [], int);
+static double   analog_read_voltage (ANDVC * dvc);
+static int      analog_read_int (ANDVC * dvc);
 static uint16_t res_inv (uint8_t data[]);
 
 static uint16_t res_inv (uint8_t data[]){
@@ -34,9 +33,9 @@ static uint16_t res_inv (uint8_t data[]){
   uint8_t * pt = data;
   uint8_t dt;
   
-
+  
     dt = (pt[3] >> 2);
-
+    
     for(i=0; i<6; i++) {
       res |= (dt & 0x01);
       dt >>= 1;
@@ -44,17 +43,15 @@ static uint16_t res_inv (uint8_t data[]){
     }
     
     dt = pt[2] & 0x3F;
-
+    
     for(i=0; i<5; i++) {
       res |= (dt & 0x01);
       dt >>= 1;
       res *= 2;
     }
-  
-    //res |= (dt & 0x01);
     
     return res |= (dt & 0x01) ;
-  }
+}
 
 
 static int SPI_receive (int fd, uint8_t resp[], int chann) {
@@ -79,7 +76,7 @@ static int SPI_receive (int fd, uint8_t resp[], int chann) {
   spi.len = (__u32) LEN ;
   spi.delay_usecs = 0 ;
   spi.speed_hz = (__u32) SPI_CLK ;
-  spi.bits_per_word = spiBPWOUT ;
+  spi.bits_per_word = spiBPW ;
   spi.cs_change = 0 ;
   spi.pad = 0 ;
 
@@ -171,7 +168,7 @@ static int SPI_init (int cs, int speed){
   if (ioctl (fd, SPI_IOC_RD_MODE, &spiMode) < 0) return FAIL ;
 
   if (ioctl (fd, SPI_IOC_WR_BITS_PER_WORD, &spiBPW) < 0) return FAIL ;
-  if (ioctl (fd, SPI_IOC_RD_BITS_PER_WORD, &spiBPWOUT) < 0) return FAIL ;
+  if (ioctl (fd, SPI_IOC_RD_BITS_PER_WORD, &spiBPW) < 0) return FAIL ;
 
   if (ioctl (fd, SPI_IOC_WR_MAX_SPEED_HZ, &speed) < 0) return FAIL ;
   if (ioctl (fd, SPI_IOC_RD_MAX_SPEED_HZ, &speed) < 0) return FAIL ;
@@ -179,6 +176,30 @@ static int SPI_init (int cs, int speed){
   return fd ;
 }
 
+extern bool ag_set_verbose(int lvl){
+
+  if(status.ag){
+    if (lvl == LOG_LVL_FATAL) {
+      status.pr_criticals = false;
+      status.pr_debug = false;
+      return true;
+    } else if (lvl == LOG_LVL_ADV) {
+      status.pr_criticals = true;
+      status.pr_debug = false;
+      return true;
+    } else if (lvl == LOG_LVL_DBG) {
+      status.pr_criticals = true;
+      status.pr_debug = true;
+      return true;
+    } else {
+      not_critical("ag_set_verbose: Log level \"%d\" out of bounds\n", lvl);
+      return false;
+    }
+  } else {
+    not_critical("ag_set_verbose: Analog interface not initialised.\n");
+    return false;
+  }
+}
 
 extern bool ag_init(int avgc) {
 

@@ -3,7 +3,7 @@
 //#include <gsl/gsl_math.h>
 //#include <gsl/gsl_statistics.h>
 
-#include <lego.h>
+#include <lego/lego_motor.h>
 #include <gsl/gsl_sort.h>
 
 #define STATS_SIZE	18
@@ -225,7 +225,7 @@ int main (int argc, char * argv[]) {
   en22.pin = M2_ENC2;
   en22.isr = &dbg_isr_22;
 
-  lego_init();
+  mt_init();
   mt1 = mt_new(&en11, &en12, 0);
   mt2 = mt_new(&en21, &en22, 1);
   
@@ -276,7 +276,7 @@ time.tv_nsec = 0;
 
        //mt_pid_off(maux);
        //mt_pid_off(mt2);
-       set_verbose(LOG_LVL_DBG);
+       mt_set_verbose(LOG_LVL_DBG);
 
        mt_pid_on(maux);
 
@@ -756,7 +756,7 @@ time.tv_nsec = 0;
        
        printf ("motor: %d, vel: %d, ttc: %f, kp: %f, ki: %f, kd: %f, calib: %s, turns: %d\n", m->id, vel, ttc, kp, ki, kd, calib ? "true" : "false", turns);
        
-       set_verbose(LOG_LVL_DBG);
+       mt_set_verbose(LOG_LVL_DBG);
        mt_reconf(m, NULL, NULL); //back to defaults
        mt_pid_set_gains(m, kp ,ki ,kd);
        m->pid->ttc = ttc;
@@ -834,7 +834,7 @@ time.tv_nsec = 0;
      break;;
    case 11:
      {
-       set_verbose(LOG_LVL_DBG);
+       mt_set_verbose(LOG_LVL_DBG);
        int vel = argc < 3 ? 70 : atoi(argv[2]);
        double ttc = argc < 4 ? TTCDEF : atof(argv[3]);
        double kp = argc < 5 ? 0 : atof(argv[4]);
@@ -893,7 +893,7 @@ time.tv_nsec = 0;
  if(m2->moving && m2->id != 0)
    mt_stop(m2, true);
 
- lego_shutdown();
+ mt_shutdown();
  
  return ret;
  
