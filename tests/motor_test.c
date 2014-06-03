@@ -214,8 +214,6 @@ int main (int argc, char * argv[]) {
 
   bool ret = false;
 
-  ENC enull;
-  enull.pin = ENULL;
   en11.pin = M1_ENC1;
   en11.isr = &dbg_isr_11;
   en12.pin = M1_ENC2;
@@ -261,8 +259,8 @@ time.tv_nsec = 0;
    case 1: //  Test per init_motors() i per les funcions de moviment basiques:
      {
        
-       MOTOR * maux = argc < 3 ? mt1 : atoi(argv[2]) == 1 ? mt1 : mt2;
-       int disable = argc < 4 ? 0 : atoi(argv[3]);
+       MOTOR * maux = argc < 3 ? mt1 : atoi(argv[2]) == 0 ? mt1 : mt2;
+       int disable = argc < 4 ? 3 : atoi(argv[3]);
        int vel = argc < 5 ? 60 : atoi(argv[4]);
        int turns = argc < 6 ? 7 : atoi(argv[5]);
        double gains = argc < 7 ? 0 : atof(argv[6]);
@@ -280,14 +278,24 @@ time.tv_nsec = 0;
 
        mt_pid_on(maux);
 
+       en11.pin = M1_ENC1;
+       en11.isr = &isr_print_11;
+       en12.pin = M1_ENC2;
+       en12.isr = &isr_print_12;
+       en21.pin = M2_ENC1;
+       en21.isr = &isr_print_21;
+       en22.pin = M2_ENC2;
+       en22.isr = &isr_print_22;
+
+       printf("isr11: %d, isr12: %d, isr21: %d, isr22: %d\n", isr_print_11, isr_print_12, isr_print_21, isr_print_22);
        if (disable == 3)
 	 back = back ? mt_reconf(maux, NULL, NULL) ? true : false : false; //back to defaults
        else if (disable == 1)
-	 back = back ? mt_reconf(maux, &enull, maux->id == 1 ? &en12 : &en22) ? true : false : false; //disable enc 1
+	 back = back ? mt_reconf(maux, ECNULL, maux->id == 1 ? &en12 : &en22) ? true : false : false; //disable enc 1
        else if (disable == 2)
-	 back = back ? mt_reconf(maux, maux->id == 1 ? &en11 : &en21, &enull) ? true : false : false; //disable enc 2
+	 back = back ? mt_reconf(maux, maux->id == 1 ? &en11 : &en21, ECNULL) ? true : false : false; //disable enc 2
        else if(disable == 4){
-	 back = back ? mt_reconf(maux, NULL, NULL) ? true : false : false; //back to defaults
+	 back = back ? mt_reconf(maux, NULL, NULL) ? true : false : false; //back to defaults + no P.I.D
 	 mt_pid_off(maux);
        }
        back = back ? mt_pid_set_gains(maux, gains ,gains ,gains) ? true : false : false;

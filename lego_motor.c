@@ -11,6 +11,8 @@ MOTOR * m2 = &motor2;
 
 ENC * e11, * e12, * e21, * e22;
 
+pthread_t isrt [4];
+
 static double *acum1, *acum2, *acum3, *acum4;
 
 static uint8_t motor_busy = 0;
@@ -181,7 +183,7 @@ static bool pid_is_null (PID * pid);
 
 //static int nextpw (int, int, int, int);
 //static void handl_alrm(void);
-
+static void myusefulisr(){};
 static void isr_cal_11(void){
   if(m1->moving){
     clock_gettime(CLK_ID, &t11);
@@ -356,6 +358,9 @@ extern bool mt_move_t (MOTOR * m, int ticks, dir dir, int vel, double posCtrl){
     return false;
   } else if(ecount(m) == 0) {
     not_critical("mt_move_t: At least one encoder needed\n");
+    return false;
+  } else if (posCtrl < 0 || posCtrl > 1) {
+    not_critical("mt_move_t: \"posCtrl\" must be a floating point value ranging from 0 to 1\n");
     return false;
   } else
     //printf("mt_move_t: PID is %s\n", m->pid->active ? "ACTIVE" : "UNACTIVE");
@@ -794,34 +799,56 @@ static void mpid_load_coef(PID * pid, double * pcoef, double * dcoef, int len){
 
 }
 
+static void unexport (int pin) {
+
+  char call[30];
+  sprintf(call, "/usr/local/bin/gpio unexport %d", pin);
+  system(call);
+
+}
+
 static bool c_enc(MOTOR * m, ENC * e, int id){
 
   ENC * ex_en = id == 1 ? m->enc1 : m->enc2;
   int ex_pin = m->id == 1 ? id == 1 ? M1_ENC1 : M1_ENC2 : id == 1 ? M2_ENC1 : M2_ENC2;
-  int md = mode(e->pin);
-  printf("reconfig on pin: %d, mode = \"%s\"\n", ex_pin, md == SETUP ? "SETUP" : "RISING");
-  if(e->pin == ex_pin){ /* Configure a licit interrupt */
-    ex_en->pin = ex_pin;
-    ex_en->isr = e->isr;
-    if (wiringPiISR (ex_en->pin, md, ex_en->isr) < 0){
-      not_critical("c_enc: Failed to config ISR on motor: %d, encoder: %d\n", m->id-1, id);
-      return false;
+  int md = mode(ex_pin);
+  /*if(md == SETUP) {
+    if (wiringPiISR (ex_pin, md, NULL) < 0){ 
+	not_critical("c_enc: Failed to disable previous ISR on motor: %d, encoder: %d\n", m->id-1, id);
+	return false;
+      }
+  */
+  //int index = 1<<m->id | id-1;
+  if(md == SETUP){ //pin previously configured
+    if(ex_pin == e->pin)
+      wiringPiresetISR(ex_pin, e->isr); //reset the ISR
+    else {
+      wiringPiresetISR(ex_pin, myusefulisr);  //disable the ISR
+      ex_en->pin = ENULL;
+      ex_en->isr = NULL;
     }
-    clock_gettime(CLK_ID, &ex_en->tmp);
-  } else {
-    if (md == SETUP){
-      if (wiringPiISR (ex_en->pin, md, NULL) < 0){ 
-	/* If we already set an interrupt before, and we want to disable it */
+  } else { // pin freed of configuration
+ 
+    //printf("reconfig on pin: %d, mode = \"%s\"\n", ex_pin, md == SETUP ? "SETUP" : "RISING");
+    if(e->pin == ex_pin){ /* Configure an interrupt */
+      ex_en->pin = ex_pin;
+      ex_en->isr = e->isr;
+      printf("setting ISR: %d, %d\n", ex_en->isr, e->isr);
+      if ( wiringPiISR (ex_pin, RISING, ex_en->isr) < 0 ){
 	not_critical("c_enc: Failed to config ISR on motor: %d, encoder: %d\n", m->id-1, id);
 	return false;
       }
-    } else /* We want to disable encoder and never was enabled before */
-      pinMode(ex_en->pin, INPUT);
+
+      clock_gettime(CLK_ID, &ex_en->tmp);
+
+    } else { //disable interrupt never enabled before
+      pinMode(ex_pin, INPUT);
+      
+      ex_en->pin = ENULL;
+      ex_en->isr = NULL;
+    }
     
-    ex_en->pin = ENULL;
-    ex_en->isr = NULL;
   }
-  
   ex_en->tics = 0;
   return true;
 }
@@ -1108,7 +1135,7 @@ static int move_till_ticks_b (MOTOR * mot, int ticks, dir dir, int vel, bool res
   if(initial_sinc)
     msinc->acting = true;
     
-  if(!pid_is_null(mot->pid) || msinc->acting)
+  if(!pid_is_null(mot->pid) || msinc->acting || posCtrl > 0)
     pid_launch(mot, vel, ticks, dir, posCtrl, msinc->acting);
   else 
     while(get_ticks(mot) < ticks);
@@ -1720,9 +1747,9 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
   int act_pw = (int)V2PW(vel);
   double ttc = m->pid->ttc; 		       //ttc => ticks_to_calibr., es a dir pel desfas de temps utilitzo el temps de ticks esperat com a base i multiplico per akesta var.
   int dt = (int)(usSP * (ttc/2));
-  double Kp = m->pid->kp;
-  double Ki = m->pid->ki;
-  double Kd = m->pid->kd;
+  double Kp = pid_is_null(m->pid) ? 0 : m->pid->kp;
+  double Ki = pid_is_null(m->pid) ? 0 : m->pid->ki;
+  double Kd = pid_is_null(m->pid) ? 0 : m->pid->kd;
   long double Der, Int = 0;
   long long Out;
   double diff = 0.15;
@@ -2363,13 +2390,17 @@ extern bool mt_move_sinc_t (dir dir, int vel, int lim, double posCtrl){
 	
 	/*	inicializamos struct sincro + posCtrl */
 	
-	if(posCtrl != 0){
+        if (posCtrl > 0 && posCtrl < 1) {
 	  
 	  mpsinc->arr1 = mpsinc->arr2 = false;
 	  mpsinc->newmin =  mpsinc->newbase =  mpsinc->newmax = 0;
 	  mpsinc->first = 0;
 	  mpsinc->sp = 0;
 	  mpsinc->changes = false;
+
+	} else {
+	  not_critical("mt_move_sinc_t: \"posCtrl\" must be a floating point value ranging from 0 to 1\n");
+	  return false;
 	}
 	
 	/* aqui llamamos a la funcion publica move_t para cada motor, que creara un thread para cada uno, como hemos activado la sincronia, el control PID se precupara de ir sincronizando los motores */

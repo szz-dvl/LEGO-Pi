@@ -23,7 +23,7 @@
 #define MIN_COEF	        5                      /* AKIMA spline conditions */
 //#define PIDNULL		        0
 #define PIDDEF		        0
-#define TTCDEF		        55
+#define TTCDEF		        36
 #define MIN_VEL		        10
 #define USXT_MIN                700
 #define USXT_MAX                7000
@@ -76,7 +76,7 @@ struct motor {
 };
 typedef struct motor MOTOR;
 
-enum mot1 {M1_PINF = 4, M1_PINR = 17, M1_ENC1 = 27, M1_ENC2 = 22, M1_CHANN = 0}; 
+enum mot1 {M1_PINF = 4, M1_PINR = 17, M1_ENC1 = 27, M1_ENC2 = 22, M1_CHANN = 8}; 
 enum mot2 {M2_PINF = 25, M2_PINR = 18, M2_ENC1 = 24, M2_ENC2 = 23, M2_CHANN = 7};
 
 	/* Cosillas del debug */
