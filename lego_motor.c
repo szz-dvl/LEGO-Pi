@@ -17,8 +17,8 @@ static double *acum1, *acum2, *acum3, *acum4;
 
 static uint8_t motor_busy = 0;
 
-//ENC edisable;
-//edisable.pin = -1;
+static int mt_log_lvl = LOG_LVL_ADV;
+
 
 #define ONEETT    360
 #define TWOETT    720
@@ -27,11 +27,6 @@ double pcoef_def[MAX_COEF] = { 5837.39694089577824342995882034301757812, 4437.29
 
 double dcoef_def[MAX_COEF] = { 1135.86026750179712507815565913915634155, 869.34624357773122937942389398813247681, 764.23768186493850862461840733885765076, 718.21105387992736268643056973814964294, 640.35936035138365696184337139129638672, 611.99801209258998824225272983312606812, 547.67186454544810203515226021409034729, 517.43259316320211382844718173146247864, 478.25867786479875576333142817020416260, 458.86468723775709577239467762410640717, 430.54190130685094572982052341103553772, 406.98481717558024683967232704162597656, 395.62010568577761659980751574039459229, 375.74271902113002852274803444743156433, 361.38899585646299783547874540090560913, 352.61160524510603408998576924204826355, 354.93183388013255807891255244612693787, 338.21632822832532383472425863146781921, 329.61436368804623953110422007739543915, 322.95587145004765261546708643436431885, 0.0 };
 
-/*struct thread_element {
-	pthread_t id;
-	bool alive;
-};
-typedef struct thread_element THREAD;*/
 
 
 struct tharg_mtt {      /*Estructura per cridar al thread que moura el motor fins a un punt concret, evitant que el programa es quedi bloquejat*/
@@ -158,6 +153,8 @@ static bool start_pwm();
 static int move_till_ticks_b (MOTOR *, int, dir, int , bool, double);
 static int get_pid_new_vals(MOTOR *, int, int * , int * , int * , double, int);
 static int get_sincro_new_vals(MOTOR *, int, int *, int *, int *, int, int, int, int, double);
+static void not_critical (char *fmt, ...);
+static void debug (char *fmt, ...);
 
 //_______________________________Internally used____________________________________________________//
 
@@ -281,26 +278,16 @@ static void isr_def_22(void){
 extern bool mt_set_verbose(int lvl) {
 
   if(status.mt) {
-  
-    if (lvl == LOG_LVL_FATAL) {
-      status.pr_criticals = false;
-      status.pr_debug = false;
-      spwm_set_loglevel(LOG_LEVEL_ERRORS);
-      return true;
-    } else if (lvl == LOG_LVL_ADV) {
-      status.pr_criticals = true;
-      status.pr_debug = false;
-      spwm_set_loglevel(LOG_LEVEL_ERRORS);
-      return true;
-    } else if (lvl == LOG_LVL_DBG) {
-      status.pr_criticals = true;
-      status.pr_debug = true;
-      spwm_set_loglevel(LOG_LEVEL_DEBUG);
+    
+    if (lvl >=0 && lvl <= LOG_LVL_DBG){
+      mt_log_lvl = lvl;
+      spwm_set_loglevel(lvl < LOG_LVL_DBG ? LOG_LEVEL_ERRORS : LOG_LEVEL_DEBUG);
       return true;
     } else {
       printf("mt_set_verbose: Log level \"%d\" out of bounds\n", lvl);
       return false;
     }
+  
   } else {
     not_critical("mt_set_verbose: Motor interface not initialised.\n");
     return false;
@@ -660,7 +647,7 @@ extern MOTOR * mt_new ( ENC * e1, ENC * e2, int port ){
 
 static bool start_pwm(){
 
-  spwm_set_loglevel(status.pr_debug ? LOG_LEVEL_DEBUG : LOG_LEVEL_ERRORS);
+  spwm_set_loglevel(LOG_LEVEL_ERRORS);
   return ((spwm_setup(PWIG_DEF, HW_PWM) == 0) ? true : false);
 
 }
@@ -2419,6 +2406,31 @@ extern bool mt_move_sinc_t (dir dir, int vel, int lim, double posCtrl){
 
   return ret;
   
+}
+
+
+static void not_critical (char* fmt, ...) {
+
+  if (mt_log_lvl < LOG_LVL_ADV)
+    return;
+
+  va_list args;
+  va_start(args, fmt);
+  vprintf(fmt, args);
+  va_end(args);
+  
+}
+
+static void debug (char* fmt, ...) {
+  
+  if (mt_log_lvl < LOG_LVL_DBG)
+    return;
+  
+  va_list args;
+  va_start(args, fmt);
+  vprintf(fmt, args);
+  va_end(args);
+
 }
 
 

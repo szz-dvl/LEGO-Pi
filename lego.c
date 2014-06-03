@@ -9,31 +9,6 @@
 static void handl_alrm(void);
 static void terminate(int);
 
-
-void not_critical (char* fmt, ...) {
-
-  if (!status.pr_criticals)
-    return;
-
-  va_list args;
-  va_start(args, fmt);
-  vprintf(fmt, args);
-  va_end(args);
-  
-}
-
-void debug (char* fmt, ...) {
-  
-  if (!status.pr_debug)
-    return;
-  
-  va_list args;
-  va_start(args, fmt);
-  vprintf(fmt, args);
-  va_end(args);
-
-}
-
 bool lego_set_verbose (int lvl) {
   return mt_set_verbose(lvl) && dg_set_verbose(lvl) && ag_set_verbose(lvl);
 }

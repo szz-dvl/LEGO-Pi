@@ -274,7 +274,7 @@ time.tv_nsec = 0;
 
        //mt_pid_off(maux);
        //mt_pid_off(mt2);
-       mt_set_verbose(LOG_LVL_DBG);
+       mt_set_verbose(LOG_LVL_ADV);
 
        mt_pid_on(maux);
 

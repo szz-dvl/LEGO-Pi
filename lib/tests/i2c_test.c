@@ -115,7 +115,7 @@ int main (int argc, char * argv[]){
   
   int tst = argc < 2 ? 1 : atoi(argv[1]);
 
-  init_i2c(LOG_PRINT);
+  i2c_init(LOG_PRINT);
 
   switch(tst){
   case 0: //Explore regs in a given range for a device attached to a given port 

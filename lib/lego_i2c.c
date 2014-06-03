@@ -78,7 +78,7 @@ extern bool i2c_set_loglvl (int log_lvl) {
 
 }
 
-extern bool init_i2c(int log_lvl) { 
+extern bool i2c_init(int log_lvl) { 
   
   gpio_reg = (volatile unsigned *) map_peripheral(GPIO_BASE, BLOCK_SIZE);
   if(gpio_reg == NULL){

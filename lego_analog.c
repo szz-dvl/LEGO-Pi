@@ -17,6 +17,7 @@ static uint8_t  spiBPW = 8 ;
 static char    *spiDev0 = "/dev/spidev0.0" ;
 static char    *spiDev1 = "/dev/spidev0.1" ;
 static int      spiAvg = 10 ;
+static int      ag_log_lvl = LOG_LVL_ADV ;
 
 //static uint8_t spiBPWOUT = 8 ;
 
@@ -25,6 +26,8 @@ static int      SPI_receive (int, uint8_t [], int);
 static double   analog_read_voltage (ANDVC * dvc);
 static int      analog_read_int (ANDVC * dvc);
 static uint16_t res_inv (uint8_t data[]);
+static void not_critical (char *fmt, ...);
+static void debug (char *fmt, ...);
 
 static uint16_t res_inv (uint8_t data[]){
 
@@ -179,20 +182,12 @@ static int SPI_init (int cs, int speed){
 extern bool ag_set_verbose(int lvl){
 
   if(status.ag){
-    if (lvl == LOG_LVL_FATAL) {
-      status.pr_criticals = false;
-      status.pr_debug = false;
-      return true;
-    } else if (lvl == LOG_LVL_ADV) {
-      status.pr_criticals = true;
-      status.pr_debug = false;
-      return true;
-    } else if (lvl == LOG_LVL_DBG) {
-      status.pr_criticals = true;
-      status.pr_debug = true;
+    
+    if (lvl >=0 && lvl <= LOG_LVL_DBG){
+      ag_log_lvl = lvl;
       return true;
     } else {
-      not_critical("ag_set_verbose: Log level \"%d\" out of bounds\n", lvl);
+      printf("ag_set_verbose: Log level \"%d\" out of bounds\n", lvl);
       return false;
     }
   } else {
@@ -456,6 +451,30 @@ extern void ag_shutdown () {
     close(an_fd);
 }
 
+
+static void not_critical (char* fmt, ...) {
+
+  if (ag_log_lvl < LOG_LVL_ADV)
+    return;
+
+  va_list args;
+  va_start(args, fmt);
+  vprintf(fmt, args);
+  va_end(args);
+  
+}
+
+static void debug (char* fmt, ...) {
+  
+  if (ag_log_lvl < LOG_LVL_DBG)
+    return;
+  
+  va_list args;
+  va_start(args, fmt);
+  vprintf(fmt, args);
+  va_end(args);
+
+}
 
 
 

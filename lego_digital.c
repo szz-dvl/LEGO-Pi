@@ -9,6 +9,8 @@ static I2C_DVC    ** ptable; //to shutdown every device initialized
 
 static int        retries;
 
+static int       dg_log_lvl;
+
 char * us_titles [] = {
   "Product Version: ",
   "Product ID: ", 
@@ -136,29 +138,22 @@ static bool match_cmd_ver (int vers, cmdIdx cmd);
 static bool send_message (DGDVC * dev, msgIdx msg, uint16_t * reply);
 static void raw_data_to_str (uint16_t raw [], char out[], int len);
 static bool send_cmd (DGDVC * dev, cmdIdx cmd);
+static void not_critical (char *fmt, ...);
+static void debug (char *fmt, ...);
 
 extern bool dg_set_verbose(int lvl) {
 
   if(status.dg){
-    if (lvl == LOG_LVL_FATAL) {
-      status.pr_criticals = false;
-      status.pr_debug = false;
-      i2c_set_loglvl(LOG_QUIET);
-      return true;
-    } else if (lvl == LOG_LVL_ADV) {
-      status.pr_criticals = true;
-      status.pr_debug = false;
-      i2c_set_loglvl(LOG_QUIET);
-      return true;
-    } else if (lvl == LOG_LVL_DBG) {
-      status.pr_criticals = true;
-      status.pr_debug = true;
-      i2c_set_loglvl(LOG_PRINT);
+
+    if (lvl >=0 && lvl <= LOG_LVL_DBG){
+      dg_log_lvl = lvl;
+      i2c_set_loglvl(lvl < LOG_LVL_DBG ? LOG_QUIET : LOG_PRINT);
       return true;
     } else {
-      not_critical("dg_set_verbose: Log level \"%d\" out of bounds\n", lvl);
+      printf("dg_set_verbose: Log level \"%d\" out of bounds\n", lvl);
       return false;
     }
+
   } else {
     not_critical("dg_set_verbose: Digital interface not initialised\n");
     return false;
@@ -173,7 +168,7 @@ extern bool dg_init(int retry){
     retries = retry;
   
   ptable = calloc(MAX_PORT_DG+1, sizeof(I2C_DVC *));
-  status.dg = init_i2c(status.pr_debug ? LOG_PRINT : LOG_QUIET);
+  status.dg = i2c_init(LOG_QUIET);
   
   return status.dg;
 }
@@ -1543,6 +1538,31 @@ extern bool dg_read (DGDVC * dev, uint16_t data_in [], int len_in, bool word_rea
     
   }
 
+
+}
+
+
+static void not_critical (char* fmt, ...) {
+
+  if (dg_log_lvl < LOG_LVL_ADV)
+    return;
+
+  va_list args;
+  va_start(args, fmt);
+  vprintf(fmt, args);
+  va_end(args);
+  
+}
+
+static void debug (char* fmt, ...) {
+  
+  if (dg_log_lvl < LOG_LVL_DBG)
+    return;
+  
+  va_list args;
+  va_start(args, fmt);
+  vprintf(fmt, args);
+  va_end(args);
 
 }
 

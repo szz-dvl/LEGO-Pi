@@ -29,8 +29,6 @@
 
 struct init_struct {
 
-  bool pr_debug;
-  bool pr_criticals;
   bool wpi;
   bool mt;
   bool ag;
@@ -43,7 +41,7 @@ typedef struct init_struct INIT;
 
 #ifdef  MAIN_FILE
 
-INIT status = {false, true, false, false, false, false};
+INIT status = {false, false, false, false};
 
 #else
 
@@ -57,10 +55,5 @@ typedef struct timespec TSPEC;
 extern double difft (TSPEC *, TSPEC *);
 
 void unexportall();
-void not_critical (char *fmt, ...);
-void debug (char *fmt, ...);
 void setup_sighandlers(void);
 
-///extern void lego_init (void);
-//extern void lego_shutdown (void);
-//extern void set_verbose (int);
