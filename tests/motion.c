@@ -1,17 +1,17 @@
 #include <lego.h>
 
 
-#define US_PORT  1
-#define LF_PORT  0
-#define LB_PORT  3
-#define SND_PORT 1
-#define PSH_PORT 2
-#define RMT_PORT 1
-#define LMT_PORT 0
-#define MY_FWD   BWD
-#define MY_BWD   FWD 
-#define SAFE_DST 45
-#define UDELAY(t) nanosleep((TSPEC *) &(TSPEC) {0,t}, NULL)
+#define US_PORT   1
+#define LF_PORT   0
+#define LB_PORT   3
+#define SND_PORT  1
+#define PSH_PORT  2
+#define RMT_PORT  1
+#define LMT_PORT  0
+#define MY_FWD    BWD
+#define MY_BWD    FWD 
+#define SAFE_DST  45
+#define UDELAY(t) DELAY_US(t)
 
 MOTOR * mtr, * mtl;
 ANDVC lfront, lback, snd, push;
