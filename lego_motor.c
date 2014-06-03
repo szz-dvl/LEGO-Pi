@@ -183,7 +183,8 @@ static bool pid_is_null (PID * pid);
 
 //static int nextpw (int, int, int, int);
 //static void handl_alrm(void);
-static void myusefulisr(){};
+
+static void nullisr(){};
 static void isr_cal_11(void){
   if(m1->moving){
     clock_gettime(CLK_ID, &t11);
@@ -799,56 +800,46 @@ static void mpid_load_coef(PID * pid, double * pcoef, double * dcoef, int len){
 
 }
 
-static void unexport (int pin) {
+/*static void unexport (int pin) {
 
   char call[30];
   sprintf(call, "/usr/local/bin/gpio unexport %d", pin);
   system(call);
 
 }
+*/
 
 static bool c_enc(MOTOR * m, ENC * e, int id){
 
   ENC * ex_en = id == 1 ? m->enc1 : m->enc2;
   int ex_pin = m->id == 1 ? id == 1 ? M1_ENC1 : M1_ENC2 : id == 1 ? M2_ENC1 : M2_ENC2;
   int md = mode(ex_pin);
-  /*if(md == SETUP) {
-    if (wiringPiISR (ex_pin, md, NULL) < 0){ 
-	not_critical("c_enc: Failed to disable previous ISR on motor: %d, encoder: %d\n", m->id-1, id);
-	return false;
-      }
-  */
-  //int index = 1<<m->id | id-1;
-  if(md == SETUP){ //pin previously configured
-    if(ex_pin == e->pin)
-      wiringPiresetISR(ex_pin, e->isr); //reset the ISR
-    else {
-      wiringPiresetISR(ex_pin, myusefulisr);  //disable the ISR
-      ex_en->pin = ENULL;
-      ex_en->isr = NULL;
-    }
-  } else { // pin freed of configuration
- 
-    //printf("reconfig on pin: %d, mode = \"%s\"\n", ex_pin, md == SETUP ? "SETUP" : "RISING");
-    if(e->pin == ex_pin){ /* Configure an interrupt */
-      ex_en->pin = ex_pin;
-      ex_en->isr = e->isr;
-      printf("setting ISR: %d, %d\n", ex_en->isr, e->isr);
-      if ( wiringPiISR (ex_pin, RISING, ex_en->isr) < 0 ){
-	not_critical("c_enc: Failed to config ISR on motor: %d, encoder: %d\n", m->id-1, id);
-	return false;
-      }
-
-      clock_gettime(CLK_ID, &ex_en->tmp);
-
-    } else { //disable interrupt never enabled before
-      pinMode(ex_pin, INPUT);
-      
-      ex_en->pin = ENULL;
-      ex_en->isr = NULL;
+  
+  if(e->pin == ex_pin){ // Configure an interrupt 
+    ex_en->pin = ex_pin;
+    ex_en->isr = e->isr;
+    //printf("setting ISR: %d, %d\n", ex_en->isr, e->isr);
+    if ( wiringPiISR (ex_pin, md, ex_en->isr) < 0 ){
+      not_critical("c_enc: Failed to config ISR on motor: %d, encoder: %d\n", m->id-1, id);
+      return false;
     }
     
+    clock_gettime(CLK_ID, &ex_en->tmp);
+    
+  } else { //disable interrupt 
+    if(md == SETUP) {
+      
+      if ( wiringPiISR (ex_pin, md, nullisr) < 0 ){
+	not_critical("c_enc: Failed to disable ISR on motor: %d, encoder: %d\n", m->id-1, id);
+	return false;
+      }
+    } else //never enabled before ...
+      pinMode(ex_pin, INPUT);
+    
+    ex_en->pin = ENULL;
+    ex_en->isr = NULL;
   }
+  
   ex_en->tics = 0;
   return true;
 }
