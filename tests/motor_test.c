@@ -14,6 +14,7 @@
 #define MAXM		20
 #define ENC_RES		4
 #define PRAC_TRUNC      25
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 //MOTOR motor1, motor2;
 //int an_fd;
 
@@ -107,18 +108,15 @@ extern void isr_print_22(void){
 }
 
 extern void dbg_isr_11(void){
-  //double auxt;
   if(mt1->moving){
     clock_gettime(CLK_ID, &t11);
-    //auxt = difft(&mt1->enc1->tmp, &t11);
-    //if(auxt > USXT_MIN) {
     acum1[mt1->enc1->tics] = difft(&mt1->enc1->tmp, &t11);//e11->tics == 0 ? (double)((e11->tmp.tv_sec * 1000000) + (e11->tmp.tv_nsec/1000)) : (e11->delay); /* NANOS TO MICR0S */
+    //if(mt1->enc1->tics%1000 == 0)
+    //printf("acum1[%d] = %f\n", mt1->enc1->tics, acum1[mt1->enc1->tics]);
     pthread_mutex_lock(&mt1->enc1->mtx);
     mt1->enc1->tics++;
     pthread_mutex_unlock(&mt1->enc1->mtx);
     clock_gettime(CLK_ID, &mt1->enc1->tmp);
-    //}
-
   }
 }
 
@@ -174,44 +172,7 @@ int main (int argc, char * argv[]) {
   int tst = argc < 2 ? 1 : atoi(argv[1]);
   
   ENC en11, en12, en21, en22;
-  //PID p1, p2;
   
-  /*e11.pin = M1_ENC1;
-    e11.isr = &dbg_isr_11;
-    e12.pin = ENULL;
-    e12.isr = NULL;
-    e21.pin = M2_ENC1;
-    e21.isr = &dbg_isr_21;
-    e22.pin = ENULL;
-    e22.isr = NULL;
-    
-    
-    e11.pin = ENULL;
-    e11.isr = NULL;
-    e12.pin = M1_ENC2;
-    e12.isr = &dbg_isr_12;
-    e21.pin = ENULL;
-    e21.isr = NULL;
-    e22.pin = M2_ENC2;
-    e22.isr = &dbg_isr_22;
-  */
-
-  /*p1.svel = MAX_COEF;
-    cptable(p1.cp, MAX_COEF , pcoef1);
-    cptable(p1.cd, MAX_COEF , dcoef1);
-    
-    p2.svel = MAX_COEF;
-    cptable(p2.cp, MAX_COEF , pcoef2);
-    cptable(p2.cd, MAX_COEF , dcoef2);
-  */
-  
-  //MOTOR mot1, mot2;
-
-  //MOTOR motor1, motor2;
-
-  //MOTOR * mot1;
-  //MOTOR * mot2;
-
   bool ret = false;
 
   en11.pin = M1_ENC1;
@@ -242,10 +203,7 @@ int main (int argc, char * argv[]) {
   if (ret)
     printf("todo configurado, MOTOR 1 ID: %d, MOTOR 2 ID: %d\n", mt1->id, mt2->id);
 
-  //m1=mot1;
-  //m2=mot2;
-//get_in("Ready??", 0);
-
+  
 struct timespec time;
 
 
@@ -256,7 +214,7 @@ time.tv_nsec = 0;
  if (ret){   int ticks, thread_rtn;
    //set_verbose(1);
    switch (tst){
-   case 1: //  Test per init_motors() i per les funcions de moviment basiques:
+   case 1: //Test per init_motors() i per les funcions de moviment basiques:
      {
        
        MOTOR * maux = argc < 3 ? mt1 : atoi(argv[2]) == 0 ? mt1 : mt2;
@@ -287,7 +245,6 @@ time.tv_nsec = 0;
        en22.pin = M2_ENC2;
        en22.isr = &isr_print_22;
 
-       printf("isr11: %d, isr12: %d, isr21: %d, isr22: %d\n", isr_print_11, isr_print_12, isr_print_21, isr_print_22);
        if (disable == 3)
 	 back = back ? mt_reconf(maux, NULL, NULL) ? true : false : false; //back to defaults
        else if (disable == 1)
@@ -327,12 +284,12 @@ time.tv_nsec = 0;
        nanosleep(&time, NULL);
        ticks = mt_stop(maux, true);
        mt_wait_for_stop(maux, 0.8);
-       printf("Motor %d: tics received: %d\n", maux->id-1, ticks);
+       printf("Motor %d: ticks received: %d\n", maux->id-1, ticks);
        //reset_acums(turns);
        /*	if (pid)
 		join_threads();*/
        
-       printf("from test before BWD: Motor %d: PID is %s\n", maux->id-1, mt_pid_is_null(maux) ? "UNACTIVE" : "ACTIVE");
+       //printf("from test before BWD: Motor %d: PID is %s\n", maux->id-1, mt_pid_is_null(maux) ? "UNACTIVE" : "ACTIVE");
        if(!mt_move(maux, BWD, vel))
 	 printf("mot_rev FAIL!");
        
@@ -341,20 +298,20 @@ time.tv_nsec = 0;
        mt_wait_for_stop(maux, 0.8);
        printf("Motor %d: tics received: %d\n", maux->id-1, ticks);
        
-       printf("from test before mt_move_t: Motor %d: PID is %s\n", maux->id-1, mt_pid_is_null(maux) ? "UNACTIVE" : "ACTIVE");
+       //printf("from test before mt_move_t: Motor %d: PID is %s\n", maux->id-1, mt_pid_is_null(maux) ? "UNACTIVE" : "ACTIVE");
       
        ticks = (int)mt_tticks(maux, turns);
        mt_move_t(maux, ticks , FWD, vel, 0); mt_wait(maux);
        //moure  un motor en direccio "fwd", al vel% de la velocitat maxima, fins a fer "turns" voltes
        ticks = mt_get_ticks(maux);
-       printf("Motor %d: tics received: %d, turns = %d, enc_active: %d\n", maux->id-1, ticks, turns, mt_enc_count(maux));
+       printf("Motor %d: ticks received: %d, turns = %d, enc_active: %d\n", maux->id-1, ticks, turns, mt_enc_count(maux));
      }
      break;;
-   case 2: //thread-test: recuperem el valor de pthread create, i el thread deixa els ticks que move_till_ticks_b() recull de mot_stop() al camp tics de la estructura MOTOR (que previament mot_stop()
-     {	// ha resetejat, TO_DO: mirar si surt mes a compte un condicional a mot_stop per a que no reseteji el camp)
+   case 2: //move_t
+     {  
        
        
-       MOTOR * m = argc < 3 ? mt1 : atoi(argv[2]) == 1 ? mt1 : m2;
+       MOTOR * m = argc < 3 ? mt1 : atoi(argv[2]) == 0 ? mt1 : m2;
        int vel = argc < 4 ? 60 : atoi(argv[3]);
        bool pid_on = argc < 5 ? false : atoi(argv[4]) != 0 ? true : false;
        int turns = argc < 6 ? 7 : atoi(argv[5]);
@@ -382,17 +339,18 @@ time.tv_nsec = 0;
        printf("pthread_create says: %d, ticks received: %d, ticks expected: %d\n", thread_rtn, mt_get_ticks(m), mt_tticks(m, turns));
      }
      break;;
-   case 3: // interrupcions, aixo de moment estan un pel xungo, pero per comprovar si els delays entre interrupcions son estables a diferents velocitats:
+   case 3: //interrupts handling
      {
        RESULT out;
        //RESULT out2;
        time.tv_sec = 0;
        time.tv_nsec = 100000000; //70 centesimes de segon ??
-       MOTOR * m  = argc < 3 ? mt1 : atoi(argv[2]) == 1 ? mt1 : atoi(argv[2]) == 2 ? m2 : mt1;
+       MOTOR * m  = argc < 3 ? mt1 : atoi(argv[2]) == 0 ? mt1 : atoi(argv[2]) == 1 ? m2 : mt1;
        int vel = (argc < 4) ? get_in("Velocity?:",1) : atoi(argv[3]);
        int turns = argc < 5 ? 7 : atoi(argv[4]);
        init_acums(turns, m);
        reset_acums(turns, m);
+       printf("size acum1: %d\n", ARRAY_SIZE(acum1));
        mt_wait_for_stop(m,2);
        mt_reset_enc(m);
        thread_rtn = mt_move_t(m, mt_tticks(m, turns), FWD, vel, 0);mt_wait(m);
@@ -403,11 +361,11 @@ time.tv_nsec = 0;
        //close_acums(tot);
        if(mt_enc_count(m) == 1){ //REVISAR CUANDO 0 ENC OK!
 	 int encid = mt_enc_is_null(m,1) ? 2 : 1;
-	 stats(&out,true, NULL, true, true, tot, m->id, true, encid, false);
+	 stats(&out,true, NULL, true, true, tot, m->id, true, encid, true);
        } else {
-	 stats(&out,true, NULL, true, true, tot, m->id, true, 1, false);
+	 stats(&out,true, NULL, true, true, tot, m->id, true, 1, true);
 	 printf("\n");
-	 stats(&out,true, NULL, true, true, tot, m->id, true, 2, false);
+	 stats(&out,true, NULL, true, true, tot, m->id, true, 2, true);
        }
        
      }
@@ -415,12 +373,14 @@ time.tv_nsec = 0;
    case 4:
      {
        int i, velo, index, alloc;
-       MOTOR * motor  = argc < 3 ? mt1 : atoi(argv[2]) == 1 ? mt1 : atoi(argv[2]) == 2 ? m2 : mt1;
+       MOTOR * motor  = argc < 3 ? mt1 : atoi(argv[2]) == 0 ? mt1 : atoi(argv[2]) == 1 ? m2 : mt1;
        int mostres = argc < 4 ? 10 : atoi(argv[3]);
        int step = argc < 5 ? 10 : atoi(argv[4]);
        RESULT rese1[(int)((MAX_VEL/step) * mostres)];// = (RESULT *) malloc(((MAX_VEL/step) * mostres) * sizeof(RESULT));
        RESULT rese2[(int)((MAX_VEL/step) * mostres)];// = (RESULT *) malloc(((MAX_VEL/step) * mostres) * sizeof(RESULT));
-       int turns = argc < 6 ? 5 : atoi(argv[5]);
+       int turns = argc < 6 ? 5 : atoi(argv[5]), j;
+       //int stats (RESULT * out, bool to_print, double * vect, bool wweights, bool capped, int alloc, int id, bool clean, int encoder, bool no_table)
+       
 
        init_acums(turns, motor);
        reset_acums(turns, motor);
@@ -429,30 +389,35 @@ time.tv_nsec = 0;
 	   index = ((((velo/step)-1)*mostres) + i);
 	   if ((index%50 == 0) && (index != 0))
 	     printf("mostres salvades: %d\n", index);
-	   mt_wait_for_stop(motor,2);
 	   mt_reset_enc(motor);
-	   alloc = mt_move_t(motor, mt_tticks(motor, turns), FWD, velo, 0);mt_wait(motor);
-	   //close_acums(alloc);
+	   mt_move_t(motor, mt_tticks(motor, turns), FWD, velo, 0);mt_wait(motor);
+	   alloc = mt_get_ticks(motor);
+	   mt_wait_for_stop(motor,2);
 	   if(mt_enc_count(motor) == 1){
 	     int encid = mt_enc_is_null(motor,1) ? 2 : 1;
-	     if(encid == 1){
-	       stats(&rese1[index], false, NULL, true, true, alloc, motor->id, true, encid, true);
-	     }else{
-	       stats(&rese2[index], false, NULL, true, true, alloc, motor->id, true, encid, true);
-	     }
+	     stats(encid == 1 ? &rese1[index] : &rese2[index], false, NULL, true, true, alloc, motor->id, true, encid, true);
 	   } else {
 	     stats(&rese1[index], false, NULL, true, true, alloc, motor->id, true,1, true);
 	     stats(&rese2[index], false, NULL, true, true, alloc, motor->id, true,2, true);
 	   }
+	   /*
+	   printf("inside res:\n");
+	   for(j=0; j<STATS_SIZE; j++)
+	     printf("%f, ", rese1[index].res[j]);
+	   printf("\n");
+	   */
+	   //comp_res(rese1, 1, step, motor->id);
 	   reset_acums(turns, motor);
 	 }
        }
+       
        printf ("\nMOTOR %d, STEP: %d, MOSTRES %d x step:\n\n\t\t\tENC 1:\n", motor->id, step, mostres);
        if(!mt_enc_is_null(motor,1))
 	 comp_res(rese1, mostres, step, motor->id);
        printf ("\n\n\t\t\tENC: 2\n");
        if(!mt_enc_is_null(motor,2))
 	 comp_res(rese2, mostres, step, motor->id);
+       
      }
      break;;
    case 5:
@@ -462,7 +427,7 @@ time.tv_nsec = 0;
        double txturn, tbticks, elapsed, txsec;
        long long int elmicras;
        int esec, index, ticks;
-       MOTOR * m  = argc < 3 ? mt1 : atoi(argv[2]) == 1 ? mt1 : atoi(argv[2]) == 2 ? m2 : mt1;
+       MOTOR * m  = argc < 3 ? mt1 : atoi(argv[2]) == 0 ? mt1 : atoi(argv[2]) == 1 ? m2 : mt1;
        int vel = (argc < 4) ? get_in("Velocity?:",1) : atoi(argv[3]);
        int step = 5;
        bool to_pr = argc < 5 ? false : atoi(argv[4]) == 1 ? true : false;
@@ -1418,6 +1383,7 @@ int stats (RESULT * out, bool to_print, double * vect, bool wweights, bool cappe
   if(to_print && !no_table)
     prac(len, data);
   
+  
   int i, k, ret=1;
   double avrg = avg(len, data);
   
@@ -1502,9 +1468,9 @@ int stats (RESULT * out, bool to_print, double * vect, bool wweights, bool cappe
   
   if(to_print){
     printf("ticks received: %d\nmean: %.5f\nvariance: %.5f\nstandard deviation: %.5f\nmedian: %.5f\nquantil superior: %.5f\nquantil inferior: %.5f\nrmax: %.5f\nrmin: %.5f\n", len, out->res[0], variance, sd, median, upperq, lowerq, rmax, rmin);
-    printf("autocorrelation: %.5f\nmin: %.5f\nmax:%.5f\nabsolute_deviation: %.5f\n\nweights: \nwmean: %.5f\nwvariance: %.5f\nwstandard_deviation: %.5f\nwabs_dev: %.5f\n\n", autocorr,min,max,abs, wmean, wvariance, wsd, wabs);
+    printf("autocorrelation: %.5f\nmin: %.5f\nmax: %.5f\nabsolute_deviation: %.5f\n\nweights: \nwmean: %.5f\nwvariance: %.5f\nwstandard_deviation: %.5f\nwabs_dev: %.5f\n\n", autocorr,min,max,abs, wmean, wvariance, wsd, wabs);
     printf("smart weights: \nswmean: %.5f\nswvariance: %.5f\nswstandard_deviation: %.5f\nswabs_dev: %.5f\n\n",swmean, swvariance, swsd, swabs);
-    prw(PER_SIZE-1,out->per);
+    //prw(PER_SIZE-1,out->per);
   }
   //prw(10,per);
   return ret;

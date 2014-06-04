@@ -4,7 +4,8 @@ DEBUG	= -g -O2
 CC	= gcc
 INCLUDE	= -I.
 CFLAGS = $(DEBUG) -Wall
-LIBS = -lwiringPi -lrt -llego -lgsl -lgslcblas
+LIBS = -llego -lgsl -lgslcblas -lwiringPi
+#-lwiringPi -lrt -llego -lgsl -lgslcblas
 
 
 KNRM = \e[0m"
