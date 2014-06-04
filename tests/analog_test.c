@@ -159,6 +159,26 @@ int main(int argc, char * argv[]) {
       printf("average reading for %d samples: %d\n", times, (int)((double)acum/times));
     }
     break;;
+      case 6: //try to get the value for stationary robot
+    {
+      
+      int port = argc < 3 ? 1 : atoi(argv[2]), i;
+      int times = argc < 4 ? 1 : atoi(argv[3]);
+      ANDVC lother;
+      bool to_set = false;
+      //bool error;
+      
+      ag_new(&lother,port,AG_OTHER);
+      
+      for(i=0; i<times; i++) {
+	ag_oth_set_y(&lother,to_set);
+	to_set = !to_set;
+	if(!get_in("Continue?", 1))
+	  break;
+      }
+      
+    }
+    break;;
   default:
     break;;
   }

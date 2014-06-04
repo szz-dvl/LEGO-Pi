@@ -26,8 +26,8 @@ static int      SPI_receive (int, uint8_t [], int);
 static double   analog_read_voltage (ANDVC * dvc);
 static int      analog_read_int (ANDVC * dvc);
 static uint16_t res_inv (uint8_t data[]);
-static void not_critical (char *fmt, ...);
-static void debug (char *fmt, ...);
+static void     not_critical (char *fmt, ...);
+static void     debug (char *fmt, ...);
 
 static uint16_t res_inv (uint8_t data[]){
 
@@ -277,6 +277,31 @@ extern bool ag_lgt_set_led (ANDVC* dvc, bool on){
     return true;
   } else {
     not_critical("ag_lgt_light_on: Analog interface not initialised.\n");
+    return false;
+  }
+
+}
+
+extern bool ag_oth_set_y (ANDVC* dvc, bool high){
+  
+  if(status.ag) {
+    if (dvc->type != AG_OTHER) {
+      not_critical("ag_oth_set_y: Device type must be %d (AG_OTHER)\n", AG_OTHER);
+      return false;
+    } else if (high) { 
+      if (!lpin_state[dvc->port]) {
+	digitalWrite(ypin_port[dvc->port], HIGH); 
+	lpin_state[dvc->port] =  true;
+      }
+    } else {
+      if (lpin_state[dvc->port]) {
+	digitalWrite(ypin_port[dvc->port], LOW); 
+	lpin_state[dvc->port] =  false;
+      }
+    }
+    return true;
+  } else {
+    not_critical("ag_oth_set_y: Analog interface not initialised.\n");
     return false;
   }
 

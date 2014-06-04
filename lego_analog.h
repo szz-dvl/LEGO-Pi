@@ -45,5 +45,6 @@ extern int    ag_snd_get_db (ANDVC * dvc);
 extern bool   ag_gyro_cal (ANDVC * dvc);
 extern int    ag_gyro_get_val (ANDVC * dvc, bool * error);
 extern double ag_read_volt (ANDVC * dvc);
+extern bool   ag_oth_set_y (ANDVC* dvc, bool high);
 extern int    ag_read_int (ANDVC * dvc);
 extern void   ag_shutdown ();
