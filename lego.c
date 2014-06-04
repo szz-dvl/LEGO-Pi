@@ -10,7 +10,16 @@ static void handl_alrm(void);
 static void terminate(int);
 
 bool lego_set_verbose (int lvl) {
-  return mt_set_verbose(lvl) && dg_set_verbose(lvl) && ag_set_verbose(lvl);
+  
+  bool ret = true;
+  if(status.mt)
+    ret = mt_set_verbose(lvl) ;
+  if(status.dg)
+    ret = dg_set_verbose(lvl) && ret ; 
+  if(status.ag)
+    ret = ag_set_verbose(lvl) && ret ;
+
+  return ret;
 }
 
 void unexportall(){
