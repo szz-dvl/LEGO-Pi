@@ -4,14 +4,12 @@ INIT status;
 
 static TSPEC t11, t12, t21, t22;
 
-MOTOR motor1, motor2;
+static MOTOR motor1, motor2;
 
-MOTOR * m1 = &motor1;
-MOTOR * m2 = &motor2;
+static MOTOR * m1 = &motor1;
+static MOTOR * m2 = &motor2;
 
-ENC * e11, * e12, * e21, * e22;
-
-pthread_t isrt [4];
+static ENC * e11, * e12, * e21, * e22;
 
 static double *acum1, *acum2, *acum3, *acum4;
 
@@ -237,7 +235,7 @@ static void isr_def_11(void){
     e11->tics++;
     pthread_mutex_unlock(&e11->mtx);
   }
-  
+  clock_gettime(CLK_ID, &e11->tmp);
 }
 
 static void isr_def_12(void){
@@ -248,6 +246,7 @@ static void isr_def_12(void){
     e12->tics++;
     pthread_mutex_unlock(&e12->mtx);
   }
+  clock_gettime(CLK_ID, &e12->tmp);
   //pthread_exit(NULL);
 }
 
@@ -259,6 +258,7 @@ static void isr_def_21(void){
     e21->tics++;
     pthread_mutex_unlock(&e21->mtx);
   }
+  clock_gettime(CLK_ID, &e21->tmp);
   //pthread_exit(NULL);
 }
 
@@ -270,6 +270,7 @@ static void isr_def_22(void){
     e22->tics++;
     pthread_mutex_unlock(&e22->mtx);
   }
+  clock_gettime(CLK_ID, &e22->tmp);
   //pthread_exit(NULL);
 }
 
@@ -1120,8 +1121,9 @@ static int move_till_ticks_b (MOTOR * mot, int ticks, dir dir, int vel, bool res
     
   if (!restored && initial_pid)
     pid_on(mot->pid);
-      
-  return (mot_stop(mot, reset));
+  
+  int tcks = mot_stop(mot,reset);
+  return tcks;
 }
 
 extern void mt_shutdown () { //aki "free" d'accelerador de interpolacions 
@@ -1198,7 +1200,7 @@ static bool move_t (MOTOR * mot, int ticks, dir dir, int vel, double posCtrl){
     /* Abstraer en función para hacer threads*/
     pthread_attr_init(&tattr);
     pthread_attr_setdetachstate(&tattr,PTHREAD_CREATE_DETACHED);
-    pthread_attr_setscope(&tattr, PTHREAD_SCOPE_SYSTEM);
+    //pthread_attr_setscope(&tattr, PTHREAD_SCOPE_SYSTEM);
     ret = pthread_create(&worker, &tattr, &mtt_thread, arg) == 0 ? true : false;
     pthread_attr_destroy(&tattr);
 
@@ -1216,10 +1218,9 @@ static bool move_t (MOTOR * mot, int ticks, dir dir, int vel, double posCtrl){
 static void * mtt_thread (void * arg){
 
   THARG_MTT * args = (THARG_MTT *) arg;
-  
-  // printf("inside thread PID is %s\n", args->mot->pid->active ? "ACTIVE" : "UNACTIVE");
+
   move_till_ticks_b(args->mot, args->ticks, args->dir, args->vel, false, args->pctr); //force reset = false
-  //return ((void *) res);
+  
   pthread_exit(NULL);
 }
 
@@ -1732,6 +1733,7 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
   long long Out;
   double diff = 0.15;
   //bool forced = false;
+
   
   int ticks_dt;    /*Para realizar los calculos del err derivativo i el integr. usare los ticks que hayan pasado entre cada muestra tomada, de tal manera los resultados seran reales,
 		     pese a que el delay de tiempo sea siempre el mismo los ticks que recivamos pueden variar, de hecho variaran (ttc double), es decir se abstary el delay de tiempo 
@@ -1811,6 +1813,9 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
   bool stop = false;
   
   while (get_ticks(m) == 0); //wait hasta tener datos
+
+  clock_gettime(CLK_ID, m->id == 1 ? &t11 : &t21);
+  clock_gettime(CLK_ID, m->id == 1 ? &t12 : &t22);
 
   if(limit == 0){
     //printf("entering no limit!\n");
@@ -2144,6 +2149,9 @@ static int get_pid_new_vals(MOTOR * m, int sp, int * minpw, int * basepw, int * 
 static long long get_MVac(MOTOR * m, long long *last, int *tdt, int tdtmin, int tdtbase, int tdtmax, int errCont){
 
   TSPEC taux;
+  TSPEC *ts1 = m->id == 1 ? &t11 : &t21;
+  TSPEC *ts2 = m->id == 1 ? &t12 : &t22;
+
   int t1, t2, t, d1, d2, d, dt, newdt;
 
   //printf("ENTERING MVac: last = %lld, tdt = %d\n", *last, *tdt);
@@ -2156,8 +2164,8 @@ static long long get_MVac(MOTOR * m, long long *last, int *tdt, int tdtmin, int 
   
   clock_gettime(CLK_ID, &taux);
   
-  d1 = difft(&m->enc1->tmp, &taux);
-  d2 = difft(&m->enc2->tmp, &taux);
+  d1 = difft(ts1, &taux);
+  d2 = difft(ts2, &taux);
   
   t = t1 == 0 || t2 == 0 ? t1 == 0 ? t2 : t1 : (int)((t1 + t2)/2);
   d = (int)((d1 + d2)/2);//Podriem pillar la més gran??
@@ -2170,8 +2178,8 @@ static long long get_MVac(MOTOR * m, long long *last, int *tdt, int tdtmin, int 
   if(*tdt != dt)
     debug ("\n\nTICS_%d: TICS RESTABILIZE!! ticks_dt : %d, tdtaux : %d, tmin: % d, tmax: %d \n\n", m->id-1, *tdt, dt, tdtmin, tdtmax);
   
-  clock_gettime(CLK_ID, &m->enc1->tmp);
-  clock_gettime(CLK_ID, &m->enc2->tmp);
+  clock_gettime(CLK_ID, ts1);
+  clock_gettime(CLK_ID, ts2);
   //printf("OUT get_MVac: newdt = %d, dt = %d\n", newdt, dt);
   return (d/newdt);
   
