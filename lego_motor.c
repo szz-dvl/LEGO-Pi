@@ -2008,7 +2008,8 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
 	  clock_gettime(CLK_ID, &fi);
 	
       } else {
-	debug ("MOTOR_%d: ARRIVED TO SET POINT\n", m->id-1);
+	if(!*myend)
+	  debug ("MOTOR_%d: ARRIVED TO SET POINT\n", m->id-1);
 	*myend = true;
 	stop = !(*neend) && sinc ? false : !sinc ? true : true;
       }
