@@ -429,7 +429,7 @@ time.tv_nsec = 0;
      nanosleep(&time, NULL);
      ticks = mt_stop(mt, true);
      mt_wait_for_stop(mt, 0.8);
-     printf("Motor %d: tics received: %d\n", mt->id-1, ticks);
+     printf("Motor %d: ticks received: %d\n", mt->id-1, ticks);
     
      mt_move_t(mt, mt_tticks(mt, turns), dr, vel, pctr); mt_wait(mt);
      ticks = mt_get_ticks(mt);
