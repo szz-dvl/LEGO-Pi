@@ -373,13 +373,13 @@ int main (int argc, char * argv[]) {
 	  printf("time between ticks 0: ");prw(calib, mt1->pid->cp);
 	  printf("time between ticks 1: ");prw(calib, mt2->pid->cp);
 	} else 
-	  printf("time between ticks %d: ", port);prw(calib, mt1->pid->cp);
+	  printf("time between ticks %d: ", port);prw(calib, mt->pid->cp);
 	
 	if(port == 2){
 	  printf("physical error 0:    ");prw(calib, mt1->pid->cd);
 	  printf("physical error 1:    ");prw(calib, mt2->pid->cd);
 	} else
-	  printf("physical error %d:    ", port);prw(calib, mt2->pid->cd);
+	  printf("physical error %d:    ", port);prw(calib, mt->pid->cd);
 
 	printf("\n\n");
       }
@@ -493,7 +493,7 @@ time.tv_nsec = 0;
    }
    break;;
  case 4: 
-           /*test for all the velocities from "step" to MAX_VEL [200] incrmenting the velocity "step" for each change, for every velocity                                                          the test will take "mostres" samples of "turns" turns each sample*/
+           /*Test for all the velocities from "step" to MAX_VEL [200] incrmenting the velocity "step" for each change, for every velocity                                                          the test will take "mostres" samples of "turns" turns each sample*/
    {
      int i, velo, index, alloc, encid;
      RESULT rese1[(int)((MAX_VEL/step) * mostres)];
@@ -702,71 +702,68 @@ time.tv_nsec = 0;
      mt_reconf(mt, ECNULL, ECNULL);
    }
    break;;
- case 7://test calibrate
-     {
-       int motor  = argc < 3 ? 3 : atoi(argv[2]);
-       int mostres = argc < 4 ? 20 : atoi(argv[3]), i;
-       bool clavat =  argc < 5 ? false : atoi(argv[4]) != 0 ? true : false;
-       double twait = argc < 6 ? 1.7 : atof(argv[5]);
-       int micras = 0, desv = 0, micras2 = 0, desv2 = 0, mtot = 0, dtot = 0;
-       int step = (MAX_VEL / mostres);
-       MOTOR * m = NULL;
-
-       if (motor == 1) {
-	 mt2->id = 0;
-	 m = mt1;
-       } else if (motor == 2) {
-	 mt1->id = 0;
-	 m = mt2;
-       } else if (motor == 0) { //Must throw error
-	 mt1->id = 0;
-	 mt2->id = 0;
-       }
- 
-       printf("calibrating MOTOR: %s\n", mt2->id != 0 && mt1->id != 0 ? "BOTH" : mt2->id != 0 ? "2" : mt1->id != 0 ? "1" : "0");
-       if(mt_calibrate(mostres, twait)){
-       
-	 if(motor < 3) {
-	   printf("\n");
-	   printf("coefs_punts: ");prw(mostres, m->pid->cp);
-	   printf("coef_dev:    ");prw(mostres, m->pid->cd);
-	   printf("\n");
-	 } else {
-	   
-	   printf("\n");
-	   printf("coefs_punts mt1: ");prw(mostres, mt1->pid->cp);
-	   printf("coef_dev mt1:    ");prw(mostres, mt1->pid->cd);
-	   printf("\n");
-	   printf("coefs_punts m2: ");prw(mostres, mt2->pid->cp);
-	   printf("coef_dev m2:    ");prw(mostres, mt2->pid->cd);
-	   printf("\n");
-	 
-	 }
-	 
-	 for ( i = clavat ? MIN_VEL : MIN_VEL+(step/2); i <= MAX_VEL; i += step ){
-	   if ((i + step > MAX_VEL) && clavat)
-	     i = MAX_VEL;
-	   else if ((i == MAX_VEL) && !clavat)
-	     i = (MAX_VEL - (step/4));
-	   if(motor < 3)
-	     get_params(m,i,&mtot, &dtot);
-	   else {
-	     get_params(mt1,i,&micras, &desv);
-	     get_params(mt2,i,&micras2, &desv2);
-	     mtot = (micras + micras2)/2;
-	     dtot = (desv + desv2)/2;
-	   }
-	   
-	   printf("params for %3d vel >> tbticks: %d, desv: %d\n",i,mtot,dtot);
-	   //micras = desv = 0;
-	 }
-       } else {
-	 
-	 printf("Error calibrating motors.\n");
-	 
-       }
+ case 7: // Test for calibration, step will be overwritten here, and samples must range between 5 and 20.
+   {
+     
+     bool clavat  =  false;
+     double twait = 1.7;
+     int micras   = 0, desv = 0, micras2 = 0, desv2 = 0, mtot = 0, dtot = 0, i;
+     step         = (MAX_VEL / mostres);
+     
+     if (mostres < 5)
+       mostres = 5;
+     else if (mostres > 20)
+       mostres = 20;
+     
+     if(verb > 0) {
+       printf("MOTOR %d: %d,%d,%d,%d\n",mt->id-1, (int)mt->pinf, (int)mt->pinr, mt_enc_is_null(mt,1) ? ENULL : (int)mt->enc1->pin, mt_enc_is_null(mt,2) ? ENULL : (int)mt->enc2->pin);
+       printf("Motor %d: PID is %s", mt->id-1, mt_pid_is_null(mt) ? "UNACTIVE" : "ACTIVE");
+       mt_pid_is_null(mt) ? printf("\n") : printf(" Kp = %.2f, Ki = %.2f, Kd = %.2f, ttc = %d\n", mt->pid->kp, mt->pid->ki, mt->pid->kd, (int)mt->pid->ttc);
+       printf("turns = %d, PosCtrl = %.2f, step = %d, samples = %d\n\n", turns, pctr, step, mostres);
      }
-     break;;
+     
+     
+     
+     port < 2 ? printf("Calibrating MOTOR %d\n\n", port) : printf("Calibrating MOTORS\n\n") ;     
+     if(mt_calibrate(mostres, twait)){
+       
+       if(verb >= 1) {
+	 if(port == 2){
+	   printf("time between ticks 0: ");prw(calib, mt1->pid->cp);
+	   printf("time between ticks 1: ");prw(calib, mt2->pid->cp);
+	 } else 
+	   printf("time between ticks %d: ", port);prw(calib, mt->pid->cp);
+	 
+	 if(port == 2){
+	   printf("physical error 0:    ");prw(calib, mt1->pid->cd);
+	   printf("physical error 1:    ");prw(calib, mt2->pid->cd);
+	 } else
+	   printf("physical error %d:    ", port);prw(calib, mt->pid->cd);
+	 
+	 printf("\n\n");
+       }
+       
+       for ( i = clavat ? MIN_VEL : MIN_VEL+(step/2); i <= MAX_VEL; i += step ){
+	 if ((i + step > MAX_VEL) && clavat)
+	   i = MAX_VEL;
+	 else if ((i == MAX_VEL) && !clavat)
+	   i = (MAX_VEL - (step/4));
+	 if(port < 2)
+	   get_params(mt,i,&mtot, &dtot);
+	 else {
+	   get_params(mt1,i,&micras, &desv);
+	   get_params(mt2,i,&micras2, &desv2);
+	   mtot = (micras + micras2)/2;
+	   dtot = (desv + desv2)/2;
+	 }
+	 
+	 printf("params for %3d vel >> tbticks: %d, desv: %d\n", i, mtot, dtot);
+       }
+     } else 
+       printf("Error calibrating motors.\n");
+       
+   }
+   break;;
    case 8: //get defaults
      {
        int mostres = argc < 3 ? 10 : atoi(argv[2]), i, k;
