@@ -85,11 +85,8 @@ enum mot2 {M2_PINF = 25, M2_PINR = 18, M2_ENC1 = 24, M2_ENC2 = 23, M2_CHANN = 7}
 
 	/* End Cosillas del debug */
 
-//extern MOTOR  motor1; //mirara como hay que hacer para evitar externos i poder configurar la interrupcción
-//extern MOTOR  motor2;
 
 ENC edisable;
-//edisable.pin = ENULL;
 #define ECNULL                  &edisable
 
 
@@ -115,12 +112,11 @@ extern TSPEC *    mt_get_time  (MOTOR * m, int eid);
 extern int        mt_tticks (MOTOR * m, int turns);
 extern int        mt_enc_count (MOTOR * m);
 extern bool       mt_calibrate (int samples, double wait_between_samples);
-extern bool       mt_get_params (MOTOR * m, int, int *, int *);
 extern bool       mt_lock (MOTOR * m);
 extern bool       mt_unlock (MOTOR * m);
-extern bool       mt_move_sinc (dir dir, int);
-extern bool       mt_move_sinc_t (dir dir, int, int, double);
-extern void       mt_shutdown (void);
+extern bool       mt_move_sinc (dir dir, int vel);
+extern bool       mt_move_sinc_t (dir dir, int vel, int limit, double posCtrl);
+extern void       mt_shutdown ();
 
 
 

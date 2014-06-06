@@ -334,10 +334,6 @@ extern bool mt_move (MOTOR * m, dir dir, int vel){
     return (move(m, dir, vel));
 }
 
-extern bool mt_get_params (MOTOR * m, int vel, int * ex_micras, int * ex_desv){
-  return (get_params (m, vel, ex_micras, ex_desv));
-}
-
 extern bool mt_move_t (MOTOR * m, int ticks, dir dir, int vel, double posCtrl){
   if(!status.mt){
     not_critical("mt_move_t: Motor interface not initialised.\n");
