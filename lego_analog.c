@@ -10,7 +10,7 @@ static bool     lpin_state [] = {false, false, false, false};
 static int      ypin_port  [] = {L_PORT0, L_PORT1, L_PORT2, L_PORT3};
 
 static int      act_gyro = HT_GYRO_DEF;
-static int      last_gyro = 0;
+//static int      last_gyro = 0;
 
 static uint8_t  spiMode = 3; 
 static uint8_t  spiBPW = 8 ;
@@ -132,7 +132,6 @@ static double analog_read_voltage (ANDVC * dvc) { /* READ analog value (float), 
     }
   }
   
-  //printf("res = %f/%d\n", (((double)avg/spiAvg)/MAX_VAL) * VREF, (int)((double)avg/spiAvg));
   return ((((double)avg/spiAvg)/MAX_VAL) * VREF);
 }
 
@@ -332,7 +331,7 @@ extern bool ag_psh_is_pushed (ANDVC * dvc, double * volt) {
     }
     else {  
       *volt = analog_read_voltage(dvc);
-      return *volt < (double)(VREF/2) ? true : false;
+      return *volt < (double)(VREF/2) ;
     }
   } else {
     not_critical("ag_psh_is_pushed: Analog interface not initialised.\n");
@@ -347,14 +346,9 @@ extern int ag_snd_get_db (ANDVC * dvc) {
     
     if(dvc->type == SOUND) {
       
-      int val;
-      
-      if( (val = analog_read_int(dvc)) != FAIL) {
+      int val = analog_read_int(dvc);
 	
-	return( ((double)(MAX_VAL-val)/MAX_VAL) * MAX_DB );
-	
-      } else
-	return FAIL;
+      return( ((double)(MAX_VAL-val)/MAX_VAL) * MAX_DB );
 
     } else {
 
@@ -378,13 +372,9 @@ extern int ag_gyro_get_val (ANDVC * dvc, bool * error) { //Positives values for 
   if(status.ag) {
     
     if(dvc->type == HT_GYRO) {
-      
-      int val;
-      
-      if( (val = analog_read_int(dvc)) != FAIL)
-	last_gyro = val - act_gyro;
-	
-	return last_gyro;
+
+      int val = analog_read_int(dvc);
+      return val - act_gyro;
 
     } else {
 
@@ -415,14 +405,12 @@ extern bool ag_gyro_cal (ANDVC * dvc) { //Make sure the robot is stationary befo
       
       while (i > 0) {
 	
-	if( (val = analog_read_int(dvc)) != FAIL){
-	  acum += val;
-	  i--;
-	  val = 0;
-	} else
-	  val = 0;
-	
+	val = analog_read_int(dvc);
+	acum += val;
+	i--;
+	val = 0;
 	DELAY_US(50);
+      
       }
       
       act_gyro = (acum / 5);

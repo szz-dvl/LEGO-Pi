@@ -1,27 +1,90 @@
 #include <lego/lego_digital.h>
-//#include <lego.h>
+#include <getopt.h>
 
 int def_port = 0;
+
+static int tst = 0;
+static int port = 0;
+static bool log_dbg = false;
+static bool titled = true;
+static int  tdepend = true;
+
+static void print_usage(const char *prog)
+{
+	printf("Usage: %s [-tvpVcsPIDTrebSdCl]\n", prog);
+	puts("  -t --test      test number to perform [1-6]\n"
+	     "  -p --port      motor port [0-1]\n"
+	     "  -e --tdep      extra paramter, test dependant\n"
+	     "  -T --titled    Print titles before info fields\n"
+	     "  -d --dbg       Set the library in debug mode [no arg]\n");
+}
+
+
+   
+static void parse_opts(int argc, char *argv[])
+{
+  while (1) {
+    static const struct option lopts[] = {
+      { "test",    1, 0, 't' },
+      { "tdep",    1, 0, 'e' },
+      { "port",    1, 0, 'p' },
+      { "dbg" ,    0, 0, 'd' },
+      { "titled",  0, 0, 'T' },
+    };
+      
+    int c;
+    
+    c = getopt_long(argc, argv, "t:e:p:dT", lopts, NULL);
+      
+    if (c == -1)
+      break;
+    
+    switch (c) {
+    case 't':
+      tst = atoi(optarg);
+      break;
+    case 'e':
+      tdepend = atoi(optarg);
+      break;
+    case 'p':
+      port = atoi(optarg);
+      break;
+    case 'd':
+      log_dbg = true;
+      break;
+    case 'T':
+      titled = true;
+      break;
+    default:
+      print_usage(argv[0]);
+      exit(EXIT_FAILURE);
+      break;
+    }
+  }
+}
+
 int main (int argc, char * argv[]) {
 
-  int tst = argc < 2 ? 1 : atoi(argv[1]);
+  parse_opts(argc, argv);
   
   dg_init(3);
-  dg_set_verbose(LOG_LVL_DBG);
+  dg_set_verbose(log_dbg ? LOG_LVL_DBG : LOG_LVL_ADV);
   
   switch (tst) {
-  case 1:
-    {
-      
-      bool titled = argc < 3 ? true : atoi(argv[2]) != 0 ? true : false;
-      bool cal = argc < 4 ? false : atoi(argv[3]) != 0 ? true : false, ret;
+  case 0:
+    print_usage(argv[0]);
+    printf("At least the test number is needed!\n");
+    exit(EXIT_FAILURE);
+  case 1://HT_COLOR Test
+    { 
+      bool cal = tdepend, ret;
       uint8_t red, green, blue, cnum, cidx, state;
       uint16_t redraw, greenraw, blueraw, white;
       int k;
       char * info [DG_INFO_TABLE_TAM];
 
       DGDVC col;
-      if((ret = dg_new(&col, HT_COLOR, 1)))
+      if((ret = dg_new(&col, HT_COLOR, port)))
 	printf("New device succefully created: type >> %d, version >> %d, port >> %d\n", col.type, col.vers, col.port);
       else
 	printf("Error creating device\n");
@@ -79,7 +142,7 @@ int main (int argc, char * argv[]) {
 	  printf("\nTrying to get white channel...\n");
 	  
 	  if(dg_col_get_white(&col, &white, false, false))
-	    printf("Red_raw: %u, Green_raw: %u, Blue_raw: %u\n", redraw, greenraw, blueraw);
+	    printf("White_channel: %u \n", white);
 	  else
 	    printf("Error getting white channel\n");
 	} else if(cal) {
@@ -99,17 +162,16 @@ int main (int argc, char * argv[]) {
       
     }
     break;;
-  case 2:
+  case 2: //LEGO_UltraSonic Test
     {
       
-      bool titled = argc < 3 ? true : atoi(argv[2]) != 0 ? true : false;
       DGDVC us;
       bool ret;
       uint8_t state, dist, tdist[8];
       int i;
       char * info [DG_INFO_TABLE_TAM];
       
-      if((ret = dg_new(&us, LEGO_US, 0)))
+      if((ret = dg_new(&us, LEGO_US, port)))
 	printf("New device succefully created: type >> %d, version >> %d, port >> %d\n", us.type, us.vers, us.port);
       else
 	printf("Error creating device\n");
@@ -159,11 +221,10 @@ int main (int argc, char * argv[]) {
 
     }
     break;;
-    case 3:
+  case 3: //HT_IRSeeker Test
     {
       
-      bool dc = argc < 3 ? true : atoi(argv[2]) != 0 ? true : false;
-      bool titled = argc < 4 ? true : atoi(argv[3]) != 0 ? true : false;
+      bool dc = tdepend;
       bool ret;
       DGDVC irs;
       uint8_t dir, str, avg, state;
@@ -172,7 +233,7 @@ int main (int argc, char * argv[]) {
       
       char * info [DG_INFO_TABLE_TAM];
       
-      if((ret = dg_new(&irs, HT_IRS, 1)))
+      if((ret = dg_new(&irs, HT_IRS, port)))
 	printf("New device succefully created: type >> %d, version >> %d, port >> %d\n\n", irs.type, irs.vers, irs.port);
       else
 	printf("Error creating device\n");
@@ -236,16 +297,15 @@ int main (int argc, char * argv[]) {
 
     }
     break;;
-  case 4:
+  case 4: //HT_ACCELerometer Test
     {
-      bool titled = argc < 3 ? true : atoi(argv[2]) != 0 ? true : false;
       DGDVC acc;
       bool ret;
       uint8_t state;
       int i, x, y, z;
       char * info [DG_INFO_TABLE_TAM];
       
-      if((ret = dg_new(&acc, HT_ACCEL, 1)))
+      if((ret = dg_new(&acc, HT_ACCEL, port)))
 	printf("New device succefully created: type >> %d, version >> %d, port >> %d\n", acc.type, acc.vers, acc.port);
       else
 	printf("Error creating device\n");
@@ -281,9 +341,8 @@ int main (int argc, char * argv[]) {
 
     }
     break;;
-  case 5:
+  case 5: //HT_COMPASS Test
     {
-      bool titled = argc < 3 ? true : atoi(argv[2]) != 0 ? true : false;
       DGDVC com;
       bool ret;
       uint8_t state;
@@ -291,7 +350,7 @@ int main (int argc, char * argv[]) {
       int i;
       char * info [DG_INFO_TABLE_TAM];
       
-      if((ret = dg_new(&com, HT_COMPASS, 1)))
+      if((ret = dg_new(&com, HT_COMPASS, port)))
 	printf("New device succefully created: type >> %d, version >> %d, port >> %d\n", com.type, com.vers, com.port);
       else
 	printf("Error creating device\n");
@@ -327,10 +386,10 @@ int main (int argc, char * argv[]) {
 
     }
     break;;
-  case 6: //unknown devices
+  case 6: //DG_OTHER Test
     {
-      int port0 = argc < 3 ? 0 : atoi(argv[2]);
-      int port1 = argc < 4 ? 1 : atoi(argv[3]);
+      int port0 = port;
+      int port1 = tdepend;
       DGDVC p0, p1;
       bool ret0, ret1;
       uint8_t data_out0[] = {0x10};

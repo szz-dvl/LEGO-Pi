@@ -24,7 +24,7 @@
 //#define PIDNULL		        0
 #define PIDDEF		        0
 #define TTCDEF		        36
-#define MIN_VEL		        20
+#define MIN_VEL		        10
 #define USXT_MIN                700
 #define USXT_MAX                7000
 

@@ -1,8 +1,3 @@
-//#include <unistd.h>
-//#include <stdio.h>
-//#include <gsl/gsl_math.h>
-//#include <gsl/gsl_statistics.h>
-
 #include <lego/lego_motor.h>
 #include <gsl/gsl_sort.h>
 #include <getopt.h>
@@ -40,7 +35,7 @@ struct resfive{
 };
 typedef struct resfive RFIVE;
 
-int get_in(char *, int);
+int get_in(char *to_print, int type);
 int stats(RESULT *, bool, double *, bool, bool, int, int, bool, int, bool);
 void prac(int, double *);
 void prw(int, double[]);
@@ -61,8 +56,7 @@ void get_limits(double[], double *, double *, double, double, double *, double *
 void init_acums(int, MOTOR *);
 void reset_acums(int, MOTOR *);
 void free_acums(MOTOR * m);
-void close_acums(int);
-static bool get_params (MOTOR * m, int vel, int * ex_micras, int * ex_desv);
+bool gt_pars (MOTOR * m, int vel, int * ex_micras, int * ex_desv);
 void tr_enc(double * [], int);
 void prfive(RFIVE *, int);
 double difft (TSPEC *, TSPEC *);
@@ -108,8 +102,6 @@ extern void dbg_isr_11(void){
   if(m1isr->moving){
     clock_gettime(CLK_ID, &t11);
     acum1[m1isr->enc1->tics] = difft(&m1isr->enc1->tmp, &t11);//e11->tics == 0 ? (double)((e11->tmp.tv_sec * 1000000) + (e11->tmp.tv_nsec/1000)) : (e11->delay); /* NANOS TO MICR0S */
-    //if(mt1->enc1->tics%1000 == 0)
-    //printf("acum1[%d] = %f\n", mt1->enc1->tics, acum1[mt1->enc1->tics]);
     pthread_mutex_lock(&m1isr->enc1->mtx);
     m1isr->enc1->tics++;
     pthread_mutex_unlock(&m1isr->enc1->mtx);
@@ -118,17 +110,14 @@ extern void dbg_isr_11(void){
 }
 
 extern void dbg_isr_12(void){
-  //double auxt;
+  
   if(m1isr->moving){
     clock_gettime(CLK_ID, &t12);
-    // auxt = difft(&mt1->enc2->tmp, &t11);
-    //if(auxt > USXT_MIN) {
     acum3[m1isr->enc2->tics] = difft(&m1isr->enc2->tmp, &t12);//e12->tics == 0 ? (double)((e12->tmp.tv_sec * 1000000) + (e12->tmp.tv_nsec/1000)) : (e12->delay); /* NANOS TO MICR0S */
     pthread_mutex_lock(&m1isr->enc2->mtx);
     m1isr->enc2->tics++;
     pthread_mutex_unlock(&m1isr->enc2->mtx);
     clock_gettime(CLK_ID, &m1isr->enc2->tmp);
-    //}
   }
 }
 
@@ -175,10 +164,11 @@ static int ttc = TTCDEF;
 static int turns = 8;
 static int enc = 2;
 static int mostres = 10;
+static dir dr = FWD;
 
 static void print_usage(const char *prog)
 {
-	printf("Usage: %s [-tvpVcsPIDTrebSCd]\n", prog);
+	printf("Usage: %s [-tvpVcsPIDTrebSdCl]\n", prog);
 	puts("  -t --test      test number to perform [1-11]\n"
 	     "  -v --vel       velocity [0-200]\n"
 	     "  -p --port      motor port [0-1], <2> both\n"
@@ -190,11 +180,12 @@ static void print_usage(const char *prog)
 	     "  -I --ki        integral gain for P.I.D control (double)\n"
 	     "  -D --kd        derivative gain for P.I.D control (double)\n"
 	     "  -T --ttc       ttc field of P.I.D control [use with caution]\n"
-	     "  -d --dbg       Set the library in debug mode [no arg]\n"
+	     "  -l --dbg       Set the library in debug mode [no arg]\n"
 	     "  -r --turns     turns of the output hub, only apply to some tests\n"
 	     "  -e --encod     Encoder lines active per motor [1-2]\n"
 	     "  -b --psctrl    Position control (double) [0-1]\n"
-	     "  -S --samples   Samples to store, aplly only to some tests\n");
+	     "  -S --samples   Samples to store, aplly only to some tests\n"
+	     "  -d --dir       direction to move the motor/s 0 = FWD, 1 = BWD\n");
 }
 
 
@@ -217,14 +208,15 @@ static void parse_opts(int argc, char *argv[])
       { "encod",   1, 0, 'e' },
       { "psctrl",  1, 0, 'b' },
       { "samples", 1, 0, 'S' },
+      { "dir",     1, 0, 'd' },
       { "pid",     0, 0, 'C' },
-      { "dbg",     0, 0, 'd' },
+      { "dbg",     0, 0, 'l' },
       { 0, 0, 0, 0 }
     };
  
     int c;
     
-    c = getopt_long(argc, argv, "t:v:p:V:c:s:P:I:D:T:r:e:b:S:Cd", lopts, NULL);
+    c = getopt_long(argc, argv, "t:v:p:V:c:s:P:I:D:T:r:e:b:S:d:Cl", lopts, NULL);
     
     if (c == -1)
       break;
@@ -264,7 +256,7 @@ static void parse_opts(int argc, char *argv[])
     case 'T':
       ttc = atoi(optarg);
       break;
-    case 'd':
+    case 'l':
       log_dbg = true;
       break;
     case 'r':
@@ -278,6 +270,9 @@ static void parse_opts(int argc, char *argv[])
       break;
     case 'S':
       mostres = atoi(optarg);
+      break;
+    case 'd':
+      dr = (dir)atoi(optarg);
       break;
     default:
       print_usage(argv[0]);
@@ -300,7 +295,7 @@ int main (int argc, char * argv[]) {
   bool ret = false;
   bool needdbg = tst == 7 || tst == 8 || tst == 3 || tst == 4 || tst == 5 ;
 
-  /*for tests 7 & 8*/
+  /*for tests 7, 8, 3, 4, & 5*/
   en11.pin = M1_ENC1;
   en11.isr = &dbg_isr_11;
   en12.pin = M1_ENC2;
@@ -421,23 +416,22 @@ time.tv_nsec = 0;
        mt_pid_is_null(mt) ? printf("\n") : printf(" Kp = %.2f, Ki = %.2f, Kd = %.2f, ttc = %d\n", mt->pid->kp, mt->pid->ki, mt->pid->kd, (int)mt->pid->ttc);
        printf("turns = %d, PosCtrl = %.2f\n\n", turns, pctr);     
      }
-     
-     if(!mt_move(mt,FWD, vel))
-       printf("mt_move FAILED FWD direction!\n");
+
+     if(!mt_move(mt,dr, vel))
+       printf("mt_move FAILED %s direction!\n", dr ? "BWD" : "FWD");
      nanosleep(&time, NULL);
      ticks = mt_stop(mt, true);
      mt_wait_for_stop(mt, 0.8);
-     
      printf("Motor %d: ticks received: %d\n", mt->id-1, ticks);
      
-     if(!mt_move(mt, BWD, vel))
-       printf("mt_move FAILED FWD direction!\n");
+     if(!mt_move(mt, !dr, vel))
+       printf("mt_move FAILED %s direction!\n", dr ? "FWD" : "BWD");
      nanosleep(&time, NULL);
      ticks = mt_stop(mt, true);
      mt_wait_for_stop(mt, 0.8);
      printf("Motor %d: tics received: %d\n", mt->id-1, ticks);
     
-     mt_move_t(mt, mt_tticks(mt, turns), FWD, vel, pctr); mt_wait(mt);
+     mt_move_t(mt, mt_tticks(mt, turns), dr, vel, pctr); mt_wait(mt);
      ticks = mt_get_ticks(mt);
      printf("Motor %d: ticks received: %d, turns = %d, enc_active: %d\n", mt->id-1, ticks, turns, mt_enc_count(mt));
    }
@@ -451,7 +445,7 @@ time.tv_nsec = 0;
        printf("turns = %d, PosCtrl = %.2f\n\n", turns, pctr);
      }
      
-     thread_rtn = mt_move_t(mt, mt_tticks(mt, turns), BWD, vel, pctr);
+     thread_rtn = mt_move_t(mt, mt_tticks(mt, turns), dr, vel, pctr);
      while (mt->moving){
        printf("moving %d\n", mt_get_ticks(mt));
        sleep(1);
@@ -475,7 +469,7 @@ time.tv_nsec = 0;
      reset_acums(turns, mt);
      
      mt_reset_enc(mt);
-     thread_rtn = mt_move_t(mt, mt_tticks(mt, turns), FWD, vel, pctr);mt_wait(mt);
+     thread_rtn = mt_move_t(mt, mt_tticks(mt, turns), dr, vel, pctr);mt_wait(mt);
      
      mt_wait_for_stop(mt,2);
      tot = mt_get_ticks(mt);
@@ -512,7 +506,7 @@ time.tv_nsec = 0;
 	 if ((index%50 == 0) && (index != 0))
 	   printf("stored samples: %d\n", index);
 	 mt_reset_enc(mt);
-	 mt_move_t(mt, mt_tticks(mt, turns), FWD, velo, 0);mt_wait(mt);
+	 mt_move_t(mt, mt_tticks(mt, turns), dr, velo, 0);mt_wait(mt);
 	 alloc = mt_get_ticks(mt);
 	 mt_wait_for_stop(mt,2);
 	 if(mt_enc_count(mt) == 1){
@@ -563,7 +557,7 @@ time.tv_nsec = 0;
        reset_acums((int)MAXM, mt);
        mt_reset_enc(mt);
        clock_gettime(CLK_ID, &tini);
-       mt_move_t(mt, mt_tticks(mt, turns), FWD, vel,0);mt_wait(mt);
+       mt_move_t(mt, mt_tticks(mt, turns), dr, vel,0);mt_wait(mt);
        ticks = mt_get_ticks(mt);
        clock_gettime(CLK_ID, &taux);
        enano = (taux.tv_nsec - tini.tv_nsec);
@@ -643,7 +637,7 @@ time.tv_nsec = 0;
      }
      
      printf("both encoders active, m_e1: %d, m_e2: %d\n", e1->pin, e2->pin);
-     mt_move_t(mt, mt_tticks(mt, turns), FWD, vel, pctr); mt_wait(mt);
+     mt_move_t(mt, mt_tticks(mt, turns), dr, vel, pctr); mt_wait(mt);
      printf("ticks received: %d, ticks expected: %d, tics e1: %d, tics e2: %d\n", mt_get_ticks(mt), mt_tticks(mt, turns), e1->tics, e2->tics);
      printf("disabling encoder 2 ... \n");
      mt_wait_for_stop(mt,2);
@@ -653,7 +647,7 @@ time.tv_nsec = 0;
      
        
      mt_reset_enc(mt);
-     mt_move_t(mt, mt_tticks(mt, turns), FWD, vel, pctr); mt_wait(mt);
+     mt_move_t(mt, mt_tticks(mt, turns), dr, vel, pctr); mt_wait(mt);
      printf("ticks received: %d, ticks expected: %d, tics e1: %d, tics e2: %d\n",  mt_get_ticks(mt), mt_tticks(mt, turns), e1->tics, mt_enc_is_null(mt,2) ? 0 : e2->tics);
      printf("re-enabling encoder 2 custom ISR ...\n");
      mt_wait_for_stop(mt,2);
@@ -664,7 +658,7 @@ time.tv_nsec = 0;
      
      
      mt_reset_enc(mt);
-     mt_move_t(mt, mt_tticks(mt, turns), FWD, vel, 0);mt_wait(mt);
+     mt_move_t(mt, mt_tticks(mt, turns), dr, vel, 0);mt_wait(mt);
      printf("ticks received: %d, ticks expected: %d, tics e1: %d, tics e2: %d\n", mt_get_ticks(mt), mt_tticks(mt, turns), e1->tics, mt_enc_is_null(mt,2) ? 0 : e2->tics);
      printf("disabling encoder 1 ... \n");
      mt_wait_for_stop(mt,2);
@@ -674,7 +668,7 @@ time.tv_nsec = 0;
      
   
      mt_reset_enc(mt);
-     mt_move_t(mt, mt_tticks(mt, turns), FWD, vel, 0);mt_wait(mt);
+     mt_move_t(mt, mt_tticks(mt, turns), dr, vel, 0);mt_wait(mt);
      printf("ticks received: %d, ticks expected: %d, tics e1: %d, tics e2: %d\n",  mt_get_ticks(mt), mt_tticks(mt, turns), mt_enc_is_null(mt,1) ? 0 : e1->tics, e2->tics);
      printf("re-enabling encoder 1 custom ISR ...\n");
      e1aux.pin = pin1;
@@ -685,7 +679,7 @@ time.tv_nsec = 0;
      
       
      mt_reset_enc(mt);
-     mt_move_t(mt, mt_tticks(mt, turns), FWD, vel, 0);mt_wait(mt);
+     mt_move_t(mt, mt_tticks(mt, turns), dr, vel, 0);mt_wait(mt);
      printf("ticks received: %d, ticks expected: %d, tics e1: %d, tics e2: %d\n",  mt_get_ticks(mt), mt_tticks(mt, turns), e1->tics, e2->tics);
      printf("back to defaults ...\n");
      mt_wait_for_stop(mt,2);
@@ -693,7 +687,7 @@ time.tv_nsec = 0;
      printf("both encoders active, (default ISRs) m_e1: %d, m_e2: %d,\n", e1->pin, e2->pin);
      
      mt_reset_enc(mt);
-     mt_move_t(mt, mt_tticks(mt, turns), FWD, vel, 0);mt_wait(mt);
+     mt_move_t(mt, mt_tticks(mt, turns), dr, vel, 0);mt_wait(mt);
      printf("ticks received: %d, ticks expected: %d, tics e1: %d, tics e2: %d\n",  mt_get_ticks(mt), mt_tticks(mt, turns), mt_enc_is_null(mt,1) ? 0 : e1->tics, e2->tics);
      printf("trying to disable both encoders at a time ...\n");
      mt_wait_for_stop(mt,2);
@@ -747,10 +741,10 @@ time.tv_nsec = 0;
 	 if (i == MAX_VEL)
 	   i = (MAX_VEL - (step/4));
 	 if(port < 2)
-	   get_params(mt,i,&mtot, &dtot);
+	   gt_pars(mt,i,&mtot, &dtot);
 	 else {
-	   get_params(mt1,i,&micras, &desv);
-	   get_params(mt2,i,&micras2, &desv2);
+	   gt_pars(mt1,i,&micras, &desv);
+	   gt_pars(mt2,i,&micras2, &desv2);
 	   mtot = (micras + micras2)/2;
 	   dtot = (desv + desv2)/2;
 	 }
@@ -759,6 +753,7 @@ time.tv_nsec = 0;
 	 else {
 	   printf("MOTOR 0: params for %3d vel >> tbticks: %d, err: %d\n", i, micras, desv);
 	   printf("MOTOR 1: params for %3d vel >> tbticks: %d, err: %d\n", i, micras2, desv2);
+	   //printf(" %d, %d\n", mtot, dtot); //AVG    : params for %3d vel >> 
 	 }
        }
      } else 
@@ -787,14 +782,6 @@ time.tv_nsec = 0;
        mt_pid_is_null(port == 2 ? mt1 : mt) ? printf("\n") : printf(" Kp = %.2f, Ki = %.2f, Kd = %.2f, ttc = %d\n", port == 2 ? mt1->pid->kp : mt->pid->kp, port == 2 ? mt1->pid->ki : mt->pid->ki, port == 2 ? mt1->pid->kd : mt->pid->kd, port == 2 ? (int)mt1->pid->ttc : (int)mt->pid->ttc);
        printf("step = %d, samples = %d\n\n", step, mostres);
      }
-
-
-       /*				printf("MOT1_E1: %d, MOT1_E2: %d, MOT2_E1: %d, MOT2_E2: %d\n", m1->enc1->pin, m1->enc2->pin, m2->enc1->pin, m2->enc2->pin);
-					printf("MOTOR 1: pcoef_avans d'entrar"); prw(10, m1->pid->cp);
-					printf("MOTOR 1: dcoef_avans d'entrar"); prw(10, m1->pid->cd);
-					printf("MOTOR 2: pcoef_avans d'entrar"); prw(10, m2->pid->cp);
-					printf("MOTOR 2: dcoef_avans d'entrar"); prw(10, m2->pid->cd);
-       */
 
        for(i = 0; i < iters; i++){
 	 mt_calibrate(mostres, twait);
@@ -829,10 +816,10 @@ time.tv_nsec = 0;
 	     if (k == MAX_VEL)
 	       k = (MAX_VEL - (step/4));
 	     if(port < 2)
-	       get_params(mt,i,&micras1, &desv1);
+	       gt_pars(mt,i,&micras1, &desv1);
 	     else {
-	       get_params(mt1,i,&micras1, &desv2);
-	       get_params(mt2,i,&micras2, &desv2);
+	       gt_pars(mt1,i,&micras1, &desv2);
+	       gt_pars(mt2,i,&micras2, &desv2);
 	     }
 	     
 	     if(port < 2)
@@ -842,171 +829,100 @@ time.tv_nsec = 0;
 	       printf("MOTOR 1: params for %2d%% power mot 2 >> tbticks: %d, desv: %d\n",k,micras2, desv2);
 	     }
 	   }
+	   printf("\n"); 
 	 }
-     
+	
        }
        
        for (i = 0; i < mostres; i++){
-	 defp1[i] = defp1[i]/iters;
-	 defd1[i] = defd1[i]/iters;
-	 defp2[i] = defp2[i]/iters;
-	 defd2[i] = defd2[i]/iters;
-	 sum1[i] = sum1[i]/iters;
-	 sum2[i] = sum2[i]/iters;
+	 if(port == 2){
+	   defp1[i] = defp1[i]/iters;
+	   defd1[i] = defd1[i]/iters;
+	   defp2[i] = defp2[i]/iters;
+	   defd2[i] = defd2[i]/iters;
+	   sum1[i] = sum1[i]/iters;
+	   sum2[i] = sum2[i]/iters;
+	 } else {
+	   defp1[i] = defp1[i]/iters;
+	   defd1[i] = defd1[i]/iters;
+	 }
        }
        
-	 printf("\n");
-	 printf("DEFAULTS TBT_M1:");prwcr(mostres, defp1);
-	 printf("DEFAULTS ERR_M1:");prwcr(mostres, defd1);
-	 printf("DEFAULTS TBT_M2:");prwcr(mostres, defp2);
-	 printf("DEFAULTS ERR_M2:");prwcr(mostres, defd2);
-	 printf("DEFAULTS PUNTS:");prwcr(mostres, sum1);
-	 printf("DEFAULTS DESV:");prwcr(mostres, sum2);
+       if(port == 2){
+	 printf("DEFAULTS TBT_M0: ");prwcr(mostres, defp1);
+	 printf("DEFAULTS ERR_M0: ");prwcr(mostres, defd1);
+	 printf("DEFAULTS TBT_M1: ");prwcr(mostres, defp2);
+	 printf("DEFAULTS ERR_M1: ");prwcr(mostres, defd2);
+	 printf("DEFAULTS TBT: ");prwcr(mostres, sum1);
+	 printf("DEFAULTS ERR: ");prwcr(mostres, sum2);
+       } else {
+	 printf("DEFAULTS TBT_M%d:", port);prwcr(mostres, defp1);
+	 printf("DEFAULTS ERR_M%d:", port);prwcr(mostres, defd1);
+       }
      }
      break;;
-   case 9:
-     {
-       MOTOR * m  = argc < 3 ? mt1 : atoi(argv[2]) == 1 ? mt1 : atoi(argv[2]) == 2 ? mt2 : mt1;
-       int vel = argc < 4 ? 70 : atoi(argv[3]);
-       double ttc = argc < 5 ? TTCDEF : atof(argv[4]);
-       double kp = argc < 6 ? 1 : atof(argv[5]);
-       double ki = argc < 7 ? 1 : atof(argv[6]);
-       double kd = argc < 8 ? 1 : atof(argv[7]);
-       bool calib = argc < 9 ? false : atoi(argv[8]) != 0 ? true : false;
-       double pctr = argc < 10 ? 0.3 : atof(argv[9]);
-       int turns = argc < 11 ? 10 : atoi(argv[10]);
-       
-       printf ("motor: %d, vel: %d, ttc: %f, kp: %f, ki: %f, kd: %f, calib: %s, turns: %d\n", m->id, vel, ttc, kp, ki, kd, calib ? "true" : "false", turns);
-       
-       mt_set_verbose(LOG_LVL_DBG);
-       mt_reconf(m, NULL, NULL); //back to defaults
-       mt_pid_set_gains(m, kp ,ki ,kd);
-       m->pid->ttc = ttc;
-       
-       int mostres = 10;
-       
-       if(calib){
-	 mt_calibrate(mostres, 0.6);
-	 printf("\n");
-	 printf("coefs_punts_1: ");prw(mostres, mt1->pid->cp);
-	 printf("coefs_punts_2: ");prw(mostres, mt2->pid->cp);
-	 printf("coef_dev_1:    ");prw(mostres, mt1->pid->cd);
-	 printf("coef_dev_2:    ");prw(mostres, mt2->pid->cd);
-	 printf("\n");
-       } else
-	 printf("\n");
-       
-       
-       printf("\n\nSTARTING MOVE_T\n\n");
-       mt_move_t(m, mt_tticks(m, turns), FWD, vel, pctr);mt_wait(m);
-       /*printf("\n\nSTARTING MOVE\n\n");
-	 move(m, FWD, vel);
-	 while(get_in("stop?", 1) != 1);
-	 mot_stop(m,true);
-       */
-       
-       //while (m->moving)
-       //	udelay(1000);
+ case 9: //Very simple test for one motor to test P.I.D behavior.
+   {
+     if(verb > 0) {
+       printf("MOTOR 0: %d,%d,%d,%d\n", (int)mt1->pinf, (int)mt1->pinr, mt_enc_is_null(mt1,1) ? ENULL : mt1->enc1->pin, mt_enc_is_null(mt1,2) ? ENULL : mt1->enc2->pin);	 
+       printf("MOTOR 1: %d,%d,%d,%d\n", (int)mt2->pinf, (int)mt2->pinr, mt_enc_is_null(mt2,1) ? ENULL : mt2->enc1->pin, mt_enc_is_null(mt2,2) ? ENULL : mt2->enc2->pin);
+       printf("PID is %s", mt_pid_is_null(mt1) ? "UNACTIVE" : "ACTIVE");
+       mt_pid_is_null(mt1) ? printf("\n") : printf(" Kp = %.2f, Ki = %.2f, Kd = %.2f, ttc = %d\n", mt1->pid->kp , mt1->pid->ki, mt1->pid->kd , (int)mt1->pid->ttc);
+       printf("step = %d, samples = %d\n\n", step, mostres);
      }
-     break;;
-   case 10:
-     {
-       
-       int vel = argc < 3 ? 70 : atoi(argv[2]);
-       double ttc = argc < 4 ? TTCDEF : atof(argv[3]);
-       double kp = argc < 5 ? 0 : atof(argv[4]);
-       double ki = argc < 6 ? 0 : atof(argv[5]);
-       double kd = argc < 7 ? 0 : atof(argv[6]);
-       bool calib = argc < 8 ? false : atoi(argv[7]) != 0 ? true : false;
-       
-       //            bool hard = argc < 9 ? false : atoi(argv[8]) != 0 ? true : false;
-       
-       //int turns = argc < 9 ? 10 : atoi(argv[8]);
-       
-       //set_verbose(LOG_LVL_DBG);
-       printf ("vel: %d, ttc: %f, kp: %f, ki: %f, kd: %f, calib: \"%s\"\n", vel, ttc, kp, ki, kd, calib ? "true" : "false");
-       
-       mt_reconf(mt1, NULL, NULL); //back to defaults
-       mt_reconf(mt2, NULL, NULL); //back to defaults
-       
-       mt_pid_set_gains(mt1, kp ,ki ,kd);
-       mt_pid_set_gains(mt2, kp ,ki ,kd);
-       
-       mt1->pid->ttc = ttc;
-       mt2->pid->ttc = ttc;
-       
-       int mostres = 10;
-       
-       if(calib){
-	 mt_calibrate(mostres, 0.6);
-	 printf("\n");
-	 printf("coefs_punts_1: ");prw(mostres, mt1->pid->cp);
-	 printf("coefs_punts_2: ");prw(mostres, mt2->pid->cp);
-	 printf("coef_dev_1:    ");prw(mostres, mt1->pid->cd);
-	 printf("coef_dev_2:    ");prw(mostres, mt2->pid->cd);
-	 printf("\n");
-       } else
-	 printf("\n");
-       
-       mt_move_sinc(FWD, vel);
-       while(get_in("stop?", 1) != 1);
-       mt_stop(mt1,true);
-       mt_stop(mt2,true);
-     }
-     break;;
-   case 11:
-     {
-       mt_set_verbose(LOG_LVL_DBG);
-       int vel = argc < 3 ? 70 : atoi(argv[2]);
-       double ttc = argc < 4 ? TTCDEF : atof(argv[3]);
-       double kp = argc < 5 ? 0 : atof(argv[4]);
-       double ki = argc < 6 ? 0 : atof(argv[5]);
-       double kd = argc < 7 ? 0 : atof(argv[6]);
-       bool calib = argc < 8 ? false : atoi(argv[7]) != 0 ? true : false;
-       //          bool hard = argc < 9 ? false : atoi(argv[8]) != 0 ? true : false;
-       double pctr = argc < 9 ? 0.3 : atof(argv[8]);
-       int turns = argc < 10 ? 10 : atoi(argv[9]);
-       
-       //			int turns = argc < 9 ? 10 : atoi(argv[8]);
-       
-       printf ("vel: %d, ttc: %f, kp: %f, ki: %f, kd: %f, calib: \"%s\"\n", vel, ttc, kp, ki, kd, calib ? "true" : "false");
-       
-       mt_reconf(mt1, NULL, NULL); //back to defaults
-       mt_reconf(mt2, NULL, NULL); //back to defaults
-       
-       mt_pid_set_gains(mt1, kp ,ki ,kd);
-       mt_pid_set_gains(mt2, kp ,ki ,kd);
-       //                pid_setnull(m1->pid);
-       //                pid_setnull(m2->pid);
-       
-       mt1->pid->ttc = ttc;
-       mt2->pid->ttc = ttc;
-       
-       int mostres = 10;
-       
-       if(calib){
-	 mt_calibrate(mostres, 0.6);
-	 printf("\n");
-	 printf("coefs_punts_1: ");prw(mostres, mt1->pid->cp);
-	 printf("coefs_punts_2: ");prw(mostres, mt2->pid->cp);
-	 printf("coef_dev_1:    ");prw(mostres, mt1->pid->cd);
-	 printf("coef_dev_2:    ");prw(mostres, mt2->pid->cd);
-	 printf("\n");
-       } else
-	 printf("\n");
-       
-       printf("SINCRO: Set point = %d ticks\n", (turns*720));
-       int res = mt_move_sinc_t(BWD, vel, (turns*720), pctr);mt_wait_all();//
-       printf("move_sinc-says: \"%s\"\n", res ? "OK" : "FAIL");
-       //while(get_in("stop?", 1) != 1);
-       mt_stop(mt1,true);
-       mt_stop(mt2,true);
-     }
-     break;;
-   default:
-     break;;
+     
+     if(mt_pid_is_null(mt))
+       printf("This tests is meant to test P.I.D, and P.I.D is null...\n DEBUG [-l] mode is recommended too...\n");
+     
+     printf("\n\nSTARTING MOVE_T\n\n");
+     mt_move_t(mt, mt_tticks(mt, turns), dr, vel, pctr);mt_wait(mt);
    }
    
+   break;;
+ case 10://Very simple test to test move sinc, when 1 is entered to the standard input, the motors will stop turning 
+   { 
+     
+     if(verb > 0) {
+       printf("MOTOR 0: %d,%d,%d,%d\n", (int)mt1->pinf, (int)mt1->pinr, mt_enc_is_null(mt1,1) ? ENULL : mt1->enc1->pin, mt_enc_is_null(mt1,2) ? ENULL : mt1->enc2->pin);	 
+       printf("MOTOR 1: %d,%d,%d,%d\n", (int)mt2->pinf, (int)mt2->pinr, mt_enc_is_null(mt2,1) ? ENULL : mt2->enc1->pin, mt_enc_is_null(mt2,2) ? ENULL : mt2->enc2->pin);
+       printf("PID is %s", mt_pid_is_null(mt1) ? "UNACTIVE" : "ACTIVE");
+       mt_pid_is_null(mt1) ? printf("\n") : printf(" Kp = %.2f, Ki = %.2f, Kd = %.2f, ttc = %d\n", mt1->pid->kp , mt1->pid->ki, mt1->pid->kd , (int)mt1->pid->ttc);
+       printf("step = %d, samples = %d\n\n", step, mostres);
+     }
+     
+     if(!log_dbg)
+       printf("DEBUG [-l] mode is recommended ...\n");
+     
+     mt_move_sinc(dr, vel);
+     while(get_in("stop?", 1) != 1);
+     mt_stop(mt1,true);
+     mt_stop(mt2,true);
+   }
+   break;;
+ case 11: //Simple test to test sincro till a set point
+   {
+     
+     if(verb > 0) {
+       printf("MOTOR %d: %d,%d,%d,%d\n",mt->id-1, (int)mt->pinf, (int)mt->pinr, mt_enc_is_null(mt,1) ? ENULL : (int)mt->enc1->pin, mt_enc_is_null(mt,2) ? ENULL : (int)mt->enc2->pin);
+       printf("Motor %d: PID is %s", mt->id-1, mt_pid_is_null(mt) ? "UNACTIVE" : "ACTIVE");
+       mt_pid_is_null(mt) ? printf("\n") : printf(" Kp = %.2f, Ki = %.2f, Kd = %.2f, ttc = %d\n", mt->pid->kp, mt->pid->ki, mt->pid->kd, (int)mt->pid->ttc);
+       printf("turns = %d, PosCtrl = %.2f\n\n", turns, pctr);
+     }
+     
+     if(!log_dbg)
+       printf("DEBUG [-l] mode is recommended, and redirect the output to a file too ...\n");
+     
+     printf("SINCRO: Set point = %d ticks\n", (turns*720));
+     int res = mt_move_sinc_t(dr, vel, (turns*720), pctr);mt_wait_all();
+     printf("move_sinc-says: \"%s\"\n", res ? "OK" : "FAIL");
+     mt_stop(mt1,true);
+     mt_stop(mt2,true);
+   }
+   break;;
+ default:
+   break;;
+ }
+ 
  if(port < 2)
    mt_stop(mt, true);
  else {
@@ -1019,7 +935,7 @@ time.tv_nsec = 0;
  
 }
 
-static bool get_params (MOTOR * m, int vel, int * ex_micras, int * ex_desv){
+bool gt_pars (MOTOR * m, int vel, int * ex_micras, int * ex_desv){
   
     int size, i;
     for (size = 0; m->pid->cp[size] != 0; size++);
@@ -1072,8 +988,6 @@ void prfive(RFIVE * data, int len){
   }
   stats(&statturn, false, tturn_acum, false, false, len, 0, false,0,false);
   stats(&stattxs, false, txs_acum, false, false, len, 0, false,0,false);
-  //	printf("DEBUG: printing txsec"); prac(len, txs_acum);
-  //	printf("DEBUG: printing stattxs"); prac(STATS_SIZE, stattxs.res);
   avg_tturn = statturn.res[0];
   absd_tturn = statturn.res[3];
   avg_txs = stattxs.res[0];
@@ -1127,7 +1041,6 @@ RESULT stat;
 
 void init_acums (int turns, MOTOR * m){
 
-//    int size = (int)((BASE*turns)+((BASE*turns)*0.2));
     int size = (int)(BASE*turns);
     if(m->id == 1){
       if(!mt_enc_is_null(m,1)) {
@@ -1150,40 +1063,6 @@ void init_acums (int turns, MOTOR * m){
     }
 }
 
-/*
-void reinit_acums (int turns, MOTOR * m){
-
-//    int size = (int)((BASE*turns)+((BASE*turns)*0.2));
-    int size = (int)(BASE*turns);
-    if( m->id == 1 ){
-        if(!is_null(m->enc1)) {
-            //acum1 = NULL;
-			acum1 = (double *)realloc(acum1,size*sizeof(double));
-            memset(acum1,0.0,size*sizeof(double));
-
-		}
-
-		 if(!is_null(m->enc2)) {
-			//acum3 = NULL;
-            acum3 = (double *)realloc(acum3,size*sizeof(double));
-            memset(acum3,0.0,size*sizeof(double));
-		}
-
-    } else {
-        if(!is_null(m->enc1)) {
-           //acum2 = NULL;
-		   acum2 = (double *)realloc(acum2,size*sizeof(double));
-           memset(acum2,0.0,size*sizeof(double));
-
-		}
-        if(!is_null(m->enc2)) {
-           //acum4 = NULL;
-		   acum4 = (double *)realloc(acum4,size*sizeof(double));
-           memset(acum4,0.0,size*sizeof(double));
-		}
-    }
-}
-*/
 void free_acums(MOTOR * m){
   
   if( m->id == 1 ){
@@ -1201,7 +1080,7 @@ void free_acums(MOTOR * m){
 
 void reset_acums(int turns, MOTOR * m){
 
-//    int size = (int)((BASE*turns)+((BASE*turns)*0.2));
+
     int size = (int)(BASE*turns);
     if( m->id == 1 ){
       if(!mt_enc_is_null(m,1))
@@ -1216,72 +1095,26 @@ void reset_acums(int turns, MOTOR * m){
     }
 }
 
-
-/*
-void init_acums(int turns){
-
-	int size = ((BASE*turns)+((BASE*turns)*0.2));
-
-	if(!is_null(m1->enc1)){
-		acum1 = (double *)realloc(acum1,size*sizeof(double));
-//		acum1 = (double *)malloc(size*sizeof(double));
-		//acum1[size-1] = '\0';
-		printf("m1e1 NO NULL\n");
-	}
-	if(!is_null(m1->enc2)){
-		acum3 = (double *)realloc(acum3,size*sizeof(double));
-//		acum3 = (double *)malloc(size*sizeof(double));
-		//acum3[size-1] = '\0';
-		printf("m1e2 NO NULL\n");
-	}
-	if(!is_null(m2->enc1)){
-		acum2 = (double *)realloc(acum2,size*sizeof(double));
-//		acum2 = (double *)malloc(size*sizeof(double));
-		//acum2[size-1] = '\0';
-		printf("m2e1 NO NULL\n");
-	}
-	if(!is_null(m2->enc2)){
-		acum4 = (double *)realloc(acum4,size*sizeof(double));
-//		acum4 = (double *)malloc(size*sizeof(double));
-		//acum4[size-1] = '\0';
-		printf("m2e2 NO NULL\n");
-	}
-
-	printf("Going out!!\n");
-}
-
-void reset_acums(int turns){
-
-	int size = ((BASE*turns)+((BASE*turns)*0.2));
-    if(!is_null(m1->enc1)){
-        memset(acum1,0.0,size*sizeof(double));
-		acum1[size-1] = '\0';
-	}
-    if(!is_null(m1->enc2)){
-		memset(acum3,0.0,size*sizeof(double));
-		acum3[size-1] = '\0';
-	}
-    if(!is_null(m2->enc1)){
-		memset(acum2,0.0,size*sizeof(double));
-		acum2[size-1] = '\0';
-	}
-    if(!is_null(m2->enc2)){
-		memset(acum4,0.0,size*sizeof(double));
-		acum4[size-1] = '\0';
-	}
-}
-*/
-void close_acums(int ticks){
-
-    //int size = ((BASE*turns)+((BASE*turns)*0.2));
-  if(!mt_enc_is_null(mt1,1))
-        acum1[ticks] = '\0';
-  if(!mt_enc_is_null(mt1,2))
-        acum3[ticks] = '\0';
-  if(!mt_enc_is_null(mt2,1))
-        acum2[ticks] = '\0';
-  if(!mt_enc_is_null(mt2,2)){
-        acum4[ticks] = '\0';
+int get_in(char *to_print, int type){
+    switch(type){
+    case 1:
+      {
+        int ret_int;
+        printf("%s", to_print);
+        scanf("\n%d",&ret_int);
+        fflush(NULL);
+        return ret_int;
+      }
+      break;;
+    default:
+      {
+        char ret;
+        printf("%s", to_print);
+        scanf("\n%c",&ret);
+        fflush(NULL);
+        return ret;
+      }
+      break;;
     }
 }
 
@@ -1290,14 +1123,13 @@ void close_acums(int ticks){
 void comp_res(RESULT * res, int mostres, int step, int id){
   
   int i, velo, index;
-  double * frame[mostres]; //= (double **)malloc(mostres * sizeof(double *));
+  double * frame[mostres]; 
   
   printf("\t\t\t\t\t AVERAGE\t\tVARIANCE\t\tSTND_DEV\t\tABS_DEV\t\t\n\n");
   
   for (velo = step; velo <= MAX_VEL; velo += step){
     for (i = 0; i < mostres; i++){
       index = ((((velo/step)-1)*mostres) + i);
-      //			printf("scanning index: %d ===> ", index);
       frame[i] = res[index].res;
     }
     comp_vel(velo, mostres, frame, id);
@@ -1305,8 +1137,6 @@ void comp_res(RESULT * res, int mostres, int step, int id){
     for (i = 0; i < mostres; i++){
       index = ((((velo/step)-1)*mostres) + i);
       frame[i] = res[index].per;
-      /*printf("per k le meto: ");
-	prw(PER_SIZE, res[index].per);*/
     }
     comp_perc(velo, mostres, frame, id);
     printf("\n");
@@ -1318,15 +1148,13 @@ void comp_perc(int vel, int mostres, double ** frame, int id){
   
   int k;
   double sum = 0;
-  double aux[mostres];// = (double *)malloc(mostres * sizeof(double));
-  RESULT stat;//= (RESULT *)malloc(sizeof(RESULT));// = (double *)malloc(STATS_SIZE * sizeof(double));
+  double aux[mostres];
+  RESULT stat;
   
   for (k=0;k<PER_SIZE-1;k++){
     col_to_row(aux, frame, k, mostres);
     stats(&stat, false, aux, false, false, mostres, id, false,0, true);
     sum += stat.res[0];
-    //	printf("stat percent, volta %d: ", k);
-    //	prw(mostres, aux);
     switch(k){
     case 0:
       printf("vel_%d_0%%-10%%:  \t", vel);
@@ -1359,7 +1187,7 @@ void comp_perc(int vel, int mostres, double ** frame, int id){
       printf("vel_%d_90%%-100%%: \t", vel);
       break;;
     default:
-      printf("\t\t>>LIADA PADRE!!<<\t\t\n");
+      printf("\t\t>>WEIRD_DATA!!<<\t\t\n");
       break;;
     }
     pr_stats(stat.res, 4);
@@ -1369,8 +1197,8 @@ void comp_perc(int vel, int mostres, double ** frame, int id){
 
 void comp_vel(int vel, int mostres, double ** frame, int id){
   int k;
-  double aux[mostres];// = (double *)malloc(mostres * sizeof(double));
-  RESULT stat;// = (RESULT *)malloc(sizeof(RESULT));// = (double *)malloc(STATS_SIZE * sizeof(double));
+  double aux[mostres];
+  RESULT stat;
   
   for (k=0;k<STATS_SIZE-1;k++){
     col_to_row (aux, frame, k, mostres);
@@ -1428,7 +1256,7 @@ void comp_vel(int vel, int mostres, double ** frame, int id){
       printf("vel_%d_rmin:  \t\t", vel);
       break;;
     default:
-      printf("\t\t>>LIADA PADRE!!<<\t\t\n");
+      printf("\t\t>>WEIRD DATA!!<<\t\t\n");
       break;;
     }
     pr_stats(stat.res, 4);
@@ -1488,23 +1316,6 @@ void presf (RESULT * res, int mostres, int step){
 }
 
 
-int get_in(char *to_print, int type){
-  switch(type){
-  case 1:;;
-    int ret_int;
-    printf("%s", to_print);
-    scanf("\n%d",&ret_int);
-    fflush(NULL);
-    return ret_int;
-  default:;;
-    char ret;
-    printf("%s", to_print);
-    scanf("\n%c",&ret);
-    fflush(NULL);
-    return ret;
-  }
-}
-
 int cpacum(double * out, int alloc, int id, int encoder){
   
   int i;
@@ -1527,7 +1338,6 @@ int cpacum(double * out, int alloc, int id, int encoder){
     
   }
   out[i]='\0';
-  //printf("la i ar fina: %d", i);
   return i;
 }
 
@@ -1543,9 +1353,7 @@ int cptable(double * out, int alloc, double * in){
 
 
 int stats (RESULT * out, bool to_print, double * vect, bool wweights, bool capped, int alloc, int id, bool clean, int encoder, bool no_table){
-  
-  //	printf("printing ACUM1 (inside stats), ALLOC = %d: \n", alloc);
-  //	prac(alloc, acum1);
+
   
   double data[alloc];
   int len;
@@ -1578,24 +1386,16 @@ int stats (RESULT * out, bool to_print, double * vect, bool wweights, bool cappe
   double mean, min, max, wmean, wvariance, wsd, wabs, swmean, swvariance, swsd, swabs, median, upperq, lowerq, /*middleq*/ uq, lq, rmin, rmax;
   min = max = wmean = wvariance = wsd = wabs = rmin = rmax = swmean = swvariance = swsd = swabs = median = upperq = lowerq = /*middleq*/  uq = lq = 0;
   
-  /* la varian?a i desviaci? tipica surt molt gran */
-  //	printf("DEBUG: ");
-  //	prw(STATS_SIZE-1,out->res);
-  //	printf("El que treu la funcio de la mitja: %f\n", gsl_stats_mean(data, 1, len-1));
   mean = out->res[0] = gsl_stats_mean(data, 1, len);
-  //	printf("MEAAAAN: %f\n",out->res[0]);
   double variance = out->res[1] = gsl_stats_variance_m(data, 1, len, mean);
   double sd = out->res[2] = gsl_stats_sd_m(data, 1, len, mean);
   
   double abs = out->res[3] = gsl_stats_absdev_m (data, 1, len, mean);
   double autocorr = out->res[4] = gsl_stats_lag1_autocorrelation_m (data, 1, len, mean);
-  //double perc[PER_SIZE];
-  
-  /* calcul dels valors amb pesos, "descartem" el 10% dels tics del final i del principi */
   
   if(wweights){
-    double weights[len];// = malloc(len * sizeof(double));
-    double sweights[len];// = malloc(len * sizeof(double));
+    double weights[len];
+    double sweights[len];
     
     ret=2;
     cal_weight(len, weights, 1 ,3);
@@ -1609,14 +1409,12 @@ int stats (RESULT * out, bool to_print, double * vect, bool wweights, bool cappe
     gsl_sort (data,1,len);
     smart_weights(len, sweights, 0.1, max, data,id,out->per);
     
-    //cp_loc(out->per, id);
     get_limits(out->per, &uq, &lq, 0.70, max, &rmin, &rmax);
-    //prw(PER_SIZE-1,perc);
     
-    if(to_print){
+    
+    if(to_print)
       printf("uq: %.3f, lq: %.3f\n", uq, lq);
-      //			prw(10,per);
-    }
+
     median = gsl_stats_median_from_sorted_data (data,1,len);
     upperq = gsl_stats_quantile_from_sorted_data (data,1,len,0.8);//uq
     lowerq = gsl_stats_quantile_from_sorted_data (data,1,len,0.2);//lq
@@ -1639,16 +1437,13 @@ int stats (RESULT * out, bool to_print, double * vect, bool wweights, bool cappe
   }
   out->per[PER_SIZE-1] = '\0';
   out->res[STATS_SIZE-1] = '\0';
-  //cptable(out->per, PER_SIZE-1, perc);
-  //printf("LEN: %d\n", cptable(out->per, PER_SIZE-1, perc));
   
   if(to_print){
     printf("ticks received: %d\nmean: %.5f\nvariance: %.5f\nstandard deviation: %.5f\nmedian: %.5f\nquantil superior: %.5f\nquantil inferior: %.5f\nrmax: %.5f\nrmin: %.5f\n", len, out->res[0], variance, sd, median, upperq, lowerq, rmax, rmin);
     printf("autocorrelation: %.5f\nmin: %.5f\nmax: %.5f\nabsolute_deviation: %.5f\n\nweights: \nwmean: %.5f\nwvariance: %.5f\nwstandard_deviation: %.5f\nwabs_dev: %.5f\n\n", autocorr,min,max,abs, wmean, wvariance, wsd, wabs);
     printf("smart weights: \nswmean: %.5f\nswvariance: %.5f\nswstandard_deviation: %.5f\nswabs_dev: %.5f\n\n",swmean, swvariance, swsd, swabs);
-    //prw(PER_SIZE-1,out->per);
+   
   }
-  //prw(10,per);
   return ret;
   
 }
@@ -1657,7 +1452,6 @@ void get_limits(double per[], double * uq, double * lq, double min_pop, double m
   
   bool found = false;
   int i,k;
-  //prw(PER_SIZE-1, per);
   for (i=0; i<10 && !found; i++){
     for(k=i+1; k<10 && !found; k++){
       if(((per[i] + per[k]) >= min_pop))
@@ -1665,8 +1459,7 @@ void get_limits(double per[], double * uq, double * lq, double min_pop, double m
     }
   }
   k--;i--;
-  /*printf("DEBUG: i->%d, k->%d\n", i,k);
-    prw(10,per);*/
+
   double uqbase = 0.5 + (min_pop/2);
   double lqbase = 0.5 - (min_pop/2);
   
@@ -1674,19 +1467,16 @@ void get_limits(double per[], double * uq, double * lq, double min_pop, double m
     double total = per[i] + per[k];
     if (total > min_pop){
       double to_div = total - min_pop;
-      //printf("DEBUG: entro aqui!\n");
-      // *uq = (per[k] > (min_pop/2)) ? (per[i] < (min_pop/2)) ? (uqbase + ((per[k]-(min_pop/2)) - ((min_pop/2) - per[i]))) : (uqbase + (per[k]-(min_pop/2))) : uqbase;
-      // *lq = (per[i] > (min_pop/2)) ? (per[k] < (min_pop/2)) ? (lqbase - ((per[i]-(min_pop/2)) - ((min_pop/2) - per[k]))) : (lqbase - (per[i]-(min_pop/2))) : lqbase;
       *uq = uqbase +(to_div/2);
       *lq = lqbase -(to_div/2);
-      //printf("valores: uq: %f, lq: %f\n", *uq, *lq);
+
     } else {
       *uq = uqbase;
       *lq = lqbase;
     }
     *rmin = ((double)i/10) * max;
     *rmax = ((double)(k+1)/10) * max;
-    //printf("valores: rmin: %f, rmax: %f, i: %d, k: %d, max: %f\n", *rmin, *rmax, i, k, max);
+
   } else {
     *rmin = 0;
     *rmax = 0;
@@ -1694,7 +1484,6 @@ void get_limits(double per[], double * uq, double * lq, double min_pop, double m
     *lq = lqbase;
   }
   
-  //double range_min,range_max;
 }
 
 void prac (int len, double * vec){
@@ -1772,10 +1561,9 @@ void cal_weight(int len, double * weights, double less, double max){
 
 void smart_weights(int len, double * weights, double step, double max, double *data, int id, double per []){
   
-  /* La idea: contar la poblacion de cada quantil (menos la del quantil anterior), y, sacar el porcentage respeto a la poblacion total (todos los tics), a partir de ahi assignar los pesos 
-     de cada elemento dependiendo del percentage de poblacion del quantil al que corresponda */
-  //	int tam = PER_SIZE;
-  double quantil;// perc[tam];
+  /* La idea: contar la poblacion de cada quantil (menos la del quantil anterior), y, sacar el porcentage respeto a la poblacion total (todos los tics), a partir de ahi assignar los      pesos de cada elemento dependiendo del percentage de poblacion del quantil al que corresponda */
+  
+  double quantil;
   int res;
   int i;
 
@@ -1784,8 +1572,6 @@ void smart_weights(int len, double * weights, double step, double max, double *d
     per[i] = (double)((double)res/len);
   }
   per[i]='\0';
-  //	cp_per(perc, tam, id);
-  //	prw(tam, perc);
   
   for (i=0; i<len; i++){
     weights[i] = per[(int)(((data[i]/max)-step)*10)];
@@ -1793,23 +1579,6 @@ void smart_weights(int len, double * weights, double step, double max, double *d
   
 }
 
-/*void cp_per (double * per, int tam, int id){
-  int i;
-
-  if (id == 1){
-		for (i=0;i<tam;i++)
-			pop_perc1[i] = per[i];
-		pop_perc1[i]='\0';
-
-	} else {
-		for (i=0;i<tam;i++)
-			pop_perc2[i] = per[i];
-		pop_perc2[i]='\0';
-
-	}
-
-}
-*/
 int no_quantil (int len, double * data, double perc, double max, double step){
 
   /* NO-quantil, es decir lo coontrario, dado un porcentage del valor del m?ximo, cuanta poblaci?n esta por debajo de ese valor, (Distribuciones?) */
@@ -1834,7 +1603,6 @@ int no_quantil (int len, double * data, double perc, double max, double step){
   val=data[i];
   last++;
   
-  //	printf("no-quantil says: act: %d - last: %d = %d | ant = %.5f, ref = %.5f | data content: %.5f\n", i, last, i-last, ult, ref, val);
   return (i - last);
   
 }
