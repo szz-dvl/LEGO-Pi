@@ -66,6 +66,7 @@ static bool get_params (MOTOR * m, int vel, int * ex_micras, int * ex_desv);
 void tr_enc(double * [], int);
 void prfive(RFIVE *, int);
 double difft (TSPEC *, TSPEC *);
+void prwcr (int len, double per[]);
 
 extern void isr_print_11(void){
   if(m1isr->moving){
@@ -336,7 +337,7 @@ int main (int argc, char * argv[]) {
       
     } else if (port == 2) {
       
-      if(tst != 11 || tst != 10 || tst != 7 || tst != 8) {
+      if(tst != 11 && tst != 10 && tst != 7 && tst != 8) {
 	printf("Only one motor needed for test %d \n", tst);
 	mt_shutdown();
 	exit(EXIT_FAILURE);
@@ -370,17 +371,14 @@ int main (int argc, char * argv[]) {
       mt_calibrate(calib, 0.8);
       if(verb > 0) {
 	if(port == 2){
-	  printf("time between ticks 0: ");prw(calib, mt1->pid->cp);
-	  printf("time between ticks 1: ");prw(calib, mt2->pid->cp);
-	} else 
-	  printf("time between ticks %d: ", port);prw(calib, mt->pid->cp);
-	
-	if(port == 2){
-	  printf("physical error 0:    ");prw(calib, mt1->pid->cd);
-	  printf("physical error 1:    ");prw(calib, mt2->pid->cd);
-	} else
-	  printf("physical error %d:    ", port);prw(calib, mt->pid->cd);
-
+	  printf("time between ticks 0: \n");prwcr(calib, mt1->pid->cp);
+	  printf("time between ticks 1: \n");prwcr(calib, mt2->pid->cp);
+	  printf("physical error 0: \n");prwcr(calib, mt1->pid->cd);
+	  printf("physical error 1: \n");prwcr(calib, mt2->pid->cd);
+	}else{
+	  printf("time between ticks %d: ", port);prwcr(calib, mt->pid->cp);
+	  printf("physical error %d:    ", port);prwcr(calib, mt->pid->cd);
+	}
 	printf("\n\n");
       }
     }
@@ -702,10 +700,11 @@ time.tv_nsec = 0;
      mt_reconf(mt, ECNULL, ECNULL);
    }
    break;;
- case 7: // Test for calibration, step will be overwritten here, and samples must range between 5 and 20.
+ case 7: /* Test for calibration, step will be overwritten here, and samples must range between 5 and 20, the values will be computed 
+            from velocity 20 to MAX_VEL (200) in steps of "MAX_VEL/samples", after the calibration the test will interpolate the data set 
+	    for the middle points values*/
    {
-     
-     bool clavat  =  false;
+    
      double twait = 1.7;
      int micras   = 0, desv = 0, micras2 = 0, desv2 = 0, mtot = 0, dtot = 0, i;
      step         = (MAX_VEL / mostres);
@@ -716,37 +715,36 @@ time.tv_nsec = 0;
        mostres = 20;
      
      if(verb > 0) {
-       printf("MOTOR %d: %d,%d,%d,%d\n",mt->id-1, (int)mt->pinf, (int)mt->pinr, mt_enc_is_null(mt,1) ? ENULL : (int)mt->enc1->pin, mt_enc_is_null(mt,2) ? ENULL : (int)mt->enc2->pin);
-       printf("Motor %d: PID is %s", mt->id-1, mt_pid_is_null(mt) ? "UNACTIVE" : "ACTIVE");
-       mt_pid_is_null(mt) ? printf("\n") : printf(" Kp = %.2f, Ki = %.2f, Kd = %.2f, ttc = %d\n", mt->pid->kp, mt->pid->ki, mt->pid->kd, (int)mt->pid->ttc);
-       printf("turns = %d, PosCtrl = %.2f, step = %d, samples = %d\n\n", turns, pctr, step, mostres);
+       if(port<2) 
+	 printf("MOTOR %d: %d,%d,%d,%d\n",mt->id-1, (int)mt->pinf, (int)mt->pinr, mt_enc_is_null(mt,1) ? ENULL : mt->enc1->pin, mt_enc_is_null(mt,2) ? ENULL : mt->enc2->pin);	 
+       else {
+	 printf("MOTOR 0: %d,%d,%d,%d\n", (int)mt1->pinf, (int)mt1->pinr, mt_enc_is_null(mt1,1) ? ENULL : mt1->enc1->pin, mt_enc_is_null(mt1,2) ? ENULL : mt1->enc2->pin);	 
+	 printf("MOTOR 1: %d,%d,%d,%d\n", (int)mt2->pinf, (int)mt2->pinr, mt_enc_is_null(mt2,1) ? ENULL : mt2->enc1->pin, mt_enc_is_null(mt2,2) ? ENULL : mt2->enc2->pin);	 
+       }
+
+       printf("PID is %s", mt_pid_is_null(port == 2 ? mt1 : mt) ? "UNACTIVE" : "ACTIVE");
+       mt_pid_is_null(port == 2 ? mt1 : mt) ? printf("\n") : printf(" Kp = %.2f, Ki = %.2f, Kd = %.2f, ttc = %d\n", port == 2 ? mt1->pid->kp : mt->pid->kp, port == 2 ? mt1->pid->ki : mt->pid->ki, port == 2 ? mt1->pid->kd : mt->pid->kd, port == 2 ? (int)mt1->pid->ttc : (int)mt->pid->ttc);
+       printf("step = %d, samples = %d\n\n", step, mostres);
      }
-     
-     
      
      port < 2 ? printf("Calibrating MOTOR %d\n\n", port) : printf("Calibrating MOTORS\n\n") ;     
      if(mt_calibrate(mostres, twait)){
        
        if(verb >= 1) {
 	 if(port == 2){
-	   printf("time between ticks 0: ");prw(calib, mt1->pid->cp);
-	   printf("time between ticks 1: ");prw(calib, mt2->pid->cp);
-	 } else 
-	   printf("time between ticks %d: ", port);prw(calib, mt->pid->cp);
-	 
-	 if(port == 2){
-	   printf("physical error 0:    ");prw(calib, mt1->pid->cd);
-	   printf("physical error 1:    ");prw(calib, mt2->pid->cd);
-	 } else
-	   printf("physical error %d:    ", port);prw(calib, mt->pid->cd);
-	 
-	 printf("\n\n");
+	   printf("time between ticks 0: \n");prwcr(mostres, mt1->pid->cp);
+	   printf("time between ticks 1: \n");prwcr(mostres, mt2->pid->cp);
+	   printf("physical error 0: \n");prwcr(mostres, mt1->pid->cd);
+	   printf("physical error 1: \n");prwcr(mostres, mt2->pid->cd);
+	 } else {
+	   printf("time between ticks %d: \n", port);prwcr(mostres, mt->pid->cp);
+	   printf("physical error %d: \n", port);prwcr(mostres, mt->pid->cd);
+	 }
+	 printf("\n");
        }
        
-       for ( i = clavat ? MIN_VEL : MIN_VEL+(step/2); i <= MAX_VEL; i += step ){
-	 if ((i + step > MAX_VEL) && clavat)
-	   i = MAX_VEL;
-	 else if ((i == MAX_VEL) && !clavat)
+       for ( i =  MIN_VEL+(step/2); i <= MAX_VEL; i += step ){
+	 if (i == MAX_VEL)
 	   i = (MAX_VEL - (step/4));
 	 if(port < 2)
 	   get_params(mt,i,&mtot, &dtot);
@@ -756,60 +754,98 @@ time.tv_nsec = 0;
 	   mtot = (micras + micras2)/2;
 	   dtot = (desv + desv2)/2;
 	 }
-	 
-	 printf("params for %3d vel >> tbticks: %d, desv: %d\n", i, mtot, dtot);
+	 if(port < 2)
+	   printf("params for %3d vel >> tbticks: %d, err: %d\n", i, mtot, dtot);
+	 else {
+	   printf("MOTOR 0: params for %3d vel >> tbticks: %d, err: %d\n", i, micras, desv);
+	   printf("MOTOR 1: params for %3d vel >> tbticks: %d, err: %d\n", i, micras2, desv2);
+	 }
        }
      } else 
        printf("Error calibrating motors.\n");
        
    }
    break;;
-   case 8: //get defaults
+   case 8: //This test is useless to the user, however it was implemented to get the default time between ticks and physical error values for the library 
      {
-       int mostres = argc < 3 ? 10 : atoi(argv[2]), i, k;
-       double twait = argc < 4 ? 0.7 : atof(argv[3]);
-       int iters = argc < 5 ? 5 : atoi(argv[4]);
+       int i, k;
+       double twait = 0.7;
+       int iters = 5;
        int micras1 = 0, desv1 = 0, micras2 = 0, desv2 = 0;
-       int step = (MAX_VEL / mostres);
+       step = (MAX_VEL / mostres);
        double sum1[mostres], sum2 [mostres], defp1[mostres], defp2[mostres], defd1[mostres], defd2[mostres];
+       
+       if(verb > 0) {
+       if(port<2) 
+	 printf("MOTOR %d: %d,%d,%d,%d\n",mt->id-1, (int)mt->pinf, (int)mt->pinr, mt_enc_is_null(mt,1) ? ENULL : mt->enc1->pin, mt_enc_is_null(mt,2) ? ENULL : mt->enc2->pin);	 
+       else {
+	 printf("MOTOR 0: %d,%d,%d,%d\n", (int)mt1->pinf, (int)mt1->pinr, mt_enc_is_null(mt1,1) ? ENULL : mt1->enc1->pin, mt_enc_is_null(mt1,2) ? ENULL : mt1->enc2->pin);	 
+	 printf("MOTOR 1: %d,%d,%d,%d\n", (int)mt2->pinf, (int)mt2->pinr, mt_enc_is_null(mt2,1) ? ENULL : mt2->enc1->pin, mt_enc_is_null(mt2,2) ? ENULL : mt2->enc2->pin);	 
+       }
+
+       printf("PID is %s", mt_pid_is_null(port == 2 ? mt1 : mt) ? "UNACTIVE" : "ACTIVE");
+       mt_pid_is_null(port == 2 ? mt1 : mt) ? printf("\n") : printf(" Kp = %.2f, Ki = %.2f, Kd = %.2f, ttc = %d\n", port == 2 ? mt1->pid->kp : mt->pid->kp, port == 2 ? mt1->pid->ki : mt->pid->ki, port == 2 ? mt1->pid->kd : mt->pid->kd, port == 2 ? (int)mt1->pid->ttc : (int)mt->pid->ttc);
+       printf("step = %d, samples = %d\n\n", step, mostres);
+     }
+
+
        /*				printf("MOT1_E1: %d, MOT1_E2: %d, MOT2_E1: %d, MOT2_E2: %d\n", m1->enc1->pin, m1->enc2->pin, m2->enc1->pin, m2->enc2->pin);
 					printf("MOTOR 1: pcoef_avans d'entrar"); prw(10, m1->pid->cp);
 					printf("MOTOR 1: dcoef_avans d'entrar"); prw(10, m1->pid->cd);
 					printf("MOTOR 2: pcoef_avans d'entrar"); prw(10, m2->pid->cp);
 					printf("MOTOR 2: dcoef_avans d'entrar"); prw(10, m2->pid->cd);
        */
+
        for(i = 0; i < iters; i++){
 	 mt_calibrate(mostres, twait);
-	 if(iters == 1){
+	 if(verb >= 3) {
+	   if(port == 2){
+	     printf("time between ticks 0: \n");prwcr(mostres, mt1->pid->cp);
+	     printf("time between ticks 1: \n");prwcr(mostres, mt2->pid->cp);
+	     printf("physical error 0: \n");prwcr(mostres, mt1->pid->cd);
+	     printf("physical error 1: \n");prwcr(mostres, mt2->pid->cd);
+	   } else {
+	     printf("time between ticks %d: \n", port);prwcr(mostres, mt->pid->cp);
+	     printf("physical error %d: \n", port);prwcr(mostres, mt->pid->cd);
+	   }
 	   printf("\n");
-	   printf("coefs_punts_1: ");prw(mostres, mt1->pid->cp);
-	   printf("coefs_punts_2: ");prw(mostres, mt2->pid->cp);
-	   printf("coef_dev_1:    ");prw(mostres, mt1->pid->cd);
-	   printf("coef_dev_2:    ");prw(mostres, mt2->pid->cd);
-	   printf("\n");
-	 } else
-	   printf("\n");
-	 
-	 //vv = 95;
-	 
+	 }
+
 	 for (k = 0; k<mostres; k++){
-	   defp1[k] += mt1->pid->cp[k];
-	   defd1[k] += mt1->pid->cd[k];
-	   defp2[k] += mt2->pid->cp[k];
-	   defd2[k] += mt2->pid->cd[k];
-	   sum1[k] += (mt1->pid->cp[k] + mt2->pid->cp[k])/2;
-	   sum2[k] += (mt1->pid->cd[k] + mt2->pid->cd[k])/2;
+	   if (port == 2){
+	     defp1[k] += mt1->pid->cp[k];
+	     defd1[k] += mt1->pid->cd[k];
+	     defp2[k] += mt2->pid->cp[k];
+	     defd2[k] += mt2->pid->cd[k];
+	     sum1[k] += (mt1->pid->cp[k] + mt2->pid->cp[k])/2;
+	     sum2[k] += (mt1->pid->cd[k] + mt2->pid->cd[k])/2;
+	   } else {
+	     defp1[k] += mt->pid->cp[k];
+	     defd1[k] += mt->pid->cd[k];
+	   }
 	 }
-	 
-	 for (k = MIN_VEL+(step/2); k < MAX_VEL; k += step){
-	   get_params(mt1, k, &micras1, &desv1);
-	   get_params(mt2, k, &micras2, &desv2);
-	   printf("params for %2d%% power mot 1 >> tbticks: %d, desv: %d\n",k,micras1, desv1);
-	   printf("params for %2d%% power mot 2 >> tbticks: %d, desv: %d\n",k,micras2, desv2);
-	   // micras = desv = 0;
+	 if(verb >= 2) {
+	   for (k = MIN_VEL+(step/2); k < MAX_VEL; k += step){
+	     if (k == MAX_VEL)
+	       k = (MAX_VEL - (step/4));
+	     if(port < 2)
+	       get_params(mt,i,&micras1, &desv1);
+	     else {
+	       get_params(mt1,i,&micras1, &desv2);
+	       get_params(mt2,i,&micras2, &desv2);
+	     }
+	     
+	     if(port < 2)
+	       printf("params for %2d%% power mot 1 >> tbticks: %d, desv: %d\n", k, micras1, desv1);
+	     else {
+	       printf("MOTOR 0: params for %2d%% power mot 1 >> tbticks: %d, desv: %d\n",k,micras1, desv1);
+	       printf("MOTOR 1: params for %2d%% power mot 2 >> tbticks: %d, desv: %d\n",k,micras2, desv2);
+	     }
+	   }
 	 }
-	 
+     
        }
+       
        for (i = 0; i < mostres; i++){
 	 defp1[i] = defp1[i]/iters;
 	 defd1[i] = defd1[i]/iters;
@@ -819,15 +855,13 @@ time.tv_nsec = 0;
 	 sum2[i] = sum2[i]/iters;
        }
        
-       if (iters > 1){
 	 printf("\n");
-	 printf("DEFAULTS PUNTS_M1:");prw(mostres, defp1);
-	 printf("DEFAULTS DESV_M1:");prw(mostres, defd1);
-	 printf("DEFAULTS PUNTS_M2:");prw(mostres, defp2);
-	 printf("DEFAULTS DESV_M2:");prw(mostres, defd2);
-	 printf("DEFAULTS PUNTS:");prw(mostres, sum1);
-	 printf("DEFAULTS DESV:");prw(mostres, sum2);
-       }
+	 printf("DEFAULTS TBT_M1:");prwcr(mostres, defp1);
+	 printf("DEFAULTS ERR_M1:");prwcr(mostres, defd1);
+	 printf("DEFAULTS TBT_M2:");prwcr(mostres, defp2);
+	 printf("DEFAULTS ERR_M2:");prwcr(mostres, defd2);
+	 printf("DEFAULTS PUNTS:");prwcr(mostres, sum1);
+	 printf("DEFAULTS DESV:");prwcr(mostres, sum2);
      }
      break;;
    case 9:
@@ -1677,6 +1711,19 @@ void prac (int len, double * vec){
   printf("\n\n");
   
 }
+
+void prwcr (int len, double per[]){
+  
+  int i;
+  int aux;
+  for (i=0; i < len; i++){
+    aux = per[i];
+    printf("%d, ", aux);
+  }
+  printf("\n");
+  
+}
+
 
 void prw (int len, double per[]){
   
