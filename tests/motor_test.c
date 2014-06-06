@@ -236,7 +236,7 @@ static void parse_opts(int argc, char *argv[])
       break;
     case 'c':
       calib = atoi(optarg);
-      to_calib = (calib > 5 && calib < 20) ?  true : false;
+      to_calib = (calib >= 5 && calib <= 20) ?  true : false;
       break;
     case 's':
       step = atoi(optarg);
@@ -293,9 +293,9 @@ int main (int argc, char * argv[]) {
   ENC en11, en12, en21, en22;
   
   bool ret = false;
-  bool needdbg = tst == 7 || tst == 8 || tst == 3 || tst == 4 || tst == 5 ;
+  bool needdbg = tst == 3 || tst == 4 || tst == 5 ;
 
-  /*for tests 7, 8, 3, 4, & 5*/
+  /*for tests 3, 4 & 5*/
   en11.pin = M1_ENC1;
   en11.isr = &dbg_isr_11;
   en12.pin = M1_ENC2;
@@ -1561,7 +1561,8 @@ void cal_weight(int len, double * weights, double less, double max){
 
 void smart_weights(int len, double * weights, double step, double max, double *data, int id, double per []){
   
-  /* La idea: contar la poblacion de cada quantil (menos la del quantil anterior), y, sacar el porcentage respeto a la poblacion total (todos los tics), a partir de ahi assignar los      pesos de cada elemento dependiendo del percentage de poblacion del quantil al que corresponda */
+  /* La idea: contar la poblacion de cada quantil (menos la del quantil anterior), y, sacar el porcentage respeto a la poblacion total (todos los tics), a partir de ahi asignar los      pesos de cada elemento dependiendo del percentage de poblacion del quantil al que corresponda */
+  /* Sorted data */
   
   double quantil;
   int res;
@@ -1581,7 +1582,7 @@ void smart_weights(int len, double * weights, double step, double max, double *d
 
 int no_quantil (int len, double * data, double perc, double max, double step){
 
-  /* NO-quantil, es decir lo coontrario, dado un porcentage del valor del m?ximo, cuanta poblaci?n esta por debajo de ese valor, (Distribuciones?) */
+  /* NO-quantil, es decir lo coontrario, dado un porcentage del valor del máximo, cuanta población esta por debajo de ese valor, (Distribuciones?) */
   /* sorted data */
   
   int i;
