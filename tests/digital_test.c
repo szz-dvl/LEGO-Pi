@@ -13,7 +13,7 @@ static void print_usage(const char *prog)
 {
 	printf("Usage: %s [-tvpVcsPIDTrebSdCl]\n", prog);
 	puts("  -t --test      test number to perform [1-6]\n"
-	     "  -p --port      motor port [0-1]\n"
+	     "  -p --port      digital port [0-1]\n"
 	     "  -e --tdep      extra paramter, test dependant\n"
 	     "  -T --titled    Print titles before info fields\n"
 	     "  -d --dbg       Set the library in debug mode [no arg]\n");

@@ -12,7 +12,7 @@ static void print_usage(const char *prog)
 {
 	printf("Usage: %s [-tvpVcsPIDTrebSdCl]\n", prog);
 	puts("  -t --test      test number to perform [1-6]\n"
-	     "  -p --port      motor port [0-3]\n"
+	     "  -p --port      analog port [0-3]\n"
 	     "  -i --times     iterations, only apply to some tests\n"
 	     "  -d --dbg       Set the library in debug mode [no arg]\n");
 }
