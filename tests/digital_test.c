@@ -30,6 +30,7 @@ static void parse_opts(int argc, char *argv[])
       { "port",    1, 0, 'p' },
       { "dbg" ,    0, 0, 'd' },
       { "titled",  0, 0, 'T' },
+      {0, 0, 0, 0},
     };
       
     int c;
