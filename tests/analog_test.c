@@ -27,6 +27,7 @@ static void parse_opts(int argc, char *argv[])
       { "times" ,  1, 0, 'i' },
       { "port",    1, 0, 'p' },
       { "dbg" ,    0, 0, 'd' },
+      {0, 0, 0, 0},
     };
       
     int c;
