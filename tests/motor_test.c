@@ -10,7 +10,7 @@
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
-static TSPEC t1, t2;
+static TSPEC t11, t12, t21, t22;
 
 static MOTOR * mt1 = NULL , * mt2 = NULL, * mt = NULL; 
 
@@ -32,32 +32,31 @@ struct resfive{
 };
 typedef struct resfive RFIVE;
 
-int get_in(char *to_print, int type);
-int stats(RESULT *, bool, double *, bool, bool, int, int, bool, int, bool);
-void prac(int, double *);
-void prw(int, double[]);
-double avg (int, double *);
-void cal_weight(int,double *,double,double);
-void smart_weights(int, double *, double, double, double *, int, double []);
-int no_quantil (int, double *, double, double, double);
-void pres (double **, int, int, int);
-void presf (RESULT *, int, int);
-void comp_vel(int, int, double **, int);
-void comp_perc(int, int, double **, int);
-void comp_res(RESULT *, int, int, int);
-void col_to_row(double *,double **, int, int);
-void pr_stats(double *, int);
-int cpacum(double *, int, int, int);
-int cptable(double *, int, double *);
-void get_limits(double[], double *, double *, double, double, double *, double *, double *, double *);
-void init_acums(int, MOTOR *);
-void reset_acums(int, MOTOR *);
-void free_acums(MOTOR * m);
-bool gt_pars (MOTOR * m, int vel, int * ex_micras, int * ex_desv);
-void tr_enc(double * [], int);
-void prfive(RFIVE *, int);
-double difft (TSPEC *, TSPEC *);
-void prwcr (int len, double per[]);
+static int get_in(char *to_print, int type);
+static int stats(RESULT *, bool, double *, bool, bool, int, int, bool, int, bool);
+static void prac(int, double *);
+static void prw(int, double[]);
+static double avg (int, double *);
+static void cal_weight(int,double *,double,double);
+static void smart_weights(int, double *, double, double, double *, int, double []);
+static int no_quantil (int, double *, double, double, double);
+//static void pres (double **, int, int, int);
+//static void presf (RESULT *, int, int);
+static void comp_vel(int, int, double **, int);
+static void comp_perc(int, int, double **, int);
+static void comp_res(RESULT *, int, int, int);
+static void col_to_row(double *,double **, int, int);
+static void pr_stats(double *, int);
+static int cpacum(double *, int, int, int);
+static int cptable(double *, int, double *);
+static void get_limits(double[], double *, double *, double, double, double *, double *, double *, double *);
+static void init_acums(int, MOTOR *);
+static void reset_acums(int, MOTOR *);
+static void free_acums(MOTOR * m);
+static bool gt_pars (MOTOR * m, int vel, int * ex_micras, int * ex_desv);
+static void tr_enc(double * [], int);
+static void prfive(RFIVE *, int);
+static void prwcr (int len, double per[]);
 
 
 static void isr_print_1(void){
@@ -723,107 +722,7 @@ time.tv_nsec = 0;
        
    }
    break;;
-   case 8: //This test is useless to the user, however it was implemented to get the default time between ticks and physical error values for the library 
-     {
-       int i, k;
-       double twait = 0.7;
-       int iters = 5;
-       int micras1 = 0, desv1 = 0, micras2 = 0, desv2 = 0;
-       step = (MAX_VEL / mostres);
-       double sum1[mostres], sum2 [mostres], defp1[mostres], defp2[mostres], defd1[mostres], defd2[mostres];
-       
-       if(verb > 0) {
-       if(port<2) 
-	 printf("MOTOR %d: %d,%d,%d,%d\n",mt->id-1, (int)mt->pinf, (int)mt->pinr, mt_enc_is_null(mt,1) ? ENULL : mt->enc1->pin, mt_enc_is_null(mt,2) ? ENULL : mt->enc2->pin);	 
-       else {
-	 printf("MOTOR 0: %d,%d,%d,%d\n", (int)mt1->pinf, (int)mt1->pinr, mt_enc_is_null(mt1,1) ? ENULL : mt1->enc1->pin, mt_enc_is_null(mt1,2) ? ENULL : mt1->enc2->pin);	 
-	 printf("MOTOR 1: %d,%d,%d,%d\n", (int)mt2->pinf, (int)mt2->pinr, mt_enc_is_null(mt2,1) ? ENULL : mt2->enc1->pin, mt_enc_is_null(mt2,2) ? ENULL : mt2->enc2->pin);	 
-       }
-
-       printf("PID is %s", mt_pid_is_null(port == 2 ? mt1 : mt) ? "UNACTIVE" : "ACTIVE");
-       mt_pid_is_null(port == 2 ? mt1 : mt) ? printf("\n") : printf(" Kp = %.2f, Ki = %.2f, Kd = %.2f, ttc = %d\n", port == 2 ? mt1->pid->kp : mt->pid->kp, port == 2 ? mt1->pid->ki : mt->pid->ki, port == 2 ? mt1->pid->kd : mt->pid->kd, port == 2 ? (int)mt1->pid->ttc : (int)mt->pid->ttc);
-       printf("step = %d, samples = %d\n\n", step, mostres);
-     }
-
-       for(i = 0; i < iters; i++){
-	 mt_calibrate(mostres, twait);
-	 if(verb >= 3) {
-	   if(port == 2){
-	     printf("time between ticks 0: \n");prwcr(mostres, mt1->pid->cp);
-	     printf("time between ticks 1: \n");prwcr(mostres, mt2->pid->cp);
-	     printf("physical error 0: \n");prwcr(mostres, mt1->pid->cd);
-	     printf("physical error 1: \n");prwcr(mostres, mt2->pid->cd);
-	   } else {
-	     printf("time between ticks %d: \n", port);prwcr(mostres, mt->pid->cp);
-	     printf("physical error %d: \n", port);prwcr(mostres, mt->pid->cd);
-	   }
-	   printf("\n");
-	 }
-
-	 for (k = 0; k<mostres; k++){
-	   if (port == 2){
-	     defp1[k] += mt1->pid->cp[k];
-	     defd1[k] += mt1->pid->cd[k];
-	     defp2[k] += mt2->pid->cp[k];
-	     defd2[k] += mt2->pid->cd[k];
-	     sum1[k] += (mt1->pid->cp[k] + mt2->pid->cp[k])/2;
-	     sum2[k] += (mt1->pid->cd[k] + mt2->pid->cd[k])/2;
-	   } else {
-	     defp1[k] += mt->pid->cp[k];
-	     defd1[k] += mt->pid->cd[k];
-	   }
-	 }
-	 if(verb >= 2) {
-	   for (k = MIN_VEL+(step/2); k < MAX_VEL; k += step){
-	     if (k == MAX_VEL)
-	       k = (MAX_VEL - (step/4));
-	     if(port < 2)
-	       gt_pars(mt,i,&micras1, &desv1);
-	     else {
-	       gt_pars(mt1,i,&micras1, &desv2);
-	       gt_pars(mt2,i,&micras2, &desv2);
-	     }
-	     
-	     if(port < 2)
-	       printf("params for %2d%% power mot 1 >> tbticks: %d, desv: %d\n", k, micras1, desv1);
-	     else {
-	       printf("MOTOR 0: params for %2d%% power mot 1 >> tbticks: %d, desv: %d\n",k,micras1, desv1);
-	       printf("MOTOR 1: params for %2d%% power mot 2 >> tbticks: %d, desv: %d\n",k,micras2, desv2);
-	     }
-	   }
-	   printf("\n"); 
-	 }
-	
-       }
-       
-       for (i = 0; i < mostres; i++){
-	 if(port == 2){
-	   defp1[i] = defp1[i]/iters;
-	   defd1[i] = defd1[i]/iters;
-	   defp2[i] = defp2[i]/iters;
-	   defd2[i] = defd2[i]/iters;
-	   sum1[i] = sum1[i]/iters;
-	   sum2[i] = sum2[i]/iters;
-	 } else {
-	   defp1[i] = defp1[i]/iters;
-	   defd1[i] = defd1[i]/iters;
-	 }
-       }
-       
-       if(port == 2){
-	 printf("DEFAULTS TBT_M0: ");prwcr(mostres, defp1);
-	 printf("DEFAULTS ERR_M0: ");prwcr(mostres, defd1);
-	 printf("DEFAULTS TBT_M1: ");prwcr(mostres, defp2);
-	 printf("DEFAULTS ERR_M1: ");prwcr(mostres, defd2);
-	 printf("DEFAULTS TBT: ");prwcr(mostres, sum1);
-	 printf("DEFAULTS ERR: ");prwcr(mostres, sum2);
-       } else {
-	 printf("DEFAULTS TBT_M%d:", port);prwcr(mostres, defp1);
-	 printf("DEFAULTS ERR_M%d:", port);prwcr(mostres, defd1);
-       }
-     }
-     break;;
- case 9: //Very simple test for one motor to test P.I.D behavior.
+ case 8: //Very simple test for one motor to test P.I.D behavior.
    {
      if(verb > 0) {
        printf("MOTOR 0: %d,%d,%d,%d\n", (int)mt1->pinf, (int)mt1->pinr, mt_enc_is_null(mt1,1) ? ENULL : mt1->enc1->pin, mt_enc_is_null(mt1,2) ? ENULL : mt1->enc2->pin);	 
@@ -841,7 +740,7 @@ time.tv_nsec = 0;
    }
    
    break;;
- case 10://Very simple test to test move sinc, when 1 is entered to the standard input, the motors will stop turning 
+ case 9://Very simple test to test move sinc, when 1 is entered to the standard input, the motors will stop turning 
    { 
      
      if(verb > 0) {
@@ -861,7 +760,7 @@ time.tv_nsec = 0;
      mt_stop(mt2,true);
    }
    break;;
- case 11: //Simple test to test sincro till a set point
+ case 10: //Simple test to test sincro till a set point
    {
      
      if(verb > 0) {
@@ -918,14 +817,6 @@ bool gt_pars (MOTOR * m, int vel, int * ex_micras, int * ex_desv){
     gsl_interp_free(interp);
  
   return true;
-}
-
-double difft (TSPEC * ini, TSPEC * fi){
-
-    long enano = (fi->tv_nsec - ini->tv_nsec);
-    int esec = (int)(fi->tv_sec - ini->tv_sec);
-    return ((double) esec*1000000+(enano/1000)); //micras
-
 }
 
 void prfive(RFIVE * data, int len){
@@ -1224,7 +1115,7 @@ void col_to_row(double * res, double ** table, int col, int rows){
 }
 
 
-void presf (RESULT * res, int mostres, int step){
+/*void presf (RESULT * res, int mostres, int step){
   
   int i, k, velo, index;
   for (velo = step; velo <= MAX_VEL; velo += step){
@@ -1245,7 +1136,7 @@ void presf (RESULT * res, int mostres, int step){
     }
   }
 }
-
+*/
 
 int cpacum(double * out, int alloc, int id, int encoder){
   
@@ -1305,8 +1196,8 @@ int stats (RESULT * out, bool to_print, double * vect, bool wweights, bool cappe
     }
   }
   
-  double mean, min, max, wmean, wvariance, wsd, wabs, swmean, swvariance, swsd, swabs, median, upperq, lowerq, /*middleq*/ uq, lq, rmin, rmax, prini, prfi;
-  min = max = wmean = wvariance = wsd = wabs = rmin = rmax = swmean = swvariance = swsd = swabs = median = upperq = lowerq = /*middleq*/  uq = lq = 0;
+  double mean, min, max, wmean, wvariance, wsd, wabs, swmean, swvariance, swsd, swabs, median, upperq, lowerq, uq, lq, rmin, rmax, prini = 0, prfi = 0;
+  min = max = wmean = wvariance = wsd = wabs = rmin = rmax = swmean = swvariance = swsd = swabs = median = upperq = lowerq = uq = lq = 0;
   
   mean = out->res[0] = gsl_stats_mean(data, 1, len);
   double variance = out->res[1] = gsl_stats_variance_m(data, 1, len, mean);
