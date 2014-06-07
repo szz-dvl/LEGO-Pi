@@ -39,6 +39,7 @@ motion:
 	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
 	@$(CC) $(CFLAGS) motion.c $(LIBS) -o $@
 
+
 .PHONEY: clean
 clean:
 	@/bin/echo -e $(KRED)[Cleaning Tests]$(KNRM)

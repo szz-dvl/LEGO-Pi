@@ -18,10 +18,9 @@
 #define MAX_VEL		        200                    /*si 9V y VEL = 160 es comportara com amb bateries de LEGO */
 #define ENULL		        -1	               /* Encoder desactivat */
 #define SETUP		        INT_EDGE_SETUP
-#define RISING		        INT_EDGE_BOTH
+#define RISING		        INT_EDGE_RISING
 #define MAX_COEF	        21
 #define MIN_COEF	        5                      /* AKIMA spline conditions */
-//#define PIDNULL		        0
 #define PIDDEF		        0
 #define TTCDEF		        36
 #define MIN_VEL		        15
