@@ -25,49 +25,9 @@ static int mt_log_lvl = LOG_LVL_ADV;
 
 //double dcoef_def[MAX_COEF] = { 1135.86026750179712507815565913915634155, 869.34624357773122937942389398813247681, 764.23768186493850862461840733885765076, 718.21105387992736268643056973814964294, 640.35936035138365696184337139129638672, 611.99801209258998824225272983312606812, 547.67186454544810203515226021409034729, 517.43259316320211382844718173146247864, 478.25867786479875576333142817020416260, 458.86468723775709577239467762410640717, 430.54190130685094572982052341103553772, 406.98481717558024683967232704162597656, 395.62010568577761659980751574039459229, 375.74271902113002852274803444743156433, 361.38899585646299783547874540090560913, 352.61160524510603408998576924204826355, 354.93183388013255807891255244612693787, 338.21632822832532383472425863146781921, 329.61436368804623953110422007739543915, 322.95587145004765261546708643436431885, 0.0 };
 
-double pcoef_def[MAX_COEF] = {
-  11881,
-  4680, 
-  3946, 
-  3214, 
-  2839, 
-  2666, 
-  2403, 
-  2195, 
-  2004, 
-  1858, 
-  1723, 
-  1602, 
-  1503, 
-  1407, 
-  1320, 
-  1261, 
-  1211, 
-  1171, 
-  1142
-};
+double pcoef_def[MAX_COEF] = { 6424, 4761, 3920, 3383, 2955, 2641, 2372, 2153, 1961, 1802, 1662, 1539, 1405, 1340, 1261, 1202, 1156, 1117, 1106, 1111, 0 };
 
-double dcoef_def[MAX_COEF] = {
-  2558,
-  1019,
-  770,
-  820,
-  734,
-  562,
-  513,
-  466,
-  432,
-  408,
-  391,
-  373,
-  364,
-  361,
-  354,
-  334,
-  313,
-  306,
-  300
-};
+double dcoef_def[MAX_COEF] = { 1164, 884, 790, 665, 599, 532, 499, 472, 437, 424, 402, 376, 352, 343, 347, 339, 333, 319, 295, 285, 0 };
 
 
 struct tharg_mtt {      /*Estructura per cridar al thread que moura el motor fins a un punt concret, evitant que el programa es quedi bloquejat*/
@@ -723,7 +683,7 @@ static bool conf_motor(MOTOR * mot, ENC * enc1, ENC * enc2){
   if(enc1!= NULL){
     cenc += (c_enc(mot, enc1, 1) && (mot->enc1->pin != ENULL)) ? 1 : 0;
     
-  } else {
+  } else { /*defaults e1*/
     ENC aux;
     aux.pin = ex_pin1;
     aux.isr = mot->id == 1 ? &isr_def_11 : &isr_def_21;
@@ -732,7 +692,7 @@ static bool conf_motor(MOTOR * mot, ENC * enc1, ENC * enc2){
 
   if(enc2 != NULL){
     cenc += (c_enc(mot, enc2, 2) && (mot->enc2->pin != ENULL)) ? 1 : 0;
-  } else { /* defaults */
+  } else { /* defaults e2*/
     ENC aux;
     aux.pin = ex_pin2;
     aux.isr = mot->id == 1 ? &isr_def_12 : &isr_def_22;
@@ -918,12 +878,14 @@ static int mot_stop(MOTOR * mot, bool reset){
   if(spwm_clear_channel_gpio(mot->chann,mot->pinr) != 0)
     not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d\n", mot->chann, mot->id-1);
   */
-
+  
   if (spwm_clear_channel(mot->chann) != 0)
     not_critical("mot_stop: Error clearing DMA channel: %d, on motor: %d", mot->chann, mot->id);
-
-  digitalWrite(mot->pinf, LOW);
+  
+  //DELAY_US(10000);
+  
   digitalWrite(mot->pinr, LOW);
+  digitalWrite(mot->pinf, LOW);
   ticks = get_ticks(mot);
   //mot->moving = false;  //Oju aki!
   
@@ -1158,8 +1120,7 @@ static int move_till_ticks_b (MOTOR * mot, int ticks, dir dir, int vel, bool res
   if (!restored && initial_pid)
     pid_on(mot->pid);
   
-  int tcks = mot_stop(mot,reset);
-  return tcks;
+  return mot_stop(mot,reset);
 }
 
 extern void mt_shutdown () { //aki "free" d'accelerador de interpolacions 
@@ -1256,7 +1217,7 @@ static void * mtt_thread (void * arg){
   THARG_MTT * args = (THARG_MTT *) arg;
 
   move_till_ticks_b(args->mot, args->ticks, args->dir, args->vel, false, args->pctr); //force reset = false
-  
+
   pthread_exit(NULL);
 }
 
@@ -2477,6 +2438,7 @@ static void debug (char* fmt, ...) {
   va_start(args, fmt);
   vprintf(fmt, args);
   va_end(args);
+
 
 }
 

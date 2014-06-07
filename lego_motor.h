@@ -7,10 +7,10 @@
 
 
 #define HW_PWM			DELAY_VIA_PWM
-#define ST_US		        4000 //20000 microseconds
-#define PWIG_DEF 	        2//PULSE_WIDTH_INCREMENT_GRANULARITY_US_DEFAULT//20
+#define ST_US		        4000//microseconds 20000
+#define PWIG_DEF 	        2//PULSE_WIDTH_INCREMENT_GRANULARITY_US_DEFAULT//20 //2
 #define MAX_PW			ST_US / PWIG_DEF
-#define BASE			370
+#define BASE			400
 #define MAX_THREADS		2
 #define V2PW(x)     	        (x * (MAX_PW/MAX_VEL))
 #define PW2V(x)     	        (x / (MAX_PW/MAX_VEL))
@@ -76,8 +76,8 @@ struct motor {
 };
 typedef struct motor MOTOR;
 
-enum mot1 {M1_PINF = 4, M1_PINR = 17, M1_ENC1 = 27, M1_ENC2 = 22, M1_CHANN = 8}; 
-enum mot2 {M2_PINF = 25, M2_PINR = 18, M2_ENC1 = 24, M2_ENC2 = 23, M2_CHANN = 7};
+enum mot1 {M1_PINF = 4, M1_PINR = 17, M1_ENC1 = 27, M1_ENC2 = 22, M1_CHANN = 8}; //8!!
+enum mot2 {M2_PINF = 25, M2_PINR = 18, M2_ENC1 = 24, M2_ENC2 = 23, M2_CHANN = 6};
 
 	/* Cosillas del debug */
 

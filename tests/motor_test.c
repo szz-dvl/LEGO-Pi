@@ -4,20 +4,17 @@
 
 #define STATS_SIZE	18
 #define PER_SIZE	11
-//#define INT1_KEY	1
-//#define INT2_KEY	2
 #define MAXM		40
 #define ENC_RES		4
 #define PRAC_TRUNC      25
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
-TSPEC t11, t12, t21, t22;
+static TSPEC t1, t2;
 
-MOTOR * mt1 = NULL , * mt2 = NULL, * mt = NULL;
-MOTOR * m1isr, * m2isr; 
+static MOTOR * mt1 = NULL , * mt2 = NULL, * mt = NULL; 
 
-double *acum4 = NULL, *acum3 = NULL, *acum2 = NULL, *acum1 = NULL;
+static double *acum1 = NULL, *acum2 = NULL;
 
 
 struct result {
@@ -52,7 +49,7 @@ void col_to_row(double *,double **, int, int);
 void pr_stats(double *, int);
 int cpacum(double *, int, int, int);
 int cptable(double *, int, double *);
-void get_limits(double[], double *, double *, double, double, double *, double *);
+void get_limits(double[], double *, double *, double, double, double *, double *, double *, double *);
 void init_acums(int, MOTOR *);
 void reset_acums(int, MOTOR *);
 void free_acums(MOTOR * m);
@@ -62,87 +59,47 @@ void prfive(RFIVE *, int);
 double difft (TSPEC *, TSPEC *);
 void prwcr (int len, double per[]);
 
-extern void isr_print_11(void){
-  if(m1isr->moving){
-    m1isr->enc1->tics++;
-    if ((m1isr->enc1->tics%300) == 0)
-      printf("Hi, I'm the ISR 11\n");
+
+static void isr_print_1(void){
+  if(mt->moving){
+    mt->enc1->tics++;
+    if ((mt->enc1->tics%300) == 0)
+      printf("Hi, I'm the ISR 1\n");
   }
-  clock_gettime(CLK_ID, &m1isr->enc1->tmp);
+  clock_gettime(CLK_ID, &mt->enc1->tmp);
 }
 
-extern void isr_print_12(void){
-  if(m1isr->moving){
-    m1isr->enc2->tics++;
-    if ((m1isr->enc2->tics%400) == 0)
-      printf("Hi, I'm the ISR 12\n");
+static void isr_print_2(void){
+  if(mt->moving){
+    mt->enc2->tics++;
+    if ((mt->enc2->tics%400) == 0)
+      printf("Hi, I'm the ISR 2\n");
   }
-  clock_gettime(CLK_ID, &m1isr->enc2->tmp);
+  clock_gettime(CLK_ID, &mt->enc2->tmp);
 }
 
-extern void isr_print_21(void){
-  if(m2isr->moving){
-    m2isr->enc1->tics++;
-    if ((m2isr->enc1->tics%300) == 0)
-      printf("Hi, I'm the ISR 21\n");
-  }
-  clock_gettime(CLK_ID, &m2isr->enc1->tmp);
-}
-
-extern void isr_print_22(void){
-  if(m2isr->moving){
-    m2isr->enc2->tics++;
-    if ((m2isr->enc2->tics%400) == 0)
-      printf("Hi, I'm the ISR 22\n");
-  }
-  clock_gettime(CLK_ID, &m2isr->enc2->tmp);
-}
-
-extern void dbg_isr_11(void){
-  if(m1isr->moving){
-    clock_gettime(CLK_ID, &t11);
-    acum1[m1isr->enc1->tics] = difft(&m1isr->enc1->tmp, &t11);//e11->tics == 0 ? (double)((e11->tmp.tv_sec * 1000000) + (e11->tmp.tv_nsec/1000)) : (e11->delay); /* NANOS TO MICR0S */
-    pthread_mutex_lock(&m1isr->enc1->mtx);
-    m1isr->enc1->tics++;
-    pthread_mutex_unlock(&m1isr->enc1->mtx);
-    clock_gettime(CLK_ID, &m1isr->enc1->tmp);
-  }
-}
-
-extern void dbg_isr_12(void){
+static void dbg_isr_1(void){
   
-  if(m1isr->moving){
-    clock_gettime(CLK_ID, &t12);
-    acum3[m1isr->enc2->tics] = difft(&m1isr->enc2->tmp, &t12);//e12->tics == 0 ? (double)((e12->tmp.tv_sec * 1000000) + (e12->tmp.tv_nsec/1000)) : (e12->delay); /* NANOS TO MICR0S */
-    pthread_mutex_lock(&m1isr->enc2->mtx);
-    m1isr->enc2->tics++;
-    pthread_mutex_unlock(&m1isr->enc2->mtx);
-    clock_gettime(CLK_ID, &m1isr->enc2->tmp);
+  if(mt->moving){
+    clock_gettime(CLK_ID, &t1);
+    acum1[mt->enc2->tics] = difft(&mt->enc2->tmp, &t1);//e12->tics == 0 ? (double)((e12->tmp.tv_sec * 1000000) + (e12->tmp.tv_nsec/1000)) : (e12->delay); /* NANOS TO MICR0S */
+    pthread_mutex_lock(&mt->enc2->mtx);
+    mt->enc2->tics++;
+    pthread_mutex_unlock(&mt->enc2->mtx);
+    clock_gettime(CLK_ID, &mt->enc2->tmp);
   }
 }
 
-extern void dbg_isr_21(void){
-  if(m2isr->moving){
-    clock_gettime(CLK_ID, &t21);
-    acum2[m2isr->enc1->tics] = difft(&m2isr->enc1->tmp, &t21);//e21->tics == 0 ? (double)((e21->tmp.tv_sec * 1000000) + (e21->tmp.tv_nsec/1000)) : (e21->delay); /* NANOS TO MICR0S */
-    pthread_mutex_lock(&m2isr->enc1->mtx);
-    m2isr->enc1->tics++;
-    pthread_mutex_unlock(&m2isr->enc1->mtx);
-    clock_gettime(CLK_ID, &m2isr->enc1->tmp);
+static void dbg_isr_2(void){
+  if(mt->moving){
+    clock_gettime(CLK_ID, &t2);
+    acum2[mt->enc1->tics] = difft(&mt->enc1->tmp, &t2);//e21->tics == 0 ? (double)((e21->tmp.tv_sec * 1000000) + (e21->tmp.tv_nsec/1000)) : (e21->delay); /* NANOS TO MICR0S */
+    pthread_mutex_lock(&mt->enc1->mtx);
+    mt->enc1->tics++;
+    pthread_mutex_unlock(&mt->enc1->mtx);
+    clock_gettime(CLK_ID, &mt->enc1->tmp);
   }
 }
-
-extern void dbg_isr_22(void){
-  if(m2isr->moving){
-    clock_gettime(CLK_ID, &t22);
-    acum4[m2isr->enc2->tics] = difft(&m2isr->enc2->tmp, &t22);//e22->tics == 0 ? (double)((e22->tmp.tv_sec * 1000000) + (e22->tmp.tv_nsec/1000)) : (e22->delay); /* NANOS TO MICR0S */
-    pthread_mutex_lock(&m2isr->enc2->mtx);
-    m2isr->enc2->tics++;
-    pthread_mutex_unlock(&m2isr->enc2->mtx);
-    clock_gettime(CLK_ID, &m2isr->enc2->tmp);
-  }
-}
-                                                                                                                                                                                    
 
 double pcoef1[MAX_COEF] = { 5769.92181090883605065755546092987060547, 4479.09869805242851725779473781585693359, 3815.51846175456466880859807133674621582, 3281.67669122572169726481661200523376465,2960.91753850553914162446744740009307861, 2677.93018281985223438823595643043518066, 2443.18133088759122983901761472225189209, 2256.43226464750478044152259826660156250, 2076.36443362455156602663919329643249512, 1880.84519361533693881938233971595764160, 1766.91845025184238693327642977237701416, 1627.52019487895177007885649800300598145, 1510.59062333105975994840264320373535156, 1405.75873144575962214730679988861083984, 1300.50733998499845256446860730648040771, 1199.64103984038956696167588233947753906, 1126.43123210844078130321577191352844238,1077.82681899074850662145763635635375977, 1047.62979268326716919546015560626983643, 1024.72136637642188361496664583683013916, 0.0 };
 
@@ -236,7 +193,7 @@ static void parse_opts(int argc, char *argv[])
       break;
     case 'c':
       calib = atoi(optarg);
-      to_calib = (calib >= 5 && calib <= 20) ?  true : false;
+      to_calib = (calib >= 5 && calib <= 20);
       break;
     case 's':
       step = atoi(optarg);
@@ -297,13 +254,13 @@ int main (int argc, char * argv[]) {
 
   /*for tests 3, 4 & 5*/
   en11.pin = M1_ENC1;
-  en11.isr = &dbg_isr_11;
+  en11.isr = &dbg_isr_1;
   en12.pin = M1_ENC2;
-  en12.isr = &dbg_isr_12;
+  en12.isr = &dbg_isr_2;
   en21.pin = M2_ENC1;
-  en21.isr = &dbg_isr_21;
+  en21.isr = &dbg_isr_1; 
   en22.pin = M2_ENC2;
-  en22.isr = &dbg_isr_22;
+  en22.isr = &dbg_isr_2;
 
   ret = mt_init();
   if (ret){
@@ -315,21 +272,17 @@ int main (int argc, char * argv[]) {
 	mt_shutdown();
 	exit(EXIT_FAILURE);
       }
-      if(enc == 2)
-	mt = mt_new(needdbg ? port == 0 ? &en11 : &en21 : NULL, needdbg ? port == 0 ? &en12 : &en22 : NULL, port);
-      else if (enc == 1)
+      if(enc == 2){
+	if(!(mt = mt_new(needdbg ? port == 0 ? &en11 : &en21 : NULL, needdbg ? port == 0 ? &en12 : &en22 : NULL, port)))
+	  printf("Puta merda!!\n");
+      } else if (enc == 1)
 	mt = mt_new(needdbg ? port == 0 ? &en11 : &en21 : NULL, ECNULL, port);
       else {
 	printf("Encoder line parameter not understood\n");
 	mt_shutdown();
 	exit(EXIT_FAILURE);
       }
-
-      if(port == 0)
-	m1isr = mt;
-      else
-	m2isr = mt; 
-      
+    
     } else if (port == 2) {
       
       if(tst != 11 && tst != 10 && tst != 7 && tst != 8) {
@@ -339,20 +292,17 @@ int main (int argc, char * argv[]) {
       }
       
       if(enc == 2) { 
-	mt1 = mt_new(needdbg ? &en11 : NULL, needdbg ? &en12 : NULL, 0);
-	mt2 = mt_new(needdbg ? &en21 : NULL, needdbg ? &en22 : NULL, 1);
+	mt1 = mt_new( NULL, NULL, 0);
+	mt2 = mt_new( NULL, NULL, 1);
       } else if (enc == 1) {
-	mt1 = mt_new(tst == 7 || tst == 8 ? &en11 : NULL, ECNULL, 0);
-	mt2 = mt_new(tst == 7 || tst == 8 ? &en21 : NULL, ECNULL, 1);
+	mt1 = mt_new( NULL, ECNULL, 0 );
+	mt2 = mt_new( NULL, ECNULL, 1 );
       } else {
 	printf("Encoder line parameter not understood\n");
 	mt_shutdown();
 	exit(EXIT_FAILURE);
       }
       
-      m1isr = mt1;
-      m2isr = mt2;
-
     } else {
       printf("Motor port not understood\n");
       mt_shutdown();
@@ -471,6 +421,7 @@ time.tv_nsec = 0;
      mt_reset_enc(mt);
      thread_rtn = mt_move_t(mt, mt_tticks(mt, turns), dr, vel, pctr);mt_wait(mt);
      
+     
      mt_wait_for_stop(mt,2);
      tot = mt_get_ticks(mt);
      
@@ -481,7 +432,9 @@ time.tv_nsec = 0;
        stats(&out,true, NULL, true, true, tot, mt->id, true, 1, verb < 2);
        printf("\n");
        stats(&out,true, NULL, true, true, tot, mt->id, true, 2, verb < 2);
-     }   
+     } 
+     
+     //free_acums(mt);
    }
    break;;
  case 4: 
@@ -652,7 +605,7 @@ time.tv_nsec = 0;
      printf("re-enabling encoder 2 custom ISR ...\n");
      mt_wait_for_stop(mt,2);
      e2aux.pin = pin2;
-     e2aux.isr = mt->id == 1 ? &isr_print_12 : &isr_print_22; 
+     e2aux.isr = &isr_print_2; 
      mt_reconf(mt, NULL, &e2aux); // e1 untouched
      printf("both encoders active, m_e1: %d, m_e2: %d\n", e1->pin, e2->pin);
      
@@ -672,7 +625,7 @@ time.tv_nsec = 0;
      printf("ticks received: %d, ticks expected: %d, tics e1: %d, tics e2: %d\n",  mt_get_ticks(mt), mt_tticks(mt, turns), mt_enc_is_null(mt,1) ? 0 : e1->tics, e2->tics);
      printf("re-enabling encoder 1 custom ISR ...\n");
      e1aux.pin = pin1;
-     e1aux.isr = mt->id == 1 ? &isr_print_11 : &isr_print_21;
+     e1aux.isr = &isr_print_1;
      mt_wait_for_stop(mt,2);
      mt_reconf(mt, &e1aux, NULL); // e2 untouched
      printf("both encoders active, m_e1: %d, m_e2: %d,\n", e1->pin, e2->pin);
@@ -721,15 +674,24 @@ time.tv_nsec = 0;
        printf("step = %d, samples = %d\n\n", step, mostres);
      }
      
+     double avgp [mostres];
+     double avgd [mostres];
+
      port < 2 ? printf("Calibrating MOTOR %d\n\n", port) : printf("Calibrating MOTORS\n\n") ;     
      if(mt_calibrate(mostres, twait)){
-       
+       for (i = 0; i < mostres; i++){
+	 avgp[i] = (mt1->pid->cp[i] + mt2->pid->cp[i]) / 2;
+	 avgd[i] = (mt1->pid->cd[i] + mt2->pid->cd[i]) / 2;
+       }
+
        if(verb >= 1) {
 	 if(port == 2){
 	   printf("time between ticks 0: \n");prwcr(mostres, mt1->pid->cp);
 	   printf("time between ticks 1: \n");prwcr(mostres, mt2->pid->cp);
 	   printf("physical error 0: \n");prwcr(mostres, mt1->pid->cd);
 	   printf("physical error 1: \n");prwcr(mostres, mt2->pid->cd);
+	   printf("time between ticks avg: \n");prwcr(mostres, avgp);
+	   printf("physical error avg: \n");prwcr(mostres, avgd);
 	 } else {
 	   printf("time between ticks %d: \n", port);prwcr(mostres, mt->pid->cp);
 	   printf("physical error %d: \n", port);prwcr(mostres, mt->pid->cd);
@@ -923,12 +885,6 @@ time.tv_nsec = 0;
    break;;
  }
  
- if(port < 2)
-   mt_stop(mt, true);
- else {
-   mt_stop(mt1, true);
-   mt_stop(mt2, true);
- }
  mt_shutdown();
  
  return ret;
@@ -1041,58 +997,33 @@ RESULT stat;
 
 void init_acums (int turns, MOTOR * m){
 
-    int size = (int)(BASE*turns);
-    if(m->id == 1){
-      if(!mt_enc_is_null(m,1)) {
-            if( (acum1 = (double *)calloc(size,sizeof(double))) == NULL)
-				printf("Init ac1 fails\n");
-			}
-      if(!mt_enc_is_null(m,2)) {
-            if( (acum3 = (double *)calloc(size,sizeof(double))) == NULL)
-				printf("Init ac3 fails\n");
-			}
-    } else {
-      if(!mt_enc_is_null(m,1)) {
-            if( (acum2 = (double *)calloc(size,sizeof(double))) == NULL)
-				printf("Init ac2 fails\n");
-		}
-      if(!mt_enc_is_null(m,2)) {
-            if( (acum4 = (double *)calloc(size,sizeof(double))) == NULL)
-				printf("Init ac4 fails\n");
-		}
-    }
+  int size = (int)(BASE*turns);
+  if(!mt_enc_is_null(m,1)) {
+    if( (acum1 = (double *)calloc(size,sizeof(double))) == NULL)
+      printf("Init ac1 fails\n");
+  }
+  if(!mt_enc_is_null(m,2)) {
+    if( (acum2 = (double *)calloc(size,sizeof(double))) == NULL)
+      printf("Init ac3 fails\n");
+  }
 }
 
 void free_acums(MOTOR * m){
   
-  if( m->id == 1 ){
     if(!mt_enc_is_null(m,1))
       free(acum1);
     if(!mt_enc_is_null(m,2))
-      free(acum3);
-  } else {
-    if(!mt_enc_is_null(m,1))
       free(acum2);
-    if(!mt_enc_is_null(m,2))
-      free(acum4);
-  }
 }
 
 void reset_acums(int turns, MOTOR * m){
 
 
     int size = (int)(BASE*turns);
-    if( m->id == 1 ){
       if(!mt_enc_is_null(m,1))
             memset(acum1,0.0,size*sizeof(double));
       if(!mt_enc_is_null(m,2))
-            memset(acum3,0.0,size*sizeof(double));
-    } else {
-      if(!mt_enc_is_null(m,1))
             memset(acum2,0.0,size*sizeof(double));
-      if(!mt_enc_is_null(m,2))
-            memset(acum4,0.0,size*sizeof(double));
-    }
 }
 
 int get_in(char *to_print, int type){
@@ -1319,24 +1250,15 @@ void presf (RESULT * res, int mostres, int step){
 int cpacum(double * out, int alloc, int id, int encoder){
   
   int i;
-  if (id == 1){
-    if (encoder == 1){
-      for(i=1;(acum1[i]!='\0' && i < alloc); i++)
-	out[i] = acum1[i];
-    } else {
-      for(i=1;(acum3[i]!='\0' && i < alloc); i++)
-	out[i] = acum3[i];
-    }
+  
+  if (encoder == 1){
+    for(i=1;(acum1[i]!='\0' && i < alloc); i++)
+      out[i] = acum1[i];
   } else {
-    if (encoder == 1){
-      for(i=1;(acum2[i]!='\0' && i < alloc); i++)
-	out[i] = acum2[i];
-    } else {
-      for(i=1;(acum4[i]!='\0' && i < alloc); i++)
-	out[i] = acum4[i];
-    }
-    
+    for(i=1;(acum2[i]!='\0' && i < alloc); i++)
+      out[i] = acum2[i];
   }
+  
   out[i]='\0';
   return i;
 }
@@ -1383,7 +1305,7 @@ int stats (RESULT * out, bool to_print, double * vect, bool wweights, bool cappe
     }
   }
   
-  double mean, min, max, wmean, wvariance, wsd, wabs, swmean, swvariance, swsd, swabs, median, upperq, lowerq, /*middleq*/ uq, lq, rmin, rmax;
+  double mean, min, max, wmean, wvariance, wsd, wabs, swmean, swvariance, swsd, swabs, median, upperq, lowerq, /*middleq*/ uq, lq, rmin, rmax, prini, prfi;
   min = max = wmean = wvariance = wsd = wabs = rmin = rmax = swmean = swvariance = swsd = swabs = median = upperq = lowerq = /*middleq*/  uq = lq = 0;
   
   mean = out->res[0] = gsl_stats_mean(data, 1, len);
@@ -1409,11 +1331,7 @@ int stats (RESULT * out, bool to_print, double * vect, bool wweights, bool cappe
     gsl_sort (data,1,len);
     smart_weights(len, sweights, 0.1, max, data,id,out->per);
     
-    get_limits(out->per, &uq, &lq, 0.70, max, &rmin, &rmax);
-    
-    
-    if(to_print)
-      printf("uq: %.3f, lq: %.3f\n", uq, lq);
+    get_limits(out->per, &uq, &lq, 0.7, max, &rmin, &rmax, &prini, &prfi);
 
     median = gsl_stats_median_from_sorted_data (data,1,len);
     upperq = gsl_stats_quantile_from_sorted_data (data,1,len,0.8);//uq
@@ -1442,13 +1360,15 @@ int stats (RESULT * out, bool to_print, double * vect, bool wweights, bool cappe
     printf("ticks received: %d\nmean: %.5f\nvariance: %.5f\nstandard deviation: %.5f\nmedian: %.5f\nquantil superior: %.5f\nquantil inferior: %.5f\nrmax: %.5f\nrmin: %.5f\n", len, out->res[0], variance, sd, median, upperq, lowerq, rmax, rmin);
     printf("autocorrelation: %.5f\nmin: %.5f\nmax: %.5f\nabsolute_deviation: %.5f\n\nweights: \nwmean: %.5f\nwvariance: %.5f\nwstandard_deviation: %.5f\nwabs_dev: %.5f\n\n", autocorr,min,max,abs, wmean, wvariance, wsd, wabs);
     printf("smart weights: \nswmean: %.5f\nswvariance: %.5f\nswstandard_deviation: %.5f\nswabs_dev: %.5f\n\n",swmean, swvariance, swsd, swabs);
-   
+
+    printf("uq: %.3f, lq: %.3f, pop: %.3f, ini: %.1f, fi: %.1f\n", uq, lq, uq-lq, prini, prfi);
+    printf("POP_PERC: "); prw(PER_SIZE-1, out->per);
   }
   return ret;
   
 }
 
-void get_limits(double per[], double * uq, double * lq, double min_pop, double max, double * rmin, double * rmax){
+void get_limits(double per[], double * uq, double * lq, double min_pop, double max, double * rmin, double * rmax, double * prini, double * prfi){
   
   bool found = false;
   int i,k;
@@ -1474,6 +1394,9 @@ void get_limits(double per[], double * uq, double * lq, double min_pop, double m
       *uq = uqbase;
       *lq = lqbase;
     }
+    
+    *prini = (double)i/10;
+    *prfi = (double)(k+1)/10;
     *rmin = ((double)i/10) * max;
     *rmax = ((double)(k+1)/10) * max;
 
@@ -1482,6 +1405,8 @@ void get_limits(double per[], double * uq, double * lq, double min_pop, double m
     *rmax = 0;
     *uq = uqbase;
     *lq = lqbase;
+    *prini = 0;
+    *prfi = 0;
   }
   
 }
@@ -1520,7 +1445,7 @@ void prw (int len, double per[]){
   double aux;
   for (i=0; i < len; i++){
     aux = per[i];
-    printf("%.35f, ", aux);
+    printf("%.5f, ", aux);
   }
   printf("\n");
   
