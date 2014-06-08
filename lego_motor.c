@@ -390,8 +390,12 @@ extern bool mt_wait_for_stop (MOTOR * m, double diff) {
   } else if (!mbusy(m->id)) {
     not_critical("mt_wait_for_stop: Motor %d not initialised properly.\n", m->id-1);
     return false;
-  } else
-    return(wait_for_stop(m, diff));
+  } else {
+    if(diff > 0)
+      return(wait_for_stop(m, diff));
+    else 
+      return true;
+  }
 }
 
 extern bool mt_reconf(MOTOR * m, ENC * e1, ENC * e2) {
