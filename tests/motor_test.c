@@ -8,8 +8,6 @@
 #define ENC_RES		4
 #define PRAC_TRUNC      25
 
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
-
 static TSPEC t11, t12, t21, t22;
 
 static MOTOR * mt1 = NULL , * mt2 = NULL, * mt = NULL; 
@@ -306,7 +304,7 @@ int main (int argc, char * argv[]) {
     } else if (port == 2) {
       
       if(tst == 6 || tst == 1 || tst == 2 || tst == 8) {
-	printf("Only one motor needed for test %d \n", tst);
+	printf("Only one motor allowed for test %d \n", tst);
 	mt_shutdown();
 	exit(EXIT_FAILURE);
       }
@@ -1432,10 +1430,8 @@ double avg (int len, double * data){
   
   long long sum = 0;
   int i;
-  for (i = 10; i <len-10; i++){
-    //		printf("volta: %d, sum: %lld\n", i, sum);
+  for (i = 10; i <len-10; i++)
     sum+=data[i];
-  }
   
   return ((sum/(len-20)));
 }
