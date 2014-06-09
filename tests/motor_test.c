@@ -36,7 +36,7 @@ static void prac(int, double *);
 static void prw(int, double[]);
 static double avg (int, double *);
 static void cal_weight(int,double *,double,double);
-static void smart_weights(int, double *, double, double, double *, int, double []);
+static void smart_weights(int, double *, double, double, double *, double []);
 static int no_quantil (int, double *, double, double, double);
 static void comp_vel(int, int, double **, int);
 static void comp_perc(int, int, double **, int);
@@ -453,7 +453,7 @@ time.tv_nsec = 0;
  case 4: 
            /*Test for all the velocities from "step" to MAX_VEL [200] incrmenting the velocity "step" for each change, for every velocity                                                          the test will take "mostres" samples of "turns" turns each sample*/
    {
-     int i, velo, index, alloc, encid, k;
+     int i, velo, index = 0, alloc, encid, k;
      RESULT rese11[(int)((MAX_VEL/step) * mostres)];
      RESULT rese12[(int)((MAX_VEL/step) * mostres)];
      RESULT rese21[(int)((MAX_VEL/step) * mostres)];
@@ -464,15 +464,15 @@ time.tv_nsec = 0;
      init_glob(turns);
 
      for (velo = MIN_VEL; velo <= MAX_VEL; velo+=step){
-       for (i = 0; i < mostres; i++){
-	 index = ((((velo/step)-1)*mostres) + i);
+       for (i = 0; i < mostres; i++, index++){
+ 
 	 if ((index%50 == 0) && (index != 0))
 	   printf("stored samples: %d\n", index);
 	
 	 block_move(2, velo);
        
 	 for(k=0; k<iter; k++) {
-	   mt  = k == 0 ? mt1 : mt2; 
+	   mt  = k == 0 ? mt1 : mt2;
 	   alloc = mt_get_ticks(mt); 
 	   
 	   if(mt_enc_count(mt) == 1){
@@ -1119,37 +1119,37 @@ void comp_vel(int vel, int mostres, double ** frame, int id){
       printf("vel_%d_variance: \t", vel);
       break;;
     case 2:
-      printf("vel_%d_standard deviation: ",vel);
+      printf("vel_%d_std_dev: \t",vel);
       break;;
     case 3:
-      printf("vel_%d_absolute deviation: ", vel);
+      printf("vel_%d_abs_dev: \t", vel);
       break;;
     case 4:
-      printf("vel_%d_autocorrelation: ", vel);
+      printf("vel_%d_acorr: \t\t", vel);
       break;;
     case 5:
-      printf("vel_%d_waverage: \t", vel);
+      printf("vel_%d_wavg: \t\t", vel);
       break;;
     case 6:
-      printf("vel_%d_wvariance: \t", vel);
+      printf("vel_%d_wvari: \t\t", vel);
       break;;
     case 7:
-      printf("vel_%d_wstandard deviation: ", vel);
+      printf("vel_%d_w_std_dev: \t", vel);
       break;;
     case 8:
-      printf("vel_%d_wabsolute deviation: ", vel);
+      printf("vel_%d_w_abs_dev: \t", vel);
       break;;
     case 9:
-      printf("vel_%d_swaverage: \t", vel);
+      printf("vel_%d_sw_avg:\t\t", vel);
       break;;
     case 10:
-      printf("vel_%d_swvariance: \t", vel);
+      printf("vel_%d_sw_var:\t\t", vel);
       break;;
     case 11:
-      printf("vel_%d_swstandard deviation: ", vel);
+      printf("vel_%d_sw_std_dev: \t", vel);
       break;;
     case 12:
-      printf("vel_%d_swabsolute deviation: ", vel);
+      printf("vel_%d_sw_abs_dev: \t", vel);
       break;;
     case 13:
       printf("vel_%d_upperq:  \t", vel);
@@ -1262,8 +1262,6 @@ int cptable(double * out, int alloc, double * in){
 
 
 int stats (RESULT * out, bool to_print, double * vect, bool wweights, bool capped, int alloc, int id, bool clean, int encoder, bool no_table){
-
-  //printf("entering stats\n");
   
   double data[alloc];
   int len;
@@ -1317,7 +1315,7 @@ int stats (RESULT * out, bool to_print, double * vect, bool wweights, bool cappe
     gsl_stats_minmax(&min, &max, data, 1, len);
     
     gsl_sort (data,1,len);
-    smart_weights(len, sweights, 0.1, max, data,id,out->per);
+    smart_weights(len, sweights, 0.1, max, data, out->per);
     
     get_limits(out->per, &uq, &lq, 0.7, max, &rmin, &rmax, &prini, &prfi);
 
@@ -1470,7 +1468,7 @@ void cal_weight(int len, double * weights, double less, double max){
   
 }
 
-void smart_weights(int len, double * weights, double step, double max, double *data, int id, double per []){
+void smart_weights(int len, double * weights, double stp, double max, double *data, double per []){
   
   /* La idea: contar la poblacion de cada quantil (menos la del quantil anterior), y, sacar el porcentage respeto a la poblacion total (todos los tics), a partir de ahi asignar los      pesos de cada elemento dependiendo del percentage de poblacion del quantil al que corresponda */
   /* Sorted data */
@@ -1479,19 +1477,20 @@ void smart_weights(int len, double * weights, double step, double max, double *d
   int res;
   int i;
 
-  for (i=0, quantil=step;quantil<=1;quantil+=step, i++){
-    res = no_quantil(len,data,quantil,max,step);
+  for (i=0, quantil=stp;quantil<=1;quantil+=stp, i++){
+    res = no_quantil(len,data,quantil,max,stp);
     per[i] = (double)((double)res/len);
   }
+
   per[i]='\0';
   
-  for (i=0; i<len; i++){
-    weights[i] = per[(int)(((data[i]/max)-step)*10)];
-  }
+  for (i=0; i<len; i++)
+    weights[i] = per[(int)(((data[i]/max)-stp)*10)];
+ 
   
 }
 
-int no_quantil (int len, double * data, double perc, double max, double step){
+int no_quantil (int len, double * data, double perc, double max, double stp){
 
   /* NO-quantil, es decir lo coontrario, dado un porcentage del valor del máximo, cuanta población esta por debajo de ese valor, (Distribuciones?) */
   /* sorted data */
@@ -1502,7 +1501,7 @@ int no_quantil (int len, double * data, double perc, double max, double step){
   int last = 0;
   double val = data[0];
   double ant = 0;
-  double ult = (perc - step) * max;
+  double ult = (perc - stp) * max;
   
   for (i=1; val < ref; i++) {
     if (val < ant)

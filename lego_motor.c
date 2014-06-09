@@ -462,7 +462,7 @@ extern bool mt_wait(MOTOR * m) {
 
 extern int mt_wait_all(){
   
-  int first = 3;
+  int first = 2;
   if(!status.mt){
     not_critical("mt_wait_all: Motor interface not initialised.\n");
     return FAIL;
@@ -474,9 +474,9 @@ extern int mt_wait_all(){
     return 0;
   } else if (mbusy(1) && mbusy(2)) {
     while (m1->moving || m2->moving){
-      if(!m1->moving && first == 3)
+      if(!m1->moving && first == 2)
 	first = 0;
-      if(!m2->moving && first == 3)
+      if(!m2->moving && first == 2)
 	first = 1;
       DELAY_US(2500);
     }
