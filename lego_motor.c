@@ -460,22 +460,30 @@ extern bool mt_wait(MOTOR * m) {
     return (m_wait(m));
 }
 
-extern bool mt_wait_all(){
+extern int mt_wait_all(){
   
+  int first = 3;
   if(!status.mt){
     not_critical("mt_wait_all: Motor interface not initialised.\n");
-    return false;
+    return FAIL;
   } else if (!mbusy(1) && mbusy(2)) {
-    return (m_wait(m2));
+    m_wait(m2);
+    return 1;
   } else if (mbusy(1) && !mbusy(2)) {
-    return (m_wait(m1));
+    m_wait(m1);
+    return 0;
   } else if (mbusy(1) && mbusy(2)) {
-    while (m1->moving || m2->moving)
+    while (m1->moving || m2->moving){
+      if(!m1->moving && first == 3)
+	first = 0;
+      if(!m2->moving && first == 3)
+	first = 1;
       DELAY_US(2500);
-    return true;
+    }
+    return first;
   } else {
     not_critical("mt_wait_all: Motors not initialised properly.\n");
-    return false;
+    return FAIL;
   }
     
 }

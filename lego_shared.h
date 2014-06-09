@@ -53,7 +53,6 @@ extern INIT status;
 
 typedef struct timespec TSPEC;
 
-extern double difft (TSPEC *, TSPEC *);
 
 void unexportall();
 void setup_sighandlers(void);

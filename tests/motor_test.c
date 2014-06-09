@@ -463,11 +463,12 @@ time.tv_nsec = 0;
 
      init_glob(turns);
 
-     for (velo = step; velo <= MAX_VEL; velo+=step){
+     for (velo = MIN_VEL; velo <= MAX_VEL; velo+=step){
        for (i = 0; i < mostres; i++){
 	 index = ((((velo/step)-1)*mostres) + i);
 	 if ((index%50 == 0) && (index != 0))
 	   printf("stored samples: %d\n", index);
+	
 	 block_move(2, velo);
        
 	 for(k=0; k<iter; k++) {
@@ -502,7 +503,7 @@ time.tv_nsec = 0;
    }
    break;;
  case 5:
-       /*Test for one velocity, the test will turn from "step" turns to MAXM (40) turns at "vel" velocity,                                                                                    used to see if the ticks per turn are stables, hence the velocities 'real', the turns [-r / --turns] parameter will be overwritten here*/
+       /*Test for one velocity, the test will turn from "step" turns to MAXM (40) turns, incrementing "step" turns every step at "vel" velocity,                                              used to see if the ticks per turn are stables, hence the velocities 'real', the turns [-r / --turns] parameter will be overwritten here*/
    {
      
      TSPEC tini, taux;
@@ -688,7 +689,7 @@ time.tv_nsec = 0;
     
      double twait = 1.7;
      int micras   = 0, desv = 0, micras2 = 0, desv2 = 0, mtot = 0, dtot = 0, i;
-     step         = (MAX_VEL / mostres);
+     //step         = (MAX_VEL / mostres);
      
      if (mostres < 5)
        mostres = 5;
@@ -720,8 +721,8 @@ time.tv_nsec = 0;
 	 printf("\n");
        }
        
-       for ( i =  MIN_VEL+(step/2); i <= MAX_VEL; i += step ){
-	 if (i == MAX_VEL)
+       for ( i = MIN_VEL+(step/2); i <= MAX_VEL; i += step ){
+	 if ( i == MAX_VEL )
 	   i = (MAX_VEL - (step/4));
 	 if(port < 2)
 	   gt_pars(mt1,i,&mtot, &dtot);
@@ -823,6 +824,7 @@ void init_glob (int s) {
 
 void block_move(double w, int v) {
 
+  int first = FAIL; 
   if (port < 2){
     mt_reset_enc(mt1);
     mt_move_t(mt1, mt_tticks(mt1, turns), dr, v, pctr);mt_wait(mt1);
@@ -831,11 +833,20 @@ void block_move(double w, int v) {
     mt_reset_enc(mt1);
     mt_reset_enc(mt2);
     mt_move_t(mt1, mt_tticks(mt1, turns), dr, v, pctr);
-    mt_move_t(mt2, mt_tticks(mt2, turns), dr, v, pctr);mt_wait(mt2);
-    mt_wait_for_stop(mt2, w);
-  }
+    mt_move_t(mt2, mt_tticks(mt2, turns), dr, v, pctr);
+    first = mt_wait_all();
+    
+    if(first < 0){
+      printf("error waiting for motors, first = %d\n", first);
+      mt_shutdown();
+      exit(EXIT_FAILURE);
+    }
 
+    mt_wait_for_stop( first == 0 ? mt2 : mt1, w );
+  }
+  
 }
+
 bool gt_pars (MOTOR * m, int vel, int * ex_micras, int * ex_desv){
   
     int size, i;
@@ -1024,7 +1035,7 @@ void comp_res(RESULT * res, int mostres, int step, int id){
   
   printf("\t\t\t\t\t AVERAGE\t\tVARIANCE\t\tSTND_DEV\t\tABS_DEV\t\t\n\n");
   
-  for (velo = step; velo <= MAX_VEL; velo += step){
+  for (velo = MIN_VEL; velo <= MAX_VEL; velo += step){
     for (i = 0; i < mostres; i++){
       index = ((((velo/step)-1)*mostres) + i);
       frame[i] = res[index].res;

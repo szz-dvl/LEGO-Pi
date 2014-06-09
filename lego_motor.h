@@ -7,22 +7,22 @@
 
 
 #define HW_PWM			DELAY_VIA_PWM
-#define ST_US		        4000//microseconds 20000
-#define PWIG_DEF 	        2//PULSE_WIDTH_INCREMENT_GRANULARITY_US_DEFAULT//20 //2
+#define ST_US		        3000//microseconds 20000
+#define PWIG_DEF 	        15//PULSE_WIDTH_INCREMENT_GRANULARITY_US_DEFAULT//20 //2
 #define MAX_PW			ST_US / PWIG_DEF
 #define BASE			400
 #define MAX_THREADS		2
-#define V2PW(x)     	        (x * (MAX_PW/MAX_VEL))
-#define PW2V(x)     	        (x / (MAX_PW/MAX_VEL))
+#define V2PW(x)     	        x                       /* if you want to mess with PWM change this to: (x * (MAX_PW/MAX_VEL)) */
+#define PW2V(x)     	        x                       /* if you want to mess with PWM change this to: (x / (MAX_PW/MAX_VEL)) */
 #define CLK_ID		        CLOCK_PROCESS_CPUTIME_ID
-#define MAX_VEL		        200                    /*si 9V y VEL = 160 es comportara com amb bateries de LEGO */
-#define ENULL		        -1	               /* Encoder desactivat */
+#define MAX_VEL		        200                    
+#define ENULL		        -1	               /* Encoder disabled */
 #define SETUP		        INT_EDGE_SETUP
 #define RISING		        INT_EDGE_RISING
 #define MAX_COEF	        21
 #define MIN_COEF	        5                      /* AKIMA spline conditions */
 #define PIDDEF		        0
-#define TTCDEF		        36
+#define TTCDEF		        36                     /* ten times x turn*/
 #define MIN_VEL		        15
 #define USXT_MIN                700
 #define USXT_MAX                7000
@@ -102,7 +102,7 @@ extern bool       mt_pid_on (MOTOR * m);
 extern bool       mt_pid_set_gains (MOTOR * m, double Kp, double Ki, double Kd);
 extern bool       mt_move (MOTOR * m, dir dir, int vel);
 extern bool       mt_wait (MOTOR * m);
-extern bool       mt_wait_all ();
+extern int        mt_wait_all ();
 extern bool       mt_move_t (MOTOR * m, int ticks, dir dir, int vel, double posCtrl);
 extern bool       mt_wait_for_stop (MOTOR * m, double delay);
 extern bool       mt_reset_enc (MOTOR * m);
