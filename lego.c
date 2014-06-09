@@ -39,7 +39,7 @@ void udelay (int us) {
     clock_gettime(CLK_ID, &tfi);
   
 }
-*/
+
 
 double difft (TSPEC * ini, TSPEC * fi){
 
@@ -48,6 +48,7 @@ double difft (TSPEC * ini, TSPEC * fi){
   return ((double) esec*1000000+(enano/1000)); //microseconds
 
 }
+*/
 
 void setup_sighandlers(void){
 

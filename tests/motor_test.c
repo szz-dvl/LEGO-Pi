@@ -80,7 +80,7 @@ static void dbg_isr_11(void){
   
   if(mt1->moving){
     clock_gettime(CLK_ID, &t11);
-    acum1[mt1->enc1->tics] = difft(&mt1->enc1->tmp, &t11);
+    acum1[mt1->enc1->tics] = DIFFT(&mt1->enc1->tmp, &t11);//difft(&mt1->enc1->tmp, &t11);
     pthread_mutex_lock(&mt1->enc1->mtx);
     mt1->enc1->tics++;
     pthread_mutex_unlock(&mt1->enc1->mtx);
@@ -91,7 +91,7 @@ static void dbg_isr_11(void){
 static void dbg_isr_12(void){
   if(mt1->moving){
     clock_gettime(CLK_ID, &t12);
-    acum2[mt1->enc2->tics] = difft(&mt1->enc2->tmp, &t12);
+    acum2[mt1->enc2->tics] = DIFFT(&mt1->enc2->tmp, &t12);//difft(&mt1->enc2->tmp, &t12);
     pthread_mutex_lock(&mt1->enc2->mtx);
     mt1->enc2->tics++;
     pthread_mutex_unlock(&mt1->enc2->mtx);
@@ -103,7 +103,7 @@ static void dbg_isr_21(void){
   
   if(mt2->moving){
     clock_gettime(CLK_ID, &t21);
-    acum3[mt2->enc1->tics] = difft(&mt2->enc1->tmp, &t21);
+    acum3[mt2->enc1->tics] = DIFFT(&mt2->enc1->tmp, &t21);//difft(&mt2->enc1->tmp, &t21);
     pthread_mutex_lock(&mt2->enc1->mtx);
     mt2->enc1->tics++;
     pthread_mutex_unlock(&mt2->enc1->mtx);
@@ -114,7 +114,7 @@ static void dbg_isr_21(void){
 static void dbg_isr_22(void){
   if(mt2->moving){
     clock_gettime(CLK_ID, &t22);
-    acum4[mt2->enc2->tics] = difft(&mt2->enc2->tmp, &t22);
+    acum4[mt2->enc2->tics] = DIFFT(&mt2->enc2->tmp, &t22);//difft(&mt2->enc2->tmp, &t22);
     pthread_mutex_lock(&mt2->enc2->mtx);
     mt2->enc2->tics++;
     pthread_mutex_unlock(&mt2->enc2->mtx);
@@ -154,7 +154,7 @@ static void print_usage(const char *prog)
 	     "  -r --turns     turns of the output hub                          {8}\n"
 	     "  -e --encod     Encoder lines active per motor [1-2] <3> both    {3}\n"
 	     "  -b --psctrl    Position control (double) [0-1]                  {0}\n"
-	     "  -S --samples   Samples to store, aplly only to some tests       {10}\n"
+	     "  -S --samples   Samples to store, apply only to some tests       {10}\n"
 	     "  -d --dir       direction to move the motor/s 0 = FWD, 1 = BWD   {FWD/0}\n");
 	exit(EXIT_FAILURE);
 }
@@ -286,11 +286,11 @@ int main (int argc, char * argv[]) {
 	exit(EXIT_FAILURE);
       }
       if(enc == 3)
-	mt1 = mt_new(needdbg ? port == 0 ? &en11 : &en21 : NULL, needdbg ? port == 0 ? &en12 : &en22 : NULL, port);
+	mt1 = mt_new ( needdbg ? port == 0 ? &en11 : &en21 : NULL, needdbg ? port == 0 ? &en12 : &en22 : NULL, port );
       else if (enc == 1)
-	mt1 = mt_new(needdbg ? port == 0 ? &en11 : &en21 : NULL, ECNULL, port);
+	mt1 = mt_new ( needdbg ? port == 0 ? &en11 : &en21 : NULL, ECNULL, port );
       else if (enc == 2)
-	mt1 = mt_new(ECNULL, needdbg ? port == 0 ? &en12 : &en22 : NULL, port);
+	mt1 = mt_new ( ECNULL, needdbg ? port == 0 ? &en12 : &en22 : NULL, port );
       else {
 	printf("Encoder line parameter not understood\n");
 	mt_shutdown();
@@ -309,14 +309,14 @@ int main (int argc, char * argv[]) {
       }
       
       if(enc == 3) { 
-	mt1 = mt_new( needdbg ? &en11 : NULL, needdbg ? &en12 : NULL, 0);
-	mt2 = mt_new( needdbg ? &en21 : NULL, needdbg ? &en22 : NULL, 1);
+	mt1 = mt_new ( needdbg ? &en11 : NULL, needdbg ? &en12 : NULL, 0 );
+	mt2 = mt_new ( needdbg ? &en21 : NULL, needdbg ? &en22 : NULL, 1 );
       } else if (enc == 1) {
-	mt1 = mt_new( needdbg ? &en11 : NULL, ECNULL, 0 );
-	mt2 = mt_new( needdbg ? &en21 : NULL, ECNULL, 1 );
+	mt1 = mt_new ( needdbg ? &en11 : NULL, ECNULL, 0 );
+	mt2 = mt_new ( needdbg ? &en21 : NULL, ECNULL, 1 );
       } else if (enc == 2) {
-	mt1 = mt_new( ECNULL, needdbg ? &en12 : NULL, 0);
-	mt2 = mt_new( ECNULL, needdbg ? &en22 : NULL, 1);
+	mt1 = mt_new ( ECNULL, needdbg ? &en12 : NULL, 0 );
+	mt2 = mt_new ( ECNULL, needdbg ? &en22 : NULL, 1 );
       } else {
 	printf("Encoder line parameter not understood\n");
 	mt_shutdown();
@@ -386,6 +386,7 @@ time.tv_nsec = 0;
  case 0:
    {
      printf("%s: At least the test number is needed!\n", argv[0]);
+     mt_shutdown();
      print_usage(argv[0]);
      
    }
@@ -610,7 +611,7 @@ time.tv_nsec = 0;
    }
    break;;
  case 6: 
-        /* Test for motor reconf, we will se here if we actually are able to disable encoder lines on demand, and also, change the ISR of each line to whatever function */
+        /* Test for motor reconf, we will see here if we actually are able to disable encoder lines on demand, and also, change the ISR of each line to whatever function */
    {
 
      mt = mt1;
@@ -723,7 +724,7 @@ time.tv_nsec = 0;
 	 if (i == MAX_VEL)
 	   i = (MAX_VEL - (step/4));
 	 if(port < 2)
-	   gt_pars(mt,i,&mtot, &dtot);
+	   gt_pars(mt1,i,&mtot, &dtot);
 	 else {
 	   gt_pars(mt1,i,&micras, &desv);
 	   gt_pars(mt2,i,&micras2, &desv2);

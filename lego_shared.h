@@ -23,6 +23,7 @@
 #define LOG_LVL_FATAL    0
 
 #define DELAY_US(t)      nanosleep((TSPEC*)&(TSPEC){0, t*1000}, NULL) 
+#define DIFFT(ti,tf)     (((*tf).tv_nsec - (*ti).tv_nsec)/1000 + ((*tf).tv_sec - (*ti).tv_sec)*1000000)
 
 #ifndef SHAREFILE_INCLUDED
 #define SHAREFILE_INCLUDED

@@ -179,7 +179,7 @@ static void nullisr(){};
 static void isr_cal_11(void){
   if(m1->moving){
     clock_gettime(CLK_ID, &t11);
-    acum1[e11->tics] = difft(&e11->tmp, &t11); //e11->tics == 0 ? (double)((e11->tmp.tv_sec * 1000000) + (e11->tmp.tv_nsec/1000)) : (e11->delay); /* NANOS TO MICR0S */
+    acum1[e11->tics] = DIFFT(&e11->tmp, &t11); //e11->tics == 0 ? (double)((e11->tmp.tv_sec * 1000000) + (e11->tmp.tv_nsec/1000)) : (e11->delay); /* NANOS TO MICR0S */
     pthread_mutex_lock(&e11->mtx);
     e11->tics++;
     pthread_mutex_unlock(&e11->mtx);
@@ -191,7 +191,7 @@ static void isr_cal_11(void){
 static void isr_cal_12(void){
   if(m1->moving){
     clock_gettime(CLK_ID, &t12);
-    acum3[e12->tics] = difft(&e12->tmp, &t12);//e12->tics == 0 ? (double)((e12->tmp.tv_sec * 1000000) + (e12->tmp.tv_nsec/1000)) : (e12->delay); /* NANOS TO MICR0S */
+    acum3[e12->tics] = DIFFT(&e12->tmp, &t12);//e12->tics == 0 ? (double)((e12->tmp.tv_sec * 1000000) + (e12->tmp.tv_nsec/1000)) : (e12->delay); /* NANOS TO MICR0S */
     pthread_mutex_lock(&e12->mtx);
     e12->tics++;
     pthread_mutex_unlock(&e12->mtx);
@@ -202,7 +202,7 @@ static void isr_cal_12(void){
 static void isr_cal_21(void){
   if(m2->moving){
     clock_gettime(CLK_ID, &t21);
-    acum2[e21->tics] = difft(&e21->tmp, &t21);//e21->tics == 0 ? (double)((e21->tmp.tv_sec * 1000000) + (e21->tmp.tv_nsec/1000)) : (e21->delay); /* NANOS TO MICR0S */
+    acum2[e21->tics] = DIFFT(&e21->tmp, &t21);//e21->tics == 0 ? (double)((e21->tmp.tv_sec * 1000000) + (e21->tmp.tv_nsec/1000)) : (e21->delay); /* NANOS TO MICR0S */
     pthread_mutex_lock(&e21->mtx);
     e21->tics++;
     pthread_mutex_unlock(&e21->mtx);
@@ -214,7 +214,7 @@ static void isr_cal_21(void){
 static void isr_cal_22(void){
   if(m2->moving){
     clock_gettime(CLK_ID, &t22);
-    acum4[e22->tics] = difft(&e22->tmp, &t22);//e22->tics == 0 ? (double)((e22->tmp.tv_sec * 1000000) + (e22->tmp.tv_nsec/1000)) : (e22->delay); /* NANOS TO MICR0S */
+    acum4[e22->tics] = DIFFT(&e22->tmp, &t22);//e22->tics == 0 ? (double)((e22->tmp.tv_sec * 1000000) + (e22->tmp.tv_nsec/1000)) : (e22->delay); /* NANOS TO MICR0S */
     pthread_mutex_lock(&e22->mtx);
     e22->tics++;
     pthread_mutex_unlock(&e22->mtx);
@@ -1846,7 +1846,7 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
 	if (*sstble && *sstblen) { //wait for stabilization
 	  if(scont == stimes){
 	    *tsinc = LstAc;
-	    *dsinc = difft(&msinc->tstamp, &ini);
+	    *dsinc = DIFFT(&msinc->tstamp, &ini);
 	    
 	    if(!(*flag)){
 	      *flag = true;
@@ -1880,7 +1880,7 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
       errCont ++;
       clock_gettime(CLK_ID, &fi);
       //int i =0;
-      while ( (difft(&ini, &fi) < dt) && (m->moving) )
+      while ( (DIFFT(&ini, &fi) < dt) && (m->moving) )
 	clock_gettime(CLK_ID, &fi);
      
       //printf("ITER!!\n");
@@ -1970,7 +1970,7 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
 	  if (*sstble && *sstblen) { //wait for stabilization
 	    if(scont == stimes){
 	      *tsinc = LstAc;
-	      *dsinc = difft(&msinc->tstamp, &ini);
+	      *dsinc = DIFFT(&msinc->tstamp, &ini);
 	      
 	      if(!(*flag)){
 		*flag = true;
@@ -2003,7 +2003,7 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
 	prevErr = Err;
 	errCont ++;
 	clock_gettime(CLK_ID, &fi);
-	while ( (difft(&ini, &fi) < dt) && (get_ticks(m) < limit) )
+	while ( (DIFFT(&ini, &fi) < dt) && (get_ticks(m) < limit) )
 	  clock_gettime(CLK_ID, &fi);
 	
       } else {
@@ -2164,8 +2164,8 @@ static long long get_MVac(MOTOR * m, long long *last, int *tdt, int tdtmin, int 
   
   clock_gettime(CLK_ID, &taux);
   
-  d1 = difft(ts1, &taux);
-  d2 = difft(ts2, &taux);
+  d1 = DIFFT(ts1, &taux);
+  d2 = DIFFT(ts2, &taux);
   
   t = t1 == 0 || t2 == 0 ? t1 == 0 ? t2 : t1 : (int)((t1 + t2)/2);
   d = (int)((d1 + d2)/2);//Podriem pillar la més gran??
