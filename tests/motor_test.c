@@ -247,7 +247,6 @@ static void parse_opts(int argc, char *argv[])
       break;
     default:
       print_usage(argv[0]);
-      exit(EXIT_FAILURE);
       break;
     }
   }
@@ -613,6 +612,9 @@ time.tv_nsec = 0;
  case 6: 
         /* Test for motor reconf, we will se here if we actually are able to disable encoder lines on demand, and also, change the ISR of each line to whatever function */
    {
+
+     mt = mt1;
+
      ENC * e1 = mt->enc1;
      ENC * e2 = mt->enc2;
      int pin1 = mt->id == 1 ? M1_ENC1 : M2_ENC1;
