@@ -467,7 +467,7 @@ time.tv_nsec = 0;
        for (i = 0; i < mostres; i++, index++){
  
 	 if ((index%50 == 0) && (index != 0))
-	   printf("stored samples: %d\n", index);
+	   fprintf(stderr, "stored samples: %d\n", index);
 	
 	 block_move(2, velo);
        
@@ -480,8 +480,8 @@ time.tv_nsec = 0;
 	     rs = k == 0 ? encid == 1 ? &rese11[index] : &rese12[index] : encid == 1 ? &rese21[index] : &rese22[index];
 	     stats(rs, verb > 1, NULL, true, true, alloc, mt->id, true, encid, verb < 3);
 	   } else {
-	     stats(k == 0 ? &rese11[index] : &rese21[index], verb > 1, NULL, true, true, alloc, mt->id, true,1, verb < 3);
-	     stats(k == 0 ? &rese12[index] : &rese22[index], verb > 1, NULL, true, true, alloc, mt->id, true,2, verb < 3);
+	     stats(k == 0 ? &rese11[index] : &rese21[index], verb > 1, NULL, true, true, alloc, mt->id, true ,1, verb < 3);
+	     stats(k == 0 ? &rese12[index] : &rese22[index], verb > 1, NULL, true, true, alloc, mt->id, true ,2, verb < 3);
 	   }
 	 }
 	 reset_glob(turns);

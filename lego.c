@@ -74,7 +74,7 @@ static void handl_alrm(void) {
 
 static void terminate(int signum) {
   
-  printf("Entering terminate, received signal = %d\n", signum);
+  printf("LEGO-Pi: Entering terminate, received signal = %d\n", signum);
   if(status.mt)
     mt_shutdown();
   if(status.ag)
