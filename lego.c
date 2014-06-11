@@ -57,10 +57,10 @@ void setup_sighandlers(void){
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     
-    if( i != 17 && i != 26) { //avoid sigchld and sigalrm
+    if( i != 17 && i != 26 && i != 28) { //avoid sigchld, sigalrm and sigvtalrm
       sa.sa_handler = (void *) terminate;
       sigaction(i, &sa, NULL);
-    } else if ( i == 26 ){
+    } else if ( i == 26 /*|| i == 28*/){ //alarms
       sa.sa_handler = (void *) handl_alrm;
       sigaction(i, &sa, NULL);
     }

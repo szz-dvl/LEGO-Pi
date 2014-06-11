@@ -135,6 +135,7 @@ static int turns = 8;
 static int enc = 3;
 static int mostres = 10;
 static dir dr = FWD;
+static bool trset = false;
 
 static void print_usage(const char *prog)
 {
@@ -232,6 +233,7 @@ static void parse_opts(int argc, char *argv[])
       break;
     case 'r':
       turns = atoi(optarg);
+      trset = true;
       break;
     case 'e':
       enc = atoi(optarg);
@@ -341,8 +343,8 @@ int main (int argc, char * argv[]) {
 	  printf("physical error 0: \n");prwcr(calib, mt1->pid->cd);
 	  printf("physical error 1: \n");prwcr(calib, mt2->pid->cd);
 	}else{
-	  printf("time between ticks %d: ", port);prwcr(calib, mt->pid->cp);
-	  printf("physical error %d:    ", port);prwcr(calib, mt->pid->cd);
+	  printf("time between ticks %d: ", port);prwcr(calib, mt1->pid->cp);
+	  printf("physical error %d:    ", port);prwcr(calib, mt1->pid->cd);
 	}
 	printf("\n\n");
       }
@@ -350,13 +352,16 @@ int main (int argc, char * argv[]) {
 
     if(pid){
       if(port < 2){
-	mt_pid_on(mt);
-	mt_pid_set_gains(mt,kp, ki, kd);
+	mt_pid_on(mt1);
+	mt_pid_set_gains(mt1,kp, ki, kd);
+	mt1->pid->ttc = ttc;
       } else {
 	mt_pid_on(mt1);
 	mt_pid_set_gains(mt1, kp, ki, kd);
+	mt1->pid->ttc = ttc;
 	mt_pid_on(mt2);
 	mt_pid_set_gains(mt2, kp, ki, kd);
+	mt2->pid->ttc = ttc;
       }
     }
   } else {
@@ -526,10 +531,8 @@ time.tv_nsec = 0;
        index = ((turns/step)-1);
        mt_wait_for_stop(iter == 1 ? mt1 : mt2, 1);
        reset_glob(MAXM);
-       //mt_reset_enc(mt);
        clock_gettime(CLK_ID, &tini);
        block_move(0, vel);
-       //mt_move_t(mt, mt_tticks(mt, turns), dr, vel,0);mt_wait(mt);
        clock_gettime(CLK_ID, &taux);
        ticks1 = mt_get_ticks(mt1);
        if(port == 2)
@@ -539,15 +542,16 @@ time.tv_nsec = 0;
        esec = (int)(taux.tv_sec - tini.tv_sec);
        elapsed = esec+(enano*0.000000001);
        elmicras = (long long int)((enano/1000) + (long long int)(1000000 * esec));
-       txsec = (ticks / elapsed);
        txturn = (elmicras / turns);
-       tbticks = (txturn/enc == 1 ? 360 : 720);
        
        for(i=0; i<iter; i++) {
 	 mt = i == 0 ? mt1 : mt2;
 	 daux = i == 0 ? &data[index]  : &data2[index];
 	 ticks = i == 0 ? ticks1 : ticks2;
-
+	 
+	 tbticks = (txturn/mt->ticsxturn);
+	 txsec = (ticks / elapsed);
+       
 	 if(to_pr)
 	   printf("MOTOR %d:\nturns: %d, telapsed: %.5lf sec\ntxturn: %.5lf sec\ntbticks_total: %.5lf micros\nticks/sec: %.5lf\n", mt->id-1, turns, elapsed , txturn/1000000, tbticks, txsec);
 	   
@@ -604,8 +608,9 @@ time.tv_nsec = 0;
      }
      for(i=0; i<iter; i++){
        mt  = i == 0 ? mt1 : mt2;
-       printf("MOTOR: %d, step: %d, vel: %d\n\n", mt->id, step, vel);
-       prfive(data, MAXM/step);
+       daux = i == 0 ? data  : data2;
+       printf("MOTOR: %d, step: %d, vel: %d\n\n", mt->id-1, step, vel);
+       prfive(daux, MAXM/step);
        printf("\n");
      }
      
@@ -642,7 +647,7 @@ time.tv_nsec = 0;
      e2aux.pin = pin2;
      e2aux.isr = &isr_print_2; 
      mt_reconf(mt, NULL, &e2aux); // e1 untouched
-     printf("both encoders active, m_e1: %d, m_e2: %d\n", e1->pin, e2->pin);
+     printf("\nboth encoders active, m_e1: %d, m_e2: %d\n", e1->pin, e2->pin);
      
      
      mt_reset_enc(mt);
@@ -652,7 +657,7 @@ time.tv_nsec = 0;
      mt_wait_for_stop(mt,2);
      mt_reconf(mt, ECNULL, NULL); //e2 untouched.
      e1pin = mt_enc_is_null(mt,1) ? ENULL : e1->pin;
-     printf("m_e1 disabled , m_e1: %d, m_e2: %d,\n", e1pin, e2->pin);
+     printf("\nm_e1 disabled , m_e1: %d, m_e2: %d,\n", e1pin, e2->pin);
      
   
      mt_reset_enc(mt);
@@ -663,7 +668,7 @@ time.tv_nsec = 0;
      e1aux.isr = &isr_print_1;
      mt_wait_for_stop(mt,2);
      mt_reconf(mt, &e1aux, NULL); // e2 untouched
-     printf("both encoders active, m_e1: %d, m_e2: %d,\n", e1->pin, e2->pin);
+     printf("\nboth encoders active, m_e1: %d, m_e2: %d,\n", e1->pin, e2->pin);
      
       
      mt_reset_enc(mt);
@@ -672,12 +677,12 @@ time.tv_nsec = 0;
      printf("back to defaults ...\n");
      mt_wait_for_stop(mt,2);
      mt_reconf(mt, NULL, NULL);
-     printf("both encoders active, (default ISRs) m_e1: %d, m_e2: %d,\n", e1->pin, e2->pin);
+     printf("\nboth encoders active, (default ISRs) m_e1: %d, m_e2: %d,\n", e1->pin, e2->pin);
      
      mt_reset_enc(mt);
      mt_move_t(mt, mt_tticks(mt, turns), dr, vel, 0);mt_wait(mt);
      printf("ticks received: %d, ticks expected: %d, tics e1: %d, tics e2: %d\n",  mt_get_ticks(mt), mt_tticks(mt, turns), mt_enc_is_null(mt,1) ? 0 : e1->tics, e2->tics);
-     printf("trying to disable both encoders at a time ...\n");
+     printf("\ntrying to disable both encoders at a time ...\n");
      mt_wait_for_stop(mt,2);
      mt_reconf(mt, ECNULL, ECNULL);
    }
@@ -689,7 +694,7 @@ time.tv_nsec = 0;
     
      double twait = 1.7;
      int micras   = 0, desv = 0, micras2 = 0, desv2 = 0, mtot = 0, dtot = 0, i;
-     //step         = (MAX_VEL / mostres);
+     int ini_gap = trset ? turns : 0;
      
      if (mostres < 5)
        mostres = 5;
@@ -721,7 +726,7 @@ time.tv_nsec = 0;
 	 printf("\n");
        }
        
-       for ( i = MIN_VEL+(step/2); i <= MAX_VEL; i += step ){
+       for ( i = MIN_VEL+ini_gap; i <= MAX_VEL; i += step ){
 	 if ( i == MAX_VEL )
 	   i = (MAX_VEL - (step/4));
 	 if(port < 2)
@@ -749,7 +754,7 @@ time.tv_nsec = 0;
    {
           
      if(mt_pid_is_null(mt1))
-       printf("This tests is meant to test P.I.D, and P.I.D is null...\n DEBUG [-l] mode is recommended too...\n");
+       printf("This tests is meant to test P.I.D, and P.I.D is null...\nDEBUG [-l] mode is recommended too...\n");
      
      printf("\n\nSTARTING MOVE_T\n\n");
      mt_move_t(mt1, mt_tticks(mt1, turns), dr, vel, pctr);mt_wait(mt1);
