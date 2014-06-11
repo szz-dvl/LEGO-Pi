@@ -1709,14 +1709,6 @@ int usTicks, unused, vel;
 
 }
 
-/*int nextpw (int err, int inte, int der, int pherr){
-
-	int tocomp = err + inte + der;
-
-	return (((tocomp > 0) && (tocomp <= pherr*3)) ? 1 : (tocomp > pherr*3) ? 0 : (tocomp < -pherr*3) ? 2 : 4);
-
-
-}*/
 
 static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, bool sinc){
 
@@ -2182,9 +2174,6 @@ static long long get_MVac(MOTOR * m, long long *last, int *tdt, int tdtmin, int 
   //printf("get_MVac: t = %d, last = %lld\n", t, *last);
   *last = t;
   *tdt = newdt = (dt < tdtmin || dt > tdtmax) && errCont >=5 ? (abs(dt-tdtbase) <= abs(dt-tdtmin) && abs(dt-tdtbase) <= abs(dt-tdtmax)) ? tdtbase : (abs(dt-tdtbase) > abs(dt-tdtmin) && abs(dt-tdtmin) < abs(dt-tdtmax)) ? tdtmin : (abs(dt-tdtbase) > abs(dt-tdtmax) && abs(dt-tdtmin) > abs(dt-tdtmax)) ? tdtmax : dt : dt;
-
-  if(*tdt != dt)
-    debug ("\n\nTICS_%d: TICS RESTABILIZE!! ticks_dt : %d, tdtaux : %d, tmin: % d, tmax: %d \n\n", m->id-1, *tdt, dt, tdtmin, tdtmax);
   
   clock_gettime(CLK_ID, ts1);
   clock_gettime(CLK_ID, ts2);
