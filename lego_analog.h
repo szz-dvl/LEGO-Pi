@@ -10,7 +10,7 @@
 #define MAX_PORT        3
 #define MIN_PORT        0
 #define MAX_DB          100
-#define HT_GYRO_DEF     2378
+#define HT_GYRO_DEF     2335
 
 typedef enum {
 
@@ -42,7 +42,7 @@ extern bool   ag_lgt_set_led (ANDVC* dvc, bool on);
 extern int    ag_lgt_get_ledstate (ANDVC* dvc);
 extern bool   ag_psh_is_pushed (ANDVC * dvc, double * volt);
 extern int    ag_snd_get_db (ANDVC * dvc);
-extern bool   ag_gyro_cal (ANDVC * dvc);
+extern bool   ag_gyro_cal (ANDVC * dvc, int times);
 extern int    ag_gyro_get_val (ANDVC * dvc, bool * error);
 extern double ag_read_volt (ANDVC * dvc);
 extern bool   ag_oth_set_y (ANDVC* dvc, bool high);

@@ -394,14 +394,14 @@ extern int ag_gyro_get_val (ANDVC * dvc, bool * error) { //Positives values for 
 
 }
 
-extern bool ag_gyro_cal (ANDVC * dvc) { //Make sure the robot is stationary before call this one!
+extern bool ag_gyro_cal (ANDVC * dvc, int times) { //Make sure the robot is stationary before call this one!
 
   if(status.ag) {
     
     if(dvc->type == HT_GYRO) {
       
       int acum = 0, val;
-      int i = 5;
+      int i = times;
       
       while (i > 0) {
 	
@@ -455,10 +455,15 @@ extern double ag_read_volt (ANDVC * dvc){
   
 extern void ag_shutdown () {
   
+  int i;
+
   if(!status.mt)
     unexportall();
   
   status.ag = false;
+  
+  for (i = 0; i <= MAX_PORT; i++)
+    digitalWrite(ypin_port[i], LOW);
   
   if(an_fd > 0)
     close(an_fd);

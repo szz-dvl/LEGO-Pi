@@ -7,14 +7,16 @@ static int tst = 0;
 static int port = 0;
 static int times = 6;
 static bool log_dbg = false;
+static bool tset = false;
 
 static void print_usage(const char *prog)
 {
-	printf("Usage: %s [-tvpVcsPIDTrebSdCl]\n", prog);
-	puts("  -t --test      test number to perform [1-6]\n"
-	     "  -p --port      analog port [0-3]\n"
-	     "  -i --times     iterations, only apply to some tests\n"
-	     "  -d --dbg       Set the library in debug mode [no arg]\n");
+	printf("Usage: %s -t<test_num> [-pid]\n", prog);
+	puts("  -t --test      test number to perform [1-6]           {mandatory}\n"
+	     "  -p --port      analog port [0-3]                      {0}\n"
+	     "  -i --times     iterations, only apply to some tests   {6}\n"
+	     "  -d --dbg       Set the library in debug mode [no arg] {disabled}\n");
+	exit(EXIT_FAILURE);
 }
 
 
@@ -43,6 +45,7 @@ static void parse_opts(int argc, char *argv[])
       break;
     case 'i':
       times = atoi(optarg);
+      tset = true;
       break;
     case 'p':
       port = atoi(optarg);
@@ -52,7 +55,6 @@ static void parse_opts(int argc, char *argv[])
       break;
     default:
       print_usage(argv[0]);
-      exit(EXIT_FAILURE);
       break;
     }
   }
@@ -92,9 +94,9 @@ int main(int argc, char * argv[]) {
   
   switch(tst) {
   case 0:
+    printf("%s: At least the test number is needed!\n", argv[0]);
+    ag_shutdown();
     print_usage(argv[0]);
-    printf("At least the test number is needed!\n");
-    exit(EXIT_FAILURE);
   case 1: //LEGO Push + LEGO Light sensor test
     {
       int i;
@@ -109,14 +111,14 @@ int main(int argc, char * argv[]) {
       for(i=0; i<times; i++){
 	while(!ag_psh_is_pushed(&push, &psh_val));
 	
-	sprintf(straux, "Setting ligh %s on port %d\n", ag_lgt_get_ledstate(&l2) ? "OFF" : "ON", l2.port);
+	sprintf(straux, "Setting ligh %s\n", ag_lgt_get_ledstate(&l2) ? "OFF" : "ON");
 	printf("%s",straux);
 	if (ag_lgt_get_ledstate(&l2))
 	  ag_lgt_set_led(&l2, false);
 	else  
 	  ag_lgt_set_led(&l2, true);
 	
-	sprintf(straux, "Setting ligh %s on port %d\n", ag_lgt_get_ledstate(&l3) ? "OFF" : "ON", l3.port);
+	//sprintf(straux, "Setting ligh %s on port %d\n", ag_lgt_get_ledstate(&l3) ? "OFF" : "ON", l3.port);
 	if (ag_lgt_get_ledstate(&l3))
 	  ag_lgt_set_led(&l3, false);
 	else  
@@ -125,7 +127,7 @@ int main(int argc, char * argv[]) {
 	DELAY_US(200000);
 	lres3 = ag_read_volt(&l3);
 	lres2 = ag_read_volt(&l2);
-	printf("PUSH_VAL: %.2f, LIGHT_2 says: %.2f, LIGHT_3 says: %.2f, VDIFF = %.2f\n", psh_val, lres2, lres3, fabs(lres2-lres3));
+	printf("PUSH_VAL: %.2f, LIGHT_1 says: %.2f, LIGHT_3 says: %.2f, VDIFF = %.2f\n", psh_val, lres2, lres3, fabs(lres2-lres3));
       }
     }
     break;;
@@ -174,12 +176,13 @@ int main(int argc, char * argv[]) {
       
       ag_new(&gyro,port,HT_GYRO);
 
-      ag_gyro_cal(&gyro);
+      if(tset)
+	ag_gyro_cal(&gyro, times);
       
       while (1) {
 	
 	printf("GYRO says: %d, read_volt = %f, read_int = %d\n", ag_gyro_get_val(&gyro, &error), ag_read_volt(&gyro), ag_read_int(&gyro));
-	sleep(1);
+        DELAY_US(200000);
 	
       }
 
@@ -193,8 +196,6 @@ int main(int argc, char * argv[]) {
       ANDVC gyro;
       
       ag_new(&gyro,port,HT_GYRO);
-
-      ag_gyro_cal(&gyro);
       
       for(i=0; i<times; i++) {
 	
@@ -216,8 +217,11 @@ int main(int argc, char * argv[]) {
       ag_new(&lother,port,AG_OTHER);
       
       for(i=0; i<times; i++) {
+	printf("Delivering yellow wire %s V\n", to_set ? "3.3" : "0");
 	ag_oth_set_y(&lother,to_set);
 	to_set = !to_set;
+	DELAY_US(10000);
+	printf("UNKNOWN SAYS: volt = %.2f, int = %d\n", ag_read_volt(&lother), ag_read_int(&lother));
 	if(!get_in("Continue?", 1))
 	  break;
       }

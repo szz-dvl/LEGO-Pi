@@ -139,7 +139,7 @@ static bool trset = false;
 
 static void print_usage(const char *prog)
 {
-	printf("Usage: %s [-tvpVcsPIDTrebSdCl]\n", prog);
+	printf("Usage: %s -t<test_num> [-vpVcsPIDTrebSdCl]\n", prog);
 	puts("  -t --test      test number to perform [1-10]                    {mandatory}\n"
 	     "  -v --vel       velocity [0-200]                                 {60}\n" 
 	     "  -p --port      motor port [0-1], <2> both                       {0} \n"
