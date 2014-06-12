@@ -780,7 +780,7 @@ time.tv_nsec = 0;
      if(!log_dbg)
        printf("DEBUG [-l] mode is recommended, and redirect the output to a file too ...\n");
      
-     mt_move_sinc_t(dr, vel, (turns*720), pctr);mt_wait_all();
+     mt_move_sinc_t(dr, vel, enc != 3 ? (turns*360) : (turns*720), pctr);mt_wait_all();
 
    }
    break;;
