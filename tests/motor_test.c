@@ -336,6 +336,7 @@ int main (int argc, char * argv[]) {
       port < 2 ? printf("Calibrating MOTOR %d\n\n", port) : printf("Calibrating MOTORS\n\n") ;
       
       mt_calibrate(calib, 0.8);
+      DELAY_US(500000);
       if(verb > 0) {
 	if(port == 2){
 	  printf("time between ticks 0: \n");prwcr(calib, mt1->pid->cp);
@@ -781,8 +782,6 @@ time.tv_nsec = 0;
      
      mt_move_sinc_t(dr, vel, (turns*720), pctr);mt_wait_all();
 
-     mt_stop(mt1,true);
-     mt_stop(mt2,true);
    }
    break;;
  default:
