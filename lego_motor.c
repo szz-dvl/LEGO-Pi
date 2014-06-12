@@ -2373,7 +2373,7 @@ extern bool mt_move_sinc_t (dir dir, int vel, int lim, double posCtrl){
 	
 	/*	inicializamos struct sincro + posCtrl */
 	
-        if (posCtrl > 0 && posCtrl < 1) {
+        if (posCtrl >= 0 && posCtrl <= 1) {
 	  
 	  mpsinc->arr1 = mpsinc->arr2 = false;
 	  mpsinc->newmin =  mpsinc->newbase =  mpsinc->newmax = 0;
