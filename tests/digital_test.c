@@ -11,12 +11,13 @@ static int  tdepend = true;
 
 static void print_usage(const char *prog)
 {
-	printf("Usage: %s [-tvpVcsPIDTrebSdCl]\n", prog);
-	puts("  -t --test      test number to perform [1-6]\n"
-	     "  -p --port      digital port [0-1]\n"
-	     "  -e --tdep      extra paramter, test dependant\n"
-	     "  -T --titled    Print titles before info fields\n"
-	     "  -d --dbg       Set the library in debug mode [no arg]\n");
+	printf("Usage: %s -t<test_num> [-peTd]\n", prog);
+	puts("  -t --test      test number to perform [1-6]             {mandatory}\n"
+	     "  -p --port      digital port [0-1]                       {0}\n"
+	     "  -e --tdep      extra paramter, test dependant           {1}\n"
+	     "  -T --titled    Print titles before info fields [no arg] {true}\n"
+	     "  -d --dbg       Set the library in debug mode [no arg]   {false}\n");
+	exit(EXIT_FAILURE);
 }
 
 
@@ -58,9 +59,32 @@ static void parse_opts(int argc, char *argv[])
       break;
     default:
       print_usage(argv[0]);
-      exit(EXIT_FAILURE);
       break;
     }
+  }
+}
+
+//usefull for testing
+int get_in(char *to_print, int type){
+  switch(type){
+  case 1:
+    {
+      int ret_int;
+      printf("%s", to_print);
+      scanf("\n%d",&ret_int);
+      fflush(NULL);
+      return ret_int;
+    }
+    break;;
+  default:
+    {
+      char ret;
+      printf("%s", to_print);
+      scanf("\n%c",&ret);
+      fflush(NULL);
+      return ret;
+    }
+    break;;
   }
 }
 
@@ -73,9 +97,9 @@ int main (int argc, char * argv[]) {
   
   switch (tst) {
   case 0:
-    print_usage(argv[0]);
     printf("At least the test number is needed!\n");
-    exit(EXIT_FAILURE);
+    dg_shutdown();
+    print_usage(argv[0]);
   case 1://HT_COLOR Test
     { 
       bool cal = tdepend, ret;
@@ -86,7 +110,7 @@ int main (int argc, char * argv[]) {
 
       DGDVC col;
       if((ret = dg_new(&col, HT_COLOR, port)))
-	printf("New device succefully created: type >> %d, version >> %d, port >> %d\n", col.type, col.vers, col.port);
+	printf("New device successfully created: type >> %d, version >> %d, port >> %d\n", col.type, col.vers, col.port);
       else
 	printf("Error creating device\n");
 
@@ -173,7 +197,7 @@ int main (int argc, char * argv[]) {
       char * info [DG_INFO_TABLE_TAM];
       
       if((ret = dg_new(&us, LEGO_US, port)))
-	printf("New device succefully created: type >> %d, version >> %d, port >> %d\n", us.type, us.vers, us.port);
+	printf("New device successfully created: type >> %d, version >> %d, port >> %d\n", us.type, us.vers, us.port);
       else
 	printf("Error creating device\n");
       
@@ -235,7 +259,7 @@ int main (int argc, char * argv[]) {
       char * info [DG_INFO_TABLE_TAM];
       
       if((ret = dg_new(&irs, HT_IRS, port)))
-	printf("New device succefully created: type >> %d, version >> %d, port >> %d\n\n", irs.type, irs.vers, irs.port);
+	printf("New device successfully created: type >> %d, version >> %d, port >> %d\n\n", irs.type, irs.vers, irs.port);
       else
 	printf("Error creating device\n");
 
@@ -278,7 +302,7 @@ int main (int argc, char * argv[]) {
 	  printf("Error getting stregths table\n");
 	else {
 	  for (i = 0; i<5; i++)
-	    printf("%s stregth %d = %u\n", dc ? "DC" : "AC", i, table[i]);
+	    printf("%s stregth %d = %u\n", dc ? "DC" : "AC", i+1, table[i]);
 	}
 	
 	if(irs.vers == 1)
@@ -307,7 +331,7 @@ int main (int argc, char * argv[]) {
       char * info [DG_INFO_TABLE_TAM];
       
       if((ret = dg_new(&acc, HT_ACCEL, port)))
-	printf("New device succefully created: type >> %d, version >> %d, port >> %d\n", acc.type, acc.vers, acc.port);
+	printf("New device successfully created: type >> %d, version >> %d, port >> %d\n", acc.type, acc.vers, acc.port);
       else
 	printf("Error creating device\n");
       
@@ -350,39 +374,60 @@ int main (int argc, char * argv[]) {
       uint16_t tdhead, wrhead;
       int i;
       char * info [DG_INFO_TABLE_TAM];
-      
+
       if((ret = dg_new(&com, HT_COMPASS, port)))
-	printf("New device succefully created: type >> %d, version >> %d, port >> %d\n", com.type, com.vers, com.port);
-      else
-	printf("Error creating device\n");
-      
-      if(ret){
-	
-	if(!dg_get_state(&com, &state))
-	  printf("Error getting initial state\n");
+	  printf("New device successfully created: type >> %d, version >> %d, port >> %d\n", com.type, com.vers, com.port);
 	else
-	  printf("Initial state: %u\n", state);
+	  printf("Error creating device\n");
+
+      if(tdepend && ret) {  //calibration
 	
-	if(!dg_get_info(&com, info, titled))
-	  printf("Error getting sensor info.\n");
-	else {
-	  for (i=0; strcmp(info[i],  "") != 0; i++)
-	    printf("%s\n", info[i]);
-	}
+	if(!dg_send_cmd(&com, HTCM_CAL_MD))
+	  printf("Error setting calibration mode\n");
+
+	get_in("Calibration finished? ",1); //wait for a complete turn.
+
+	if(!dg_send_cmd(&com, HTCM_MES_MD))
+	  printf("Error setting measurement mode\n");
 	
-	printf("\nAttempting to get heading:\n");
+	DELAY_US(10000);
+
+	if(!dg_get_state(&com, &state))
+	  printf("Error getting calibration result\n");
 
 	if(!dg_com_get_head(&com, &tdhead, &wrhead))
 	    printf("Error getting axis\n");
 	  else
 	    printf("2DG_head: %u\nWDG_head: %u\n", tdhead, wrhead);
-
-       	printf("\n");
-	if(!dg_get_state(&com, &state))
-	  printf("Error getting final state\n");
-	else
-	  printf("Final state: %u\n", state);
 	
+	printf("Calibration %s\n", state == 2 ? "FAIL" : "SUCCESSFULL");
+
+      } else if (ret) {
+	  
+	  if(!dg_get_state(&com, &state))
+	    printf("Error getting initial state\n");
+	  else
+	    printf("Initial state: %u\n", state);
+	  
+	  if(!dg_get_info(&com, info, titled))
+	    printf("Error getting sensor info.\n");
+	  else {
+	    for (i=0; strcmp(info[i],  "") != 0; i++)
+	      printf("%s\n", info[i]);
+	  }
+	  
+	  printf("\nAttempting to get heading:\n");
+
+	  if(!dg_com_get_head(&com, &tdhead, &wrhead))
+	    printf("Error getting axis\n");
+	  else
+	    printf("2DG_head: %u\nWDG_head: %u\n", tdhead, wrhead);
+	  
+	  printf("\n");
+	  if(!dg_get_state(&com, &state))
+	    printf("Error getting final state\n");
+	  else
+	    printf("Final state: %u\n", state);
       }
 
     }
@@ -399,12 +444,12 @@ int main (int argc, char * argv[]) {
       int i;
       
       if((ret0 = dg_new_unknown(&p0, LEGO_ADDR, LEGO_FREQ, port0)))
-	printf("Device plugged to port %d succefully created\n", port0);
+	printf("Device plugged to port %d successfully created\n", port0);
       else
 	printf("Failed to create device on port %d\n", port0);
       
       if((ret1 = dg_new_unknown(&p1, LEGO_ADDR, LEGO_FREQ, port1)))
-	printf("Device plugged to port %d succefully created\n", port1);
+	printf("Device plugged to port %d successfully created\n", port1);
       else
 	printf("Failed to create device on port %d\n", port1);
 

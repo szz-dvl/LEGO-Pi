@@ -41,8 +41,8 @@ CMD cmds [] = {
   {CMD_REG, 0x03, 200, 2},      //Hitechnic Color Raw mode (v2)
   {CMD_REG, 0x35, 0, 2},        //Hitechnic Color 50Hz cancellation mode (v2)
   {CMD_REG, 0x36, 0, 2},        //Hitechnic Color 60Hz cancellation mode (v2)
-  {CMD_REG, 0x43, 0, 1},        //Hitechnic Compass Measurement mode
-  {CMD_REG, 0x00, 0, 1},        //Hitechnic Compass Calibrate mode
+  {CMD_REG, 0x00, 0, 1},        //Hitechnic Compass Measurement mode
+  {CMD_REG, 0x43, 0, 1},        //Hitechnic Compass Calibrate mode
   {CMD_REG, 0x00, 0, 2},        //Hitechnic IRSeeker AC DSP mode [1200Hz] (v2)
   {CMD_REG, 0x01, 0, 2}         //Hitechnic IRSeeker AC DSP mode [600Hz] (v2)
   
