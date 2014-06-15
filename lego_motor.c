@@ -428,10 +428,10 @@ extern int mt_tticks (MOTOR * m, int turns) {
 
   if(!status.mt){
     not_critical("mt_tticks: Motor interface not initialised.\n");
-    return false;
+    return FAIL;
   } else if (!mbusy(m->id)) {
     not_critical("mt_tticks: Motor %d not initialised properly.\n", m->id-1);
-    return false;
+    return FAIL;
   } else
     return(tticks(m, turns));
 }
@@ -439,10 +439,10 @@ extern int mt_tticks (MOTOR * m, int turns) {
 extern int mt_enc_count (MOTOR * m){ 
   
   if(!status.mt){
-    not_critical("mt_tticks: Motor interface not initialised.\n");
+    not_critical("mt_enc_count: Motor interface not initialised.\n");
     return FAIL;
   } else if (!mbusy(m->id)) {
-    not_critical("mt_tticks: Motor %d not initialised properly.\n", m->id-1);
+    not_critical("mt_enc_count: Motor %d not initialised properly.\n", m->id-1);
     return FAIL;
   } else
     return (ecount(m));
