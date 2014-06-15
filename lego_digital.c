@@ -1121,10 +1121,7 @@ extern bool dg_get_state (DGDVC * dvc, uint8_t * state){
       uint16_t taux[1];
       cmdIdx cmdaux;
       
-      if(dvc->type == LEGO_US)
-	cmdaux = US_STATE;
-      else
-	cmdaux = HT_STATE;
+      cmdaux = dvc->type == LEGO_US ? US_STATE : HT_STATE;
 
       if(send_message(dvc, cmdaux, taux))
 	*state = (uint8_t)taux[0];

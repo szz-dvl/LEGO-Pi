@@ -92,7 +92,7 @@ int main (int argc, char * argv[]) {
 
   parse_opts(argc, argv);
   
-  dg_init(3);
+  dg_init(7);
   dg_set_verbose(log_dbg ? LOG_LVL_DBG : LOG_LVL_ADV);
   
   switch (tst) {
@@ -385,20 +385,18 @@ int main (int argc, char * argv[]) {
 	if(!dg_send_cmd(&com, HTCM_CAL_MD))
 	  printf("Error setting calibration mode\n");
 
-	get_in("Calibration finished? ",1); //wait for a complete turn.
+	get_in("Calibration finished? ",1); //wait for approximately a turn and a half.
 
 	if(!dg_send_cmd(&com, HTCM_MES_MD))
 	  printf("Error setting measurement mode\n");
 	
-	DELAY_US(10000);
-
-	if(!dg_get_state(&com, &state))
+	if(!dg_get_state(&com, &state)) //strange behavior here, needs at least 5 retries to get the value properly ...[15-6-2014]
 	  printf("Error getting calibration result\n");
-
+	
 	if(!dg_com_get_head(&com, &tdhead, &wrhead))
-	    printf("Error getting axis\n");
-	  else
-	    printf("2DG_head: %u\nWDG_head: %u\n", tdhead, wrhead);
+	  printf("Error getting axis\n");
+	else
+	  printf("2DG_head: %u\nWDG_head: %u\n", tdhead, wrhead);
 	
 	printf("Calibration %s\n", state == 2 ? "FAIL" : "SUCCESSFULL");
 
