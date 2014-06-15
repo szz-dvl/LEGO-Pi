@@ -401,7 +401,8 @@ extern bool ag_gyro_cal (ANDVC * dvc, int times) { //Make sure the robot is stat
     if(dvc->type == HT_GYRO) {
       
       int acum = 0, val;
-      int i = times;
+      int tback = times == 0 ? 5 : times;
+      int i = tback;
       
       while (i > 0) {
 	
@@ -413,7 +414,7 @@ extern bool ag_gyro_cal (ANDVC * dvc, int times) { //Make sure the robot is stat
       
       }
       
-      act_gyro = (acum / 5);
+      act_gyro = (acum / tback);
 
       return true;
 
