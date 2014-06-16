@@ -1,11 +1,13 @@
 #!/bin/bash
 
-# This script is the LEGO-Pi library installer.
+# This script is the LEGO-Pi library installer. overclock, HDMI and LIBS export Missing [16-5-2014]
+
 
 mydir=`pwd`
 distro=`cat /etc/*-release | grep NAME | grep -v PRETTY | awk -F= {'print $2'} | tr -d \"`
 mylib=/usr/lib/liblego.so
 deps=( gsl-bin libgsl0-dev gcc patch ctags git-core make )
+depsu=( gsl-bin libgsl0-dev patch ctags git-core )
 wpi_git=git://git.drogon.net/wiringPi
 wpi_patch="$mydir"/patch/wpi.patch
 lego_pi="$mydir"/../
@@ -13,7 +15,7 @@ wpi="$mydir"/wpi/wiringPi
 wpi_ins="$mydir"/wpi/
 wpi_dev="$wpi_ins"/devLib
 wpi_gpio="$wpi_ins"/gpio
-pach_files=( wiringPi.c wiringPi.h softPwm.c softPwm.h )
+patch_files=( wiringPi.c wiringPi.h softPwm.c softPwm.h )
 patch_dir="$mydir"/patch/files
 tmp_d="$mydir"/patch/tmp
 
@@ -22,14 +24,12 @@ ndone="Nothing done, exiting"
 make_patch()
 {
 
-    #rm -r "$tmp_d"
     mkdir "$tmp_d"
     let "i=0"
     rm "$wpi_patch"
 
-    for file in ${patch_files[@]}; do
+    for file in "${patch_files[@]}"; do
 	diff -u "$wpi"/"$file" "$patch_dir"/"$file" > "$tmp_d"/p"$i".patch
-	echo "making patch "$i""
 	let "i=i+1"
     done
     
@@ -60,8 +60,6 @@ bold ()
 
 
 }
-
-
 
 
 if [ "$distro" == "Raspbian GNU/Linux" ]; then
@@ -118,7 +116,6 @@ if ! [[ "$uninstall" == "true" ]]; then
 	sudo "$pkg_man" "deps"
     fi
 
-
     if [ -d "$wpi_ins" ]; then
 	sudo rm -r "$wpi_ins"
     fi
@@ -126,8 +123,8 @@ if ! [[ "$uninstall" == "true" ]]; then
     git clone "$wpi_git" "wpi"
     make_patch
     cd "$wpi"
-    patch -p2 < "$wpi_patch"
-    #patch -N -R -p2 < "$wpi_patch"
+    patch -N -s -p7 < "$wpi_patch"
+
     cd "$wpi_ins"
     ./build
     
@@ -142,17 +139,12 @@ if ! [[ "$uninstall" == "true" ]]; then
     bold "\nLEGO_Pi successfully installed" ; echo "You will find the documentation in de the \"docs\" direcory"
 
 else #uninstall
+
     bold "\nUninstalling LEGO-Pi ..."
     
     if [[ "$rmv_deps" = "true" ]]; then
 
 	bold "\nUninstalling dependences ..."
-
-	if [[ "$pkg_man" == "apt-get" ]]; then
-	    sudo "$pkg_man" "--yes" "remove" ${deps[*]}
-	else
-	    sudo "$pkg_man" ${deps[*]}
-	fi
 
 	cd "$wpi"
         sudo make uninstall
@@ -164,11 +156,16 @@ else #uninstall
 	cd "$mydir"
 	sudo rm -r "$wpi_ins"
 
+	if [[ "$pkg_man" == "apt-get" ]]; then
+	    sudo "$pkg_man" "--yes" "remove" ${depsu[*]}
+	else
+	    sudo "$pkg_man" ${depsu[*]}
+	fi
+
     elif [ -e "$mylib" ]; then
 	bold "\nUnpatching wiringPi ..."
 	cd "$wpi"
-	patch -R -p2 < "$wpi_patch"
-	#patch -N -s -p2 < "$wpi_patch"
+	patch -R -N -p7 < "$wpi_patch"
 	cd "$wpi_ins"
 	./build
 	
@@ -179,6 +176,10 @@ else #uninstall
     
     cd "$mydir"
     
+    if [ -e "$mylib" ]; then
+	rm "$wpi_patch"
+    fi
+
     bold "\nLEGO_Pi successfully uninstalled"
     #Quitar seds, por lo menos de bashrc...
     
