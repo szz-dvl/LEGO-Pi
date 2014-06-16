@@ -112,6 +112,7 @@ uninstall:
 	@rm -f $(DESTDIR)$(PREFIX)/include$(LEGO_DIR)/lego_digital.h
 	@rm -f $(DESTDIR)$(PREFIX)/include/lego.h	
 	@rm -f $(DESTDIR)$(PREFIX)/lib/liblego.*
+	@rm -f $(DESTDIR)/lib/liblego.*
 	@$(MAKE) -C tests MAKEFLAGS= uninstall
 	@$(MAKE) -C lib MAKEFLAGS= uninstall
 	@$(MAKE) -C lib/tests MAKEFLAGS= uninstall
