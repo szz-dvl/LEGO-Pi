@@ -8,6 +8,7 @@ distro=`cat /etc/*-release | grep NAME | grep -v PRETTY | awk -F= {'print $2'} |
 mylib=/usr/lib/liblego.so
 deps=( gsl-bin libgsl0-dev gcc patch ctags git-core make )
 depsu=( gsl-bin libgsl0-dev patch ctags git-core )
+wpi_sec="$mydir"/patch/files/wpil.tar.gz
 wpi_git=git://git.drogon.net/wiringPi
 wpi_patch="$mydir"/patch/wpi.patch
 lego_pi="$mydir"/../
@@ -122,6 +123,13 @@ if ! [[ "$uninstall" == "true" ]]; then
 
     if ! [ -d "$wpi_ins" ]; then
 	git clone "$wpi_git" "wpi"
+	
+	if ! [ -d "$wpi_ins" ]; then
+	    mkdir "$wpi_ins"
+	    bold "Unable to fetch wiringPi, using a local copy, it might be outdated ...\n"
+	    tar -xvzf "$wpi_sec" -C "$wpi_ins"
+	fi
+	
     else
 	cd "$wpi_ins"
 	git pull origin
