@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script is the LEGO-Pi library installer. overclock, HDMI and LIBS export Missing [16-5-2014]
+# This script is the LEGO-Pi library installer. overclock, HDMI and LIBS export and enable SPI module Missing [16-5-2014]
 
 
 mydir=`pwd`
@@ -58,7 +58,6 @@ bold ()
 {
 
     echo -e "\e[1m"$1"\e[0m"
-
 
 }
 
