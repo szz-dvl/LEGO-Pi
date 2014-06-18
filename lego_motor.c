@@ -1185,39 +1185,25 @@ static void * mtt_thread (void * arg){
 static bool wait_for_stop(MOTOR * m, double diff){   
   
   TSPEC taux;
+  
   TSPEC * tini1 = &m->enc1->tmp;
   TSPEC * tini2 = &m->enc2->tmp;
-    
-  long enano1, enano2;
-  int esec1, esec2;
-  double el1, el2;
 
   if ((!is_null(m->enc1)) && (!is_null(m->enc2))){
-    do {
+    do 
       clock_gettime(CLK_ID, &taux);
-      enano1 = (taux.tv_nsec - tini1->tv_nsec);
-      esec1 = (int)(taux.tv_sec - tini1->tv_sec);
-      el1 = esec1+(enano1*0.000000001);
-      enano2 = (taux.tv_nsec - tini2->tv_nsec);
-      esec2 = (int)(taux.tv_sec - tini2->tv_sec);
-      el2 = esec2+(enano2*0.000000001);
-    } while ( (el1 < diff) || (el2 < diff) );
+    while ( ((DIFFT(tini1, &taux)/1000000) < diff) || ((DIFFT(tini2, &taux)/1000000) < diff) );
     
   } else if (is_null(m->enc1) && !is_null(m->enc2)) {
-    do {
+    do 
       clock_gettime(CLK_ID, &taux);
-      enano2 = (taux.tv_nsec - tini2->tv_nsec);
-      esec2 = (int)(taux.tv_sec - tini2->tv_sec);
-      el2 = esec2+(enano2*0.000000001);
-    } while (el2 < diff);
+    while ((DIFFT(tini2, &taux)/1000000) < diff);
     
   } else if (!is_null(m->enc1) && is_null(m->enc2) ){
-    do {
+    do 
       clock_gettime(CLK_ID, &taux);
-      enano1 = (taux.tv_nsec - tini1->tv_nsec);
-      esec1 = (int)(taux.tv_sec - tini1->tv_sec);
-      el1 = esec1+(enano1*0.000000001);
-    } while (el1 < diff);
+    while ((DIFFT(tini1, &taux)/1000000) < diff);
+    
   } else {
     not_critical("wait_for_stop: At least one encoder needed.\n");
     return false;

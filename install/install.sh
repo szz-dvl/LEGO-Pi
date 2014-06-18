@@ -79,6 +79,8 @@ uninstall=false #install by default
 overclock=800   #little bit of overclocking by default 
 dvideo=true     #disable video outputs PAL/HDMI by default
 rmv_deps=false  #do not remove dependencies by when uninstalling default 
+update=true     #update system by default
+flocal=false    #try to download the latest WiringPi version by default, do not force local
 
 while [[ $# -gt 0 ]]; do
     opt="$1"
@@ -88,6 +90,8 @@ while [[ $# -gt 0 ]]; do
         "-o"|"--oc"         ) overclock="$1"; shift;;
         "-r"|"--remove"     ) rmv_deps=true;;
         "-v"|"--video"      ) dvideo=false;;
+	"-n"|"--noupdate"   ) update=false;;
+	"-f"|"--flocal"     ) flocal=true;;
         *                   ) echo "ERROR: Invalid option: \""$opt"\"" >&2
                               bye "$NDONE";;
     esac
@@ -108,8 +112,11 @@ if ! [[ "$uninstall" == "true" ]]; then
 
     ##FALTAN seds
 
-    bold "\nUpdating package database ..."
-    update "$pkg_man"
+    if [[ "$update" == "true" ]]; then
+	bold "\nUpdating package database ..."
+	update "$pkg_man"
+    fi
+    
     bold "\nInstalling depencdences ..."
     if [[ "$pkg_man" == "apt-get" ]]; then
 	sudo "$pkg_man" "--yes" "install" ${deps[*]}
@@ -121,18 +128,18 @@ if ! [[ "$uninstall" == "true" ]]; then
 	sudo rm -r "$wpi_ins"
     fi
 
-    if ! [ -d "$wpi_ins" ]; then
+    if [[ "$flocal" == "false" ]]; then
 	git clone "$wpi_git" "wpi"
-	
-	if ! [ -d "$wpi_ins" ]; then
-	    mkdir "$wpi_ins"
-	    bold "Unable to fetch wiringPi, using a local copy, it might be outdated ...\n"
-	    tar -xvzf "$wpi_sec" -C "$wpi_ins" >/dev/null
-	fi
-	
     else
-	cd "$wpi_ins"
-	git pull origin
+	mkdir "$wpi_ins"
+	bold "Using a local copy of WiringPi, it might be outdated ...\n"
+	tar -xvzf "$wpi_sec" -C "$wpi_ins" >/dev/null
+    fi
+    
+    if ! [ -d "$wpi_ins" ]; then
+	mkdir "$wpi_ins"
+	bold "Unable to fetch wiringPi, using a local copy, it might be outdated ...\n"
+	tar -xvzf "$wpi_sec" -C "$wpi_ins" >/dev/null
     fi
 
     make_patch
@@ -156,30 +163,40 @@ else #uninstall
 
     bold "\nUninstalling LEGO-Pi ..."
     
+        
     if [[ "$rmv_deps" = "true" ]]; then
 
 	bold "\nUninstalling dependences ..."
 
 	if [ -d "$wpi_ins" ]; then
 	    cd "$wpi"
-            sudo make uninstall
+	    sudo make uninstall
 	    cd "$wpi_dev"
-            sudo make uninstall
+	    sudo make uninstall
 	    cd "$wpi_gpio"
 	    sudo make uninstall
-
-	    cd "$mydir"
-	    sudo rm -r "$wpi_ins"
 	fi
-	
+
 	if [[ "$pkg_man" == "apt-get" ]]; then
 	    sudo "$pkg_man" "--yes" "remove" ${depsu[*]}
 	else
 	    sudo "$pkg_man" ${depsu[*]}
 	fi
 	
+	cd "$mydir"
+	sudo rm -r "$wpi_ins"
+
     elif [ -e "$mylib" ]; then
-	
+
+	if [ -d "$wpi_ins" ]; then
+	    cd "$wpi"
+	    sudo make clean
+	    cd "$wpi_dev"
+            sudo make clean
+	    cd "$wpi_gpio"
+	    sudo make clean
+	fi
+
 	bold "\nUnpatching wiringPi ..."
 	cd "$wpi"
 	patch -R -N -p7 < "$wpi_patch"
