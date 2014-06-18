@@ -92,14 +92,14 @@ while [[ $# -gt 0 ]]; do
 	"-n"|"--noupdate"   ) update=false;;
 	"-f"|"--flocal"     ) flocal=true;;
         *                   ) echo "ERROR: Invalid option: \""$opt"\"" >&2
-                              bye "$NDONE";;
+                              bye "$ndone";;
     esac
 done
 
 if ! [[ $overclock =~ ^[0-9]+$ ]] || ([[ $overclock -lt $min_clk || $overclock -gt $max_clk ]]); then
     
     echo "ERROR: Overclock needs to be an integer rangin from "$min_clk" to "$max_clk"" >&2
-    bye "$NDONE"
+    bye "$ndone"
     
 elif [[ $overclock -ge $wrn_clk ]]; then
     
