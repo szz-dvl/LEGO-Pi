@@ -143,7 +143,6 @@ static void cmp_res(PID *, STAT * [], STAT * [], int);
 static void mot_cal(MOTOR *, int, double);
 static void * mcal_thread(void * arg);
 static void mpid_load_coef(PID *, double *, double *, int);
-static void prac(int, double *);
 static void pid_launch(MOTOR *, int, int, dir, double, bool);
 static void * mv_thread(void *);
 static bool mot_fwd(MOTOR *, int);
@@ -1527,24 +1526,6 @@ static int get_len(double in[]){
   return i;
 
 }
-
-
-/*Cacota que hay que quitar 
-void prac (int len, double * vec){
-
-int i=0;
-double val;
- for (; i < len; i++){
-   val = vec[i];
-   if( ( (i != 0) && ((i%30) == 0) ) )
-     printf("%5.25f\n", (double)val);
-   else
-     printf("%5.25f, ", (double)val);
- }
- printf("\n\n");
-
-}
-*/
 
 static void init_acums(int turns, MOTOR * m){
   
