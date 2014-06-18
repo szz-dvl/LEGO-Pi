@@ -127,7 +127,7 @@ if ! [[ "$uninstall" == "true" ]]; then
 	if ! [ -d "$wpi_ins" ]; then
 	    mkdir "$wpi_ins"
 	    bold "Unable to fetch wiringPi, using a local copy, it might be outdated ...\n"
-	    tar -xvzf "$wpi_sec" -C "$wpi_ins"
+	    tar -xvzf "$wpi_sec" -C "$wpi_ins" >/dev/null
 	fi
 	
     else
@@ -150,7 +150,7 @@ if ! [[ "$uninstall" == "true" ]]; then
     sudo make i2c && make && sudo make install && make test && make clean
     cd "$mydir"
 
-    bold "\nLEGO_Pi successfully installed" ; echo "You will find the documentation in de the \"docs\" direcory"
+    bold "\nLEGO_Pi successfully installed, check for errors if this is not the case." ; echo "You will find the documentation in de the \"docs\" direcory"
 
 else #uninstall
 
@@ -161,7 +161,6 @@ else #uninstall
 	bold "\nUninstalling dependences ..."
 
 	if [ -d "$wpi_ins" ]; then
-	    echo "entro i no entro"
 	    cd "$wpi"
             sudo make uninstall
 	    cd "$wpi_dev"
@@ -198,7 +197,7 @@ else #uninstall
 	rm "$wpi_patch"
     fi
 
-    bold "\nLEGO_Pi successfully uninstalled"
+    bold "\nLEGO_Pi successfully uninstalled, check for errors if this is not the case."
     #Quitar seds, por lo menos de bashrc...
     
 fi
