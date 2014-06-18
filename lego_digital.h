@@ -1,3 +1,23 @@
+/*
+* This file is part of LEGO-Pi.
+*
+* Copyright (Copyplease) szz-dvl.
+*
+*
+* License
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Affero General Public License as published
+* by the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Affero General Public License for more details at
+* <http://www.gnu.org/licenses/agpl-3.0-standalone.html>
+*/
+
 #include "lego_shared.h"
 #include <lego/lego_i2c.h>
 
@@ -15,7 +35,7 @@
 #define RAW_LEN          2
 #define US_DWAIT         4000
 #define US_IWAIT         3000
-#define US_CWAIT         19000 //avanti
+#define US_CWAIT         19000 
 #define HT_DLY           0
 #define DEF_DELAY        5000
 
@@ -179,6 +199,7 @@ typedef enum {
 
 }msgIdx;
 
+/*This ones allways return 0xFF to me, I think the registers aren't available, however may be more recent versions if the Ultrasonic supporting it....*/
 //{0x50, 1, IWAIT, "Actual Zero: "}, 
 //{0x51, 1, IWAIT, "Actual Scale Factor: "},
 //{0x52, 1, IWAIT, "Actual Scale Divisor: "},

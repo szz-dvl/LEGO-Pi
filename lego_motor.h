@@ -1,3 +1,23 @@
+/*
+* This file is part of LEGO-Pi.
+*
+* Copyright (Copyplease) szz-dvl.
+*
+*
+* License
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Affero General Public License as published
+* by the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Affero General Public License for more details at
+* <http://www.gnu.org/licenses/agpl-3.0-standalone.html>
+*/
+
 #include "lego_shared.h"
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_statistics.h>
@@ -7,8 +27,8 @@
 
 
 #define HW_PWM			DELAY_VIA_PWM
-#define ST_US		        3000//microseconds 20000
-#define PWIG_DEF 	        15//PULSE_WIDTH_INCREMENT_GRANULARITY_US_DEFAULT//20 //2
+#define ST_US		        3000
+#define PWIG_DEF 	        15
 #define MAX_PW			ST_US / PWIG_DEF
 #define BASE			400
 #define MAX_THREADS		2
@@ -39,24 +59,24 @@ typedef enum {
 typedef pthread_mutex_t MUTEX;
 
 struct encoder {
-  int pin;		                /*  pin gpio  */
-  int tics;                             /* tics que el motor ha recorregut des de l'ultim reset */
-  TSPEC tmp;     		        /* temps base per calcular els delays, esta aqui per comoditat */ /* s'usa diferent per PID*/
-  void (*isr)(void);                    /* punter a la rutina d'interrupcio us intern de la llibreria */ //FAILING NOW!!
-  MUTEX mtx;			        /* mutex per actualitzar els valors*/
+  int pin;		                /* pin gpio  */
+  int tics;                             /* ticks since the last reset */
+  TSPEC tmp;     		        /* TSPEC structure, used for the default ISRs */ 
+  void (*isr)(void);                    /* pointer to the function that will be executed every time a tick comes, namely ISR */ 
+  MUTEX mtx;			        /* mutex used by the default ISRs */
 };
 typedef struct encoder ENC;
 
 struct pid {
   bool active;
-  int svel;			       /* step velocitat */
-  double cp[MAX_COEF];                 /* coeficients polinomi interpolador objectiu PID  << DEPRECATED ara son els punts absices directament */
-  double cd[MAX_COEF];                 /* coeficients polinomi interpolador error objectiu PID << DEPRECATED ara son els punts absices directament */
-  double kp;			       /*     gains	*/
+  int svel;			       /* velocity step */
+  double cp[MAX_COEF];                 /* time between ticks array */
+  double cd[MAX_COEF];                 /* physical error array */
+  double kp;			       /* gains	*/
   double ki;
   double kd;
-  double ttc;			       /* calibracio PID cada "ttc" ticks*/
-  gsl_interp_accel *accelM;
+  double ttc;			       /* PID calibration every "ttc" ticks*/
+  gsl_interp_accel *accelM;            /* accelerator for interpolations on the data set */
   gsl_interp_accel *accelD;
 
 };
@@ -64,25 +84,19 @@ typedef struct pid PID;
 
 struct motor {
   int id;
-  int pinf;           /* pin en el que s'ha de genrar el pols si volem avan?ar */
-  int pinr;           /* pin en el que hem de generar el pols si volem retrocedir */
-  int chann;          /* canal DMA en el que configurarem el pols PWM, ha d'estar entre 0 i 14 (15 canals disponibles) */
-  bool moving;	      /* bool = true si el motor s'esta movent, false altrament */
-  int ticsxturn;      /* emagatzema els ticsxturn */
-  ENC * enc1;         /* struct encoder 1 */
-  ENC * enc2;         /* struct encoder 2 */
-  PID * pid;          /* struct pid */ 
+  int pinf;                            /* pin responsible of the forward motion */
+  int pinr;                            /* pin responsible of the forward motion */
+  int chann;                           /* DMA channel, to generate the pulses */
+  bool moving;	                       /* bool = true if the motor is in motion, false otherwise */
+  int ticsxturn;                       /* expected tics per a turn of the output hub */
+  ENC * enc1;                          /* encoder line 1 */
+  ENC * enc2;                          /* encoder line 2 */
+  PID * pid;                           /* P.I.D */ 
 };
 typedef struct motor MOTOR;
 
 enum mot1 {M1_PINF = 4, M1_PINR = 17, M1_ENC1 = 27, M1_ENC2 = 22, M1_CHANN = 8}; //8!!
 enum mot2 {M2_PINF = 25, M2_PINR = 18, M2_ENC1 = 24, M2_ENC2 = 23, M2_CHANN = 6};
-
-	/* Cosillas del debug */
-
-#define CLK_TST		CLOCK_MONOTONIC
-
-	/* End Cosillas del debug */
 
 
 ENC edisable;

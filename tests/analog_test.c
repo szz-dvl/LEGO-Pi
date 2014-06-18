@@ -1,3 +1,23 @@
+/*
+* This file is part of LEGO-Pi.
+*
+* Copyright (Copyplease) szz-dvl.
+*
+*
+* License
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Affero General Public License as published
+* by the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Affero General Public License for more details at
+* <http://www.gnu.org/licenses/agpl-3.0-standalone.html>
+*/
+
 #include <lego/lego_analog.h>
 #include <string.h>
 #include <math.h>
@@ -118,7 +138,6 @@ int main(int argc, char * argv[]) {
 	else  
 	  ag_lgt_set_led(&l2, true);
 	
-	//sprintf(straux, "Setting ligh %s on port %d\n", ag_lgt_get_ledstate(&l3) ? "OFF" : "ON", l3.port);
 	if (ag_lgt_get_ledstate(&l3))
 	  ag_lgt_set_led(&l3, false);
 	else  

@@ -1,3 +1,23 @@
+/*
+* This file is part of LEGO-Pi.
+*
+* Copyright (Copyplease) szz-dvl.
+*
+*
+* License
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Affero General Public License as published
+* by the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Affero General Public License for more details at
+* <http://www.gnu.org/licenses/agpl-3.0-standalone.html>
+*/
+
 #include "lego_analog.h"
 
 INIT            status;
@@ -10,7 +30,6 @@ static bool     lpin_state [] = {false, false, false, false};
 static int      ypin_port  [] = {L_PORT0, L_PORT1, L_PORT2, L_PORT3};
 
 static int      act_gyro = HT_GYRO_DEF;
-//static int      last_gyro = 0;
 
 static uint8_t  spiMode = 3; 
 static uint8_t  spiBPW = 8 ;
@@ -18,9 +37,6 @@ static char    *spiDev0 = "/dev/spidev0.0" ;
 static char    *spiDev1 = "/dev/spidev0.1" ;
 static int      spiAvg = 10 ;
 static int      ag_log_lvl = LOG_LVL_ADV ;
-
-//static uint8_t spiBPWOUT = 8 ;
-
 
 static int      SPI_receive (int, uint8_t [], int);
 static double   analog_read_voltage (ANDVC * dvc);
@@ -240,10 +256,8 @@ extern bool ag_new ( ANDVC* dvc, int port, agType type ) {
       } else {
 	dvc->type = type;
 	if (type == LIGHT)
-	  //pinMode(ypin_port[dvc->port], OUTPUT);
 	  digitalWrite(ypin_port[dvc->port],LOW);
        else if(type == SOUND)
-	  //pinMode(ypin_port[dvc->port], OUTPUT);
 	  digitalWrite(ypin_port[dvc->port], HIGH);
       }
     }

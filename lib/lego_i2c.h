@@ -1,5 +1,22 @@
-#include <stdint.h>
-#include <stdbool.h>
+/*
+* This file is part of LEGO-Pi.
+*
+* Copyright (Copyplease) szz-dvl.
+*
+*
+* License
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Affero General Public License as published
+* by the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Affero General Public License for more details at
+* <http://www.gnu.org/licenses/agpl-3.0-standalone.html>
+*/
 
 #define LOG_PRINT               1
 #define LOG_QUIET               0
@@ -26,9 +43,9 @@
 //ONLY to be usen in INPUT MODE
 #define STATE(pin)               ((gpio_reg[IN_LVL_OFFSET] & (1 << pin)) != 0)
 
-#define GPPUD_DISABLE           0x0      /**< Disables the resistor */
-#define GPPUD_PULLDOWN          0x1      /**< Enables a pulldown resistor */
-#define GPPUD_PULLUP            0x2      /**< Enables a pullup resistor */
+#define GPPUD_DISABLE           0x0      /* Disables the resistor */
+#define GPPUD_PULLDOWN          0x1      /* Enables a pulldown resistor */
+#define GPPUD_PULLUP            0x2      /* Enables a pullup resistor */
 
 #define GPPUD_OFFSET            0x000094
 #define GPPUDCLK0_OFFSET        0x000098

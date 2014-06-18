@@ -1,3 +1,23 @@
+/*
+* This file is part of LEGO-Pi.
+*
+* Copyright (Copyplease) szz-dvl.
+*
+*
+* License
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Affero General Public License as published
+* by the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Affero General Public License for more details at
+* <http://www.gnu.org/licenses/agpl-3.0-standalone.html>
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -146,7 +166,6 @@ extern bool i2c_new_device ( I2C_DVC * dvc, uint8_t addr, int freq, int sda, int
 
   HIGHP(sda);
   HIGHP(scl);
-  //stop_condition(sda, scl,dvc->thold); //guarantee the bus is freed
   HOLD(dvc->thold*4);
 
   return true;
@@ -207,7 +226,6 @@ static bool byte_in (uint8_t len, int sda, int scl, int thold, uint16_t * resp) 
     if(STATE(sda))
       inbyte |= 0x01;
     LOWP(scl);
-    //HOLD(thold);
     i < len-1 ? HOLD(thold) : HOLD(thold*2); //this last clock is enlarged to allow the slave to release the SDA line acknowledging the sended message.
   }
    
@@ -243,8 +261,6 @@ static void nack(int byte, I2C_DVC * dvc, int dir) {
    
   stop_condition(dvc->sda, dvc->scl, dvc->thold); 
 
-  //exit(EXIT_FAILURE);
-
 }
 
 extern void i2c_shutdown (I2C_DVC * dvc){
@@ -254,9 +270,6 @@ extern void i2c_shutdown (I2C_DVC * dvc){
   
   free_pins(dvc->sda,dvc->scl);
   
-  //exit(EXIT_SUCCESS);
-
-
 }
 
 static void free_pins(int sda, int scl) {
@@ -268,7 +281,6 @@ static void free_pins(int sda, int scl) {
 
 static void repeated_start(int sda, int scl, int thold){
   
-  //HOLD(thold*4);
   HIGHP(scl);
   HOLD(thold*2);
   HIGHP(sda);
@@ -285,20 +297,16 @@ static void repeated_start(int sda, int scl, int thold){
 }
 static void stop_condition(int sda, int scl, int thold) {
   
-  /*LOWP(scl);
-  HOLD(thold);
-  HIGHP(sda);
-  HOLD(thold);*/
   HIGHP(sda);
   HIGHP(scl);
   HOLD(thold);
   LOWP(sda);
   HOLD(thold*2);
   LOWP(scl);
-  HOLD(thold); //added
+  HOLD(thold); 
   HIGHP(sda);
   HIGHP(scl);
-  HOLD(thold); //added
+  HOLD(thold); 
   
 
 }
@@ -341,11 +349,11 @@ extern bool i2c_transfer (I2C_DVC * dvc, uint8_t * data_out, int len_out, bool r
     to_send[i] = data_out[i-1];
 
   /*  START condition */ 
-  //HOLD(dvc->thold);
+ 
   LOWP(dvc->sda);
   HOLD(dvc->thold);
   LOWP(dvc->scl);
-  
+ 
   /* END START condition */
   
   for (i=0; i<=len_out; i++){

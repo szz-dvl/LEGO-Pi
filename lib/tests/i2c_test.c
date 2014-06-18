@@ -1,3 +1,24 @@
+/*
+* This file is part of LEGO-Pi.
+*
+* Copyright (Copyplease) szz-dvl.
+*
+*
+* License
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Affero General Public License as published
+* by the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Affero General Public License for more details at
+* <http://www.gnu.org/licenses/agpl-3.0-standalone.html>
+*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -7,7 +28,7 @@
 
 #include "../lego_i2c.h"
 
-#define DVC_ADDR     0x02 //de moment vale pa toos
+#define DVC_ADDR     0x02 
 #define FREQ         9600 //baudios/Hz
 #define SDA_1          27
 #define SCL_1          17
@@ -37,28 +58,6 @@
 #define IWAIT          3000
 #define CWAIT          19000
 
-/*typedef enum { //a pendre pel cacas
-
-  US_PROD_VERS = 0x00,
-  US_PROD_ID = 0x08,
-  US_SENSOR_TYPE = 0x10,
-  US_FACTORY_ZERO = 0x11,
-  US_FACTORY_SCALE_FACTOR = 0x12,
-  US_FACTORY_SCALE_DIV = 0x13,
-  US_MEASUREMENT_UNITS = 0x14,
-  US_MEASUREMENT_INTERV = 0x40,
-  US_CMD_STATE = 0x41,
-  US_DIST_0 = 0x42,
-  US_DIST_1 = 0x43,
-  US_DIST_2 = 0x44,
-  US_DIST_3 = 0x45,
-  US_DIST_4 = 0x46,
-  US_DIST_5 = 0x47,
-  US_DIST_6 = 0x48,
-  US_DIST_7 = 0x49
-
-  } rdRegs;
-*/
 enum cmdSetters {
  
   US_SET_MEASUREMENT_INTERV = 0x40,
@@ -228,7 +227,6 @@ int main (int argc, char * argv[]){
 	else
 	  printf("%s%u\n", usregs[i].def, data_in[0]);
 
-	//sleep(1);
       }
       i2c_shutdown(&us);
     }
@@ -266,10 +264,8 @@ int main (int argc, char * argv[]){
 		auxraw <<= BYTE_LEN;
 		auxraw |= (data_in[0] & 0xff);
 	      }
-	      //printf("INDEX: %d,AUXRAW_0x%02x: 0x%04x, data_in: 0x%04x\n",i, cregs[i].base + k, auxraw, data_in[0]);
 	    }
 	    
-	    //sleep(1);
 	  } else 
 	    printf("NAK sending >> %s0x%02x\n", cregs[i].def, cregs[i].base + k);  
 	  
@@ -324,14 +320,14 @@ int main (int argc, char * argv[]){
 	  } else 
 	    printf("NAK sending >> %s0x%02x\n", irsregs[i].def, irsregs[i].base + k);  
 	  
-	}// la k
+	}
 	if(i < IRS_BASE_DATA) {
 	  str_aux[k] = '\0';
 	  printf("%s%s\n", irsregs[i].def, str_aux);
 	} else
 	  printf("%s0x%02x / %u\n", irsregs[i].def, data_in[0], data_in[0]);
 	
-     }//la i
+     }
      i2c_shutdown(&irs);
    }
    break;; 
@@ -346,7 +342,6 @@ int main (int argc, char * argv[]){
       int scl = port == 1 ? SCL_1 : SCL_2;
       
       int x = 0, y = 0 ,z = 0;
-      //uint16_t x_aux = 0, y_aux = 0, z_aux = 0;
  
       I2C_DVC acc;
       
@@ -369,37 +364,31 @@ int main (int argc, char * argv[]){
 	      case 0x42:
 		{
 		  x = data_in[0] & 0x80 ? (data_in[0] - 256) << 2 : data_in[0] << 2;
-		  //printf("Xupper: %d, data: %u\n", x, data_in[0]);
 		}
 		break;;
 	      case 0x43:
 		{
 		  y = data_in[0] & 0x80 ? (data_in[0] - 256) << 2 : data_in[0] << 2;
-		  //printf("Yupper: %d, data: %u\n", y, data_in[0]);
 		}
 		break;;
 	      case 0x44:
 		{
 		  z = data_in[0] & 0x80 ? (data_in[0] - 256) << 2 : data_in[0] << 2;
-		  //printf("Zupper: %d, data: %u\n", z, data_in[0]);
 		}
 		break;;
 	      case 0x45:
 		{
 		  x |= data_in[0] & 0x03;
-		  //printf("X all: %d, data: %u\n", x, data_in[0]);
 		}
 		break;;
 	      case 0x46:
 		{
 		  y |= data_in[0] & 0x03;
-		  //printf("Y all: %d, data: %u\n", y, data_in[0]);
 		}
 		break;;
 	      case 0x47:
 		{
 		  z |= data_in[0] & 0x03;
-		  //printf("X all: %d, data: %u\n", z, data_in[0]);
 		}
 		break;;
 	      default:
@@ -410,19 +399,19 @@ int main (int argc, char * argv[]){
 	  } else 
 	    printf("NAK sending >> %s0x%02x\n", acregs[i].def, acregs[i].base + k);  
 	  
-	}// la k
+	}
 	if(i < AC_BASE_DATA) {
 	  str_aux[k] = '\0';
 	  printf("%s%s\n", acregs[i].def, str_aux);
 	} 	
-      }//la i
+      }
       
       printf("X: %d\n", x);
       printf("Y: %d\n", y);
       printf("Z: %d\n", z);
       sleep(1);
       
-      }//while
+      }
       i2c_shutdown(&acc);
     }
     break;; 
@@ -457,26 +446,22 @@ int main (int argc, char * argv[]){
 	      switch(comregs[i].base + k){
 	      case 0x42:
 		{
-		  dsigned = (int) data_in[0]*2;//(data_in[0]*2) > 127 ? (data_in[0] - 256) << 1 : data_in[0] << 1;
-		  //printf("dsigned 0x42: %d, data: %u\n", dsigned, data_in[0]);
+		  dsigned = (int) data_in[0]*2;
 		}
 		break;;
 	      case 0x43:
 		{
-		  dsigned += data_in[0];// & 0x80 ? (data_in[0] - 256) << 2 : data_in[0] << 2;
-		  //printf("dsigned 0x43: %d, data: %u\n", dsigned, data_in[0]);
+		  dsigned += data_in[0];
 		}
 		break;;
 	      case 0x44:
 		{
-		  dunsigned = data_in[0]; //& 0x80 ? (data_in[0] - 256) << 2 : data_in[0] << 2;
-		  //printf("dunsigned 0x44: %u,  data: %u\n", dunsigned, data_in[0]);
+		  dunsigned = data_in[0]; 
 		}
 		break;;
 	      case 0x45:
 		{
 		  dunsigned |= data_in[0] << BYTE_LEN;
-		  //printf("dunsigned 0x45: %u,  data: %u\n", dunsigned, data_in[0]);
 		}
 		break;;
 	      default:
@@ -487,14 +472,14 @@ int main (int argc, char * argv[]){
 	  } else 
 	    printf("NAK sending >> %s0x%02x\n", comregs[i].def, comregs[i].base + k);  
 	  
-	}// la k
+	}
 	if(i < COM_BASE_DATA){
 	  str_aux[k] = '\0';
 	  printf("%s%s\n", comregs[i].def, str_aux);
 	} else if(comregs[i].base == 0x41)
 	  printf("%s0x%02x / %u\n", comregs[i].def, data_in[0], data_in[0]);
 	
-      }//la i
+      }
       
       printf("Degree signed: %d\n", dsigned);
       printf("Degree unsigned: %u\n", dunsigned);
@@ -502,7 +487,7 @@ int main (int argc, char * argv[]){
       i2c_shutdown(&com);
     }
     break;;
-  case 7: //raspidillu
+  case 7: //useless test ...
     {
       I2C_DVC col;
       

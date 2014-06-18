@@ -1,3 +1,24 @@
+#;
+############################################################################
+# This file is part of LEGO-Pi.						   #
+#									   #
+# Copyright (Copyplease) szz-dvl.					   #
+# 									   #	
+#									   #	
+# License								   #	
+#                                                                          #
+# This program is free software: you can redistribute it and/or modify     #
+# it under the terms of the GNU Affero General Public License as published #
+# by the Free Software Foundation, either version 3 of the License, or     #
+# (at your option) any later version.                                      #
+#  									   #
+# This program is distributed in the hope that it will be useful,          #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of           #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the             #
+# GNU Affero General Public License for more details at                    #
+# <http://www.gnu.org/licenses/agpl-3.0-standalone.html>                   #
+############################################################################
+
 DESTDIR=./
 
 DEBUG	= -g -O2
@@ -14,7 +35,7 @@ KRED = "\e[31m
 # Should not alter anything below this line
 ###############################################################################
 
-EXE = interpol dg_test ag_test mt_test motion
+EXE = dg_test ag_test mt_test
 
 all: $(EXE)
 
@@ -27,17 +48,9 @@ mt_test:
 	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
 	@$(CC) $(CFLAGS) motor_test.c $(LIBS) -o $@
 
-interpol:
-	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
-	@$(CC) $(CFLAGS) interpolation.c $(LIBS) -o $@
-
 dg_test:
 	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
 	@$(CC) $(CFLAGS) digital_test.c $(LIBS) -o $@
-
-motion:
-	@/bin/echo -e $(KRED)[Making test]$(KNRM) $@
-	@$(CC) $(CFLAGS) motion.c $(LIBS) -o $@
 
 
 .PHONEY: clean
@@ -49,8 +62,6 @@ clean:
 uninstall:
 	@/bin/echo -e $(KRED)[UnInstall Tests]$(KNRM)
 	@rm -f $(DESTDIR)/mt_test
-	@rm -f $(DESTDIR)/interpol
 	@rm -f $(DESTDIR)/dg_test
 	@rm -f $(DESTDIR)/ag_test
-	@rm -f $(DESTDIR)/motion
 

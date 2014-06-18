@@ -1,3 +1,23 @@
+/*
+* This file is part of LEGO-Pi.
+*
+* Copyright (Copyplease) szz-dvl.
+*
+*
+* License
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Affero General Public License as published
+* by the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Affero General Public License for more details at
+* <http://www.gnu.org/licenses/agpl-3.0-standalone.html>
+*/
+
 #include <lego/lego_digital.h>
 #include <getopt.h>
 
@@ -264,8 +284,6 @@ int main (int argc, char * argv[]) {
 	printf("Error creating device\n");
 
       if(ret){
-	
-	//dg_send_cmd(&irs, HTIS_DSP_12);
 	
 	if(!dg_get_state(&irs, &state))
 	  printf("Error getting initial state\n");

@@ -1,11 +1,34 @@
-//#include <lego/lego_i2c.h>
+/*
+* This file is part of LEGO-Pi.
+*
+* Copyright (Copyplease) szz-dvl.
+*
+*
+* License
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Affero General Public License as published
+* by the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Affero General Public License for more details at
+* <http://www.gnu.org/licenses/agpl-3.0-standalone.html>
+*/
+
+/*
+TO DO [18-6-2014]: keep track of the mode of the sensors, specially for versions 2 
+*/
+
 #include "lego_digital.h"
 
 INIT              status;
 
 static uint8_t    port_busy = 0;
 
-static I2C_DVC    ** ptable; //to shutdown every device initialized 
+static I2C_DVC    ** ptable; /* to shutdown every device initialized */ 
 
 static int        retries;
 
@@ -396,7 +419,6 @@ static void get_version (DGDVC * dev) {
 	vaux[0] = (char)data_in[0];
 	vaux[1] = '\0';
 	dev->vers = atoi(vaux);
-	//printf("DEBUG: vaux = %s, data_in = %u, vers = %d\n", vaux, data_in[0], dev->vers);
       }
     
   } else { //Ultrasonic
@@ -555,9 +577,6 @@ extern bool dg_col_get_rgb (DGDVC * dvc, uint8_t * red, uint8_t * green, uint8_t
     if (dvc->type == HT_COLOR) {
       
       uint16_t taux[1];
-      
-      //if(dvc->vers == 2)
-      //send_cmd(dvc, HTCS_ACT_MD);
     
       if ((ret = send_message(dvc, HTCS_RED, taux)))
 	*red = (uint8_t)taux[0];
@@ -627,8 +646,6 @@ extern bool dg_col_get_norm (DGDVC * dvc, uint8_t * red, uint8_t * green, uint8_
 	
       } else if(dvc->vers == 2) {
 	
-	//send_cmd(dvc, HTCS_ACT_MD);
-	
 	if ((ret = send_message(dvc, HTCS2_NRM_RED, taux)))
 	  *red = (uint8_t)taux[0];
 	else 
@@ -686,9 +703,7 @@ extern bool dg_col_get_index (DGDVC * dvc, uint8_t * idx){
 	}      
 	
       } else if(dvc->vers == 2) {
-	
-	//send_cmd(dvc, HTCS_ACT_MD);
-	
+		
 	if(send_message(dvc, HTCS2_COL_IDX, taux))
 	  *idx = (uint8_t)taux[0];
 	else {
@@ -720,9 +735,6 @@ extern bool dg_col_get_number (DGDVC * dvc, uint8_t * num){
     if(dvc->type == HT_COLOR) {
     
       uint16_t taux[1];
-    
-      //if (dvc->vers == 2) 
-      //send_cmd(dvc, HTCS_ACT_MD);
     
       if(send_message(dvc, HTCS_COL_NUM, taux))
 	*num = (uint8_t)taux[0];
@@ -758,7 +770,6 @@ extern bool dg_col_get_white (DGDVC * dvc, uint16_t * white, bool raw, bool pass
       
       if (dvc->vers == 2) { 
 	if(!raw) {
-	  //send_cmd(dvc, HTCS_ACT_MD);
 	  
 	  if(send_message(dvc, HTCS2_WHITE, taux))
 	    *white = taux[0];
@@ -899,7 +910,7 @@ extern bool dg_col_get_raw (DGDVC * dvc, uint16_t * red, uint16_t * green, uint1
 	
 	if(!send_cmd(dvc, HTCS_ACT_MD)){
 	  not_critical("dg_col_get_raw: Reenable active mode failed.\n");
-	  goto back_to_def; //insisto...
+	  goto back_to_def; 
 	}
       }
       
@@ -1070,7 +1081,6 @@ extern bool dg_irs_get_allstr (DGDVC * dvc, uint8_t strt [], bool dc) {
       
       uint16_t taux[1];
       int i;
-      //strt = (uint8_t *)malloc(5*sizeof(uint8_t));
       
       if(dc) {
 	
@@ -1189,7 +1199,7 @@ extern bool dg_us_get_dist (DGDVC * dvc, uint8_t * dist, int num) {
     if(num !=0 ){
       if(!send_cmd(dvc, US_CONT_MES)){
 	not_critical("dg_us_get_dist: Error setting back continious measurement mode.\n");
-	goto back_to_def; //insisto...
+	goto back_to_def; 
       }
     }
     
@@ -1222,7 +1232,7 @@ extern bool dg_us_get_alldist (DGDVC * dvc, uint8_t tdist []) {
       
       if(!send_cmd(dvc, US_SIN_SHOT)){
 	not_critical("dg_us_get_alldist: Error setting single shot mode\n");
-	goto back_to_def; //vaya a ser que...
+	goto back_to_def; 
       }
       
       for (i=0; i<=MAX_US_DIST; i++) {

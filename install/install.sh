@@ -12,9 +12,9 @@ wpi_git=git://git.drogon.net/wiringPi
 wpi_patch="$mydir"/patch/wpi.patch
 lego_pi="$mydir"/../
 wpi="$mydir"/wpi/wiringPi
-wpi_ins="$mydir"/wpi/
-wpi_dev="$wpi_ins"/devLib
-wpi_gpio="$wpi_ins"/gpio
+wpi_ins="$mydir"/wpi
+wpi_dev="$mydir"/wpi/devLib
+wpi_gpio="$mydir"/wpi/gpio
 patch_files=( wiringPi.c wiringPi.h softPwm.c softPwm.h )
 patch_dir="$mydir"/patch/files
 tmp_d="$mydir"/patch/tmp
@@ -120,7 +120,13 @@ if ! [[ "$uninstall" == "true" ]]; then
 	sudo rm -r "$wpi_ins"
     fi
 
-    git clone "$wpi_git" "wpi"
+    if ! [ -d "$wpi_ins" ]; then
+	git clone "$wpi_git" "wpi"
+    else
+	cd "$wpi_ins"
+	git pull origin
+    fi
+
     make_patch
     cd "$wpi"
     patch -N -s -p7 < "$wpi_patch"
@@ -146,23 +152,27 @@ else #uninstall
 
 	bold "\nUninstalling dependences ..."
 
-	cd "$wpi"
-        sudo make uninstall
-	cd "$wpi_dev"
-        sudo make uninstall
-	cd "$wpi_gpio"
-	sudo make uninstall
-	
-	cd "$mydir"
-	sudo rm -r "$wpi_ins"
+	if [ -d "$wpi_ins" ]; then
+	    echo "entro i no entro"
+	    cd "$wpi"
+            sudo make uninstall
+	    cd "$wpi_dev"
+            sudo make uninstall
+	    cd "$wpi_gpio"
+	    sudo make uninstall
 
+	    cd "$mydir"
+	    sudo rm -r "$wpi_ins"
+	fi
+	
 	if [[ "$pkg_man" == "apt-get" ]]; then
 	    sudo "$pkg_man" "--yes" "remove" ${depsu[*]}
 	else
 	    sudo "$pkg_man" ${depsu[*]}
 	fi
-
+	
     elif [ -e "$mylib" ]; then
+	
 	bold "\nUnpatching wiringPi ..."
 	cd "$wpi"
 	patch -R -N -p7 < "$wpi_patch"

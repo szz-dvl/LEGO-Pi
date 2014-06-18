@@ -1,3 +1,23 @@
+/*
+* This file is part of LEGO-Pi.
+*
+* Copyright (Copyplease) szz-dvl.
+*
+*
+* License
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Affero General Public License as published
+* by the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Affero General Public License for more details at
+* <http://www.gnu.org/licenses/agpl-3.0-standalone.html>
+*/
+
 #include "lego_shared.h"
 #include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
@@ -5,8 +25,8 @@
 #define CS	 	0
 #define SPI_CLK		1000000
 #define LEN		4
-#define MAX_VAL		4095  //10 bits de resolució (tot-hi que eren 12...sospito de INL...)
-#define VREF		5     //Voltatge de referencia
+#define MAX_VAL		4095  /* 12 bits of resolution */
+#define VREF		5     /* reference voltage */
 #define MAX_PORT        3
 #define MIN_PORT        0
 #define MAX_DB          100
@@ -23,7 +43,7 @@ typedef enum {
 } agType;
 
 
-enum lports { L_PORT0 = 3, L_PORT1 = 28, L_PORT2 = 2, L_PORT3 = 29 }; //al final 30 -> 28 / 31 -> 29
+enum lports { L_PORT0 = 3, L_PORT1 = 28, L_PORT2 = 2, L_PORT3 = 29 }; 
 
 struct analog_device {
    

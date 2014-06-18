@@ -1,10 +1,28 @@
+/*
+* This file is part of LEGO-Pi.
+*
+* Copyright (Copyplease) szz-dvl.
+*
+*
+* License
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Affero General Public License as published
+* by the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Affero General Public License for more details at
+* <http://www.gnu.org/licenses/agpl-3.0-standalone.html>
+*/
+
 #define MAIN_FILE
 #include "lego_shared.h"
 #include "lego_motor.h"
 #include "lego_analog.h"
 #include "lego_digital.h"
-
-//INIT status;
 
 static void handl_alrm(void);
 static void terminate(int);
@@ -28,28 +46,6 @@ void unexportall(){
   
 }
 
-/*
-void udelay (int us) {
-  
-  TSPEC tini, tfi;
-  clock_gettime(CLK_ID, &tini);
-  clock_gettime(CLK_ID, &tfi);
-  
-  while( difft(&tini, &tfi) < us)
-    clock_gettime(CLK_ID, &tfi);
-  
-}
-
-
-double difft (TSPEC * ini, TSPEC * fi){
-
-  long enano = (fi->tv_nsec - ini->tv_nsec);
-  int esec = (int)(fi->tv_sec - ini->tv_sec);
-  return ((double) esec*1000000+(enano/1000)); //microseconds
-
-}
-*/
-
 void setup_sighandlers(void){
 
   int i;
@@ -57,10 +53,10 @@ void setup_sighandlers(void){
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     
-    if( i != 17 && i != 26 && i != 28) { //avoid sigchld, sigalrm and sigvtalrm
+    if( i != 17 && i != 26 && i != 28) { //avoid sigchld, sigalrm and sigvtalrm, sivtalarm received in some situations, to investigate...
       sa.sa_handler = (void *) terminate;
       sigaction(i, &sa, NULL);
-    } else if ( i == 26 /*|| i == 28*/){ //alarms
+    } else if ( i == 26 ){ //may be modified in next versions
       sa.sa_handler = (void *) handl_alrm;
       sigaction(i, &sa, NULL);
     }
