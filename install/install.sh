@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script is the LEGO-Pi library installer. overclock, HDMI and LIBS export and enable SPI module Missing [16-5-2014]
+# This script is the LEGO-Pi library installer. overclock, HDMI and LIBS export, enable SPI module and Arch-Linux installation Missing [16-5-2014]
 
 
 mydir=`pwd`
