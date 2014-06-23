@@ -74,6 +74,10 @@ i2c:
 	@$(MAKE) -C lib 
 	@$(MAKE) -C lib MAKEFLAGS= install
 	@$(MAKE) -C lib MAKEFLAGS= clean
+demot:
+	@/bin/echo -e $(KRED)[Making demo tests]$(KNRM)
+	@$(MAKE) -C demo MAKEFLAGS= all
+	@$(MAKE) -C demo MAKEFLAGS= clean
 
 test:	
 	@/bin/echo -e $(KRED)[Making Tests]$(KNRM)
@@ -81,6 +85,9 @@ test:
 	@$(MAKE) -C tests MAKEFLAGS= clean
 	@$(MAKE) -C lib/tests
 	@$(MAKE) -C lib/tests MAKEFLAGS= clean
+
+demot_uninstall:
+	@$(MAKE) -C demo MAKEFLAGS= uninstall
 
 test_uninstall:
 	@$(MAKE) -C tests MAKEFLAGS= uninstall
@@ -96,7 +103,7 @@ clean:
 	@$(MAKE) -C tests MAKEFLAGS= clean
 	@$(MAKE) -C lib MAKEFLAGS= clean
 	@$(MAKE) -C lib/tests MAKEFLAGS= clean
-
+	@$(MAKE) -C demo MAKEFLAGS= clean
 
 .PHONEY: tags
 tags: $(SRC)
@@ -137,6 +144,7 @@ uninstall:
 	@$(MAKE) -C tests MAKEFLAGS= uninstall
 	@$(MAKE) -C lib MAKEFLAGS= uninstall
 	@$(MAKE) -C lib/tests MAKEFLAGS= uninstall
+	@$(MAKE) -C demo MAKEFLAGS= uninstall
 	@rm -rf $(DESTDIR)$(PREFIX)/include$(LEGO_DIR)
 	@ldconfig
 
