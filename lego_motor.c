@@ -1746,7 +1746,7 @@ static void pid_launch (MOTOR * m, int vel, int limit, dir dir, double posCtrl, 
     while (!stop) {
       now_tk = get_ticks(m);
 
-      if (now_tk < limit){
+      if ((now_tk < limit) && !(*neend)){
 	
 	clock_gettime(CLK_ID, &ini);
 	
