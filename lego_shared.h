@@ -42,8 +42,8 @@
 #define LOG_LVL_ADV      1
 #define LOG_LVL_FATAL    0
 
-#define DELAY_US(t)      nanosleep((TSPEC*)&(TSPEC){0, t*1000}, NULL) 
-#define DIFFT(ti,tf)     (((*tf).tv_nsec - (*ti).tv_nsec)/1000 + ((*tf).tv_sec - (*ti).tv_sec)*1000000)
+#define DELAY_US(t)      nanosleep((TSPEC*)&(TSPEC){t/1000000, (t-(t/1000000)*1000000)*1000}, NULL)  
+#define DIFFT(ti,tf)     (((*tf).tv_nsec - (*ti).tv_nsec)/1000 + ((*tf).tv_sec - (*ti).tv_sec)*1000000) //check when getting the time from CLOCK_PROCESS_CPUTIME_ID, nanosleeps freeze.
 
 #ifndef SHAREFILE_INCLUDED
 #define SHAREFILE_INCLUDED
