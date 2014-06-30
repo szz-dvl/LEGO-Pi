@@ -19,7 +19,7 @@ ANDVC push;
 
 static int dist = 100;
 static int vel = 90;
-static int posCtrl = 0;
+static double posCtrl = 0;
 static bool sinc = false;
 static int enc = 3;
 static int txt = 720;
@@ -156,12 +156,12 @@ void turn_degrees (int vel, int degrees){
   //printf("turn ticks limit = %d, trayectoria = %.2f\n", limit, (cmtogo/(360/degrees)) );
  
   if (!rotate){
-    mt_move_t (mtr, limit, MY_FWD, vel, posCtrl);
+    mt_move_t (mtr, limit, MY_FWD, vel, 0);
     mt_wait(mtr);
     mt_wait_for_stop(mtr, 2);
   } else {
-    mt_move_t (mtr, limit, MY_FWD, vel, posCtrl);
-    mt_move_t (mtl, limit, MY_BWD, vel, posCtrl);
+    mt_move_t (mtr, limit, MY_FWD, vel, 0);
+    mt_move_t (mtl, limit, MY_BWD, vel, 0);
     first = mt_wait_all();
     mt_wait_for_stop(first == LMT_PORT ? mtr : mtl, 2);
   }
@@ -171,6 +171,8 @@ void turn_degrees (int vel, int degrees){
 int main (int argc, char * argv[]) {
 
   parse_opts(argc,argv);
+  
+  //printf("posCtrl is: %f\n", posCtrl);
   
   double turns, pval;
   int side, ticks, first;

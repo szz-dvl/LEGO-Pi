@@ -345,7 +345,7 @@ extern bool ag_psh_is_pushed (ANDVC * dvc, double * volt) {
     }
     else {  
       *volt = analog_read_voltage(dvc);
-      return *volt < (double)(VREF/2) ;
+      return *volt < ((double)VREF/2) ;
     }
   } else {
     not_critical("ag_psh_is_pushed: Analog interface not initialised.\n");

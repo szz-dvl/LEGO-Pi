@@ -171,6 +171,7 @@ int main (int argc, char * argv[]) {
     while(!ag_psh_is_pushed(&push, &pval));
 
     UDELAY(750000);
+    printf("pval is: %.2f\n", pval);
 
     ag_lgt_set_led(&lright, true);
     ag_lgt_set_led(&lleft, true);
@@ -209,6 +210,7 @@ int main (int argc, char * argv[]) {
     } else { //seguir linea    
  
       while(!ag_psh_is_pushed(&push, &pval)) {
+	//printf("pval is: %.2f\n", pval);
 	
 	if (stop){
 	  stop = false;

@@ -3,14 +3,14 @@
 #include <lego.h>
 
 
-#define US_PORT   1
+#define US_PORT   0
 #define PSH_PORT  2
 #define RMT_PORT  1
 #define LMT_PORT  0
 #define MY_FWD    BWD
 #define MY_BWD    FWD 
 #define SAFE_DST  45
-#define INI_DEG   10
+#define INI_DEG   35
 #define UDELAY(t) DELAY_US(t)
 
 #define WHEEL_RADIUS 2.5 //cm
@@ -27,7 +27,7 @@ static bool sincro = false;
 static bool rotate = false;
 static int enc = 3;
 static int txt = 720;
-static int deg_step = 15;
+static int deg_step = 35;
 static bool left = false;
 
 static void print_usage(const char *prog)
@@ -99,8 +99,6 @@ static void parse_opts(int argc, char *argv[])
 bool doInit () {
   
   lego_init(5,10);
-  dg_set_verbose(LOG_LVL_DBG);
-  
 
   if((mtl = mt_new((enc == 3 || enc == 1) ? NULL : ECNULL, (enc == 3 || enc == 2) ? NULL : ECNULL, LMT_PORT)) == NULL) {
     printf("Error initializing left motor.\n");
@@ -120,7 +118,7 @@ bool doInit () {
   if(!dg_new(&us, LEGO_US, US_PORT)) {
     printf("Error initializing ultrasonic sensor.\n");
     return false;
-  } 
+  }
   
   return true;
 }
@@ -151,8 +149,8 @@ void turn_degrees (int vel, int degrees){
 
   if (!rotate){
     mt_move_t (left ? mtr : mtl, limit, MY_FWD, vel, 0);
-    mt_wait(mtr);
-    mt_wait_for_stop(mtr, 1);
+    mt_wait(left ? mtr : mtl);
+    mt_wait_for_stop(left ? mtr : mtl, 1);
   } else {
     mt_move_t (left ? mtr : mtl, limit, MY_FWD, vel, 0);
     mt_move_t (left ? mtl : mtr, limit, MY_BWD, vel, 0);
@@ -168,9 +166,11 @@ void move_but_think_stupid_robot (int vel) {
   
   move_all(MY_FWD, vel);
   
-  do
+  do{
     dg_us_get_dist(&us, &dst, 0);
-  while (dist > dist);
+    UDELAY(50000);
+  }
+  while (dst > dist);
 
   stop_all();
   mt_wait_for_stop(mtr, 1);
@@ -190,9 +190,11 @@ void look_for_another_path_nasty_machine (bool rotate, int vel) {
     
     dg_us_get_dist(&us, &dst, 0);
     
-    if(dst > dist)
+    if(dst > dist){
       okgo = true;
-    else
+      if (degr >= 180)
+	left = !left;
+    } else
       degr += deg_step;
         
   }
@@ -228,9 +230,6 @@ int main (int argc, char * argv[]) {
     lego_shutdown();
     exit(EXIT_SUCCESS);
   }
-
-
-
 
 } 
 
