@@ -25,7 +25,7 @@ DEBUG	= -g -O2
 CC	= gcc
 INCLUDE	= -I.
 CFLAGS = $(DEBUG) -Wall
-LIBS = -llego -lgsl -lgslcblas -lwiringPi
+LIBS = -llego -lgsl -lgslcblas -lwiringPi -lm
 #-lwiringPi -lrt -llego -lgsl -lgslcblas
 
 

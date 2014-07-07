@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script is the LEGO-Pi library installer. overclock, HDMI and LIBS export, enable SPI module and Arch-Linux installation Missing [16-5-2014]
+# This script is the LEGO-Pi library installer.
 
 
 mydir=`pwd`
@@ -8,6 +8,8 @@ distro=`cat /etc/*-release | grep NAME | grep -v PRETTY | awk -F= {'print $2'} |
 mylib=/usr/lib/liblego.so
 deps=( gsl-bin libgsl0-dev gcc patch ctags git-core make )
 depsu=( gsl-bin libgsl0-dev patch ctags git-core )
+depsarch=( gsl gcc patch ctags git make )
+depsuarch=( gsl patch ctags git )
 wpi_sec="$mydir"/patch/files/wpil.tar.gz
 wpi_git=git://git.drogon.net/wiringPi
 wpi_patch="$mydir"/patch/wpi.patch
@@ -50,7 +52,7 @@ update()
         sudo "$1" "--yes" "update" 
 	sudo "$1" "--yes" "upgrade"
     else
-	sudo "$1""u"
+	sudo pacman -Syu --noconfirm
     fi
 }
 
@@ -64,8 +66,8 @@ bold ()
 
 if [ "$distro" == "Raspbian GNU/Linux" ]; then
     pkg_man=apt-get
-elif [ "$distro" == "Arch-algo" ]; then
-    pkg_man=pacman -Sy
+elif [ "$distro" == "Arch Linux ARM" ]; then
+    pkg_man=pacman
 fi
 
 
@@ -74,9 +76,9 @@ wrn_clk=950
 min_clk=700
 
 # DEFAULTS:
-uninstall=false #install by default
-overclock=800   #little bit of overclocking by default 
-dvideo=true     #disable video outputs PAL/HDMI by default
+uninstall=false #install by default 
+overclock=800   #little bit of overclocking by default [NOT IMPLEMENTED] 
+dvideo=true     #disable video outputs PAL/HDMI by default [NOT IMPLEMENTED]
 rmv_deps=false  #do not remove dependencies by when uninstalling default 
 update=true     #update system by default
 flocal=false    #try to download the latest WiringPi version by default, do not force local
@@ -120,7 +122,7 @@ if ! [[ "$uninstall" == "true" ]]; then
     if [[ "$pkg_man" == "apt-get" ]]; then
 	sudo "$pkg_man" "--yes" "install" ${deps[*]}
     else
-	sudo "$pkg_man" "deps"
+	sudo pacman -Sy --noconfirm ${depsarch[*]}
     fi
 
     if [ -d "$wpi_ins" ]; then
@@ -179,7 +181,7 @@ else #uninstall
 	if [[ "$pkg_man" == "apt-get" ]]; then
 	    sudo "$pkg_man" "--yes" "remove" ${depsu[*]}
 	else
-	    sudo "$pkg_man" ${depsu[*]}
+	    sudo pacman -Rs --noconfirm ${depsuarch[*]}
 	fi
 	
 	cd "$mydir"
